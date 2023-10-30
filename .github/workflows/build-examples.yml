@@ -1,0 +1,30 @@
+name: build-dev
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - .github/workflows/build-dev.yml
+      - server/**
+      - server.Dockerfile
+      - worker.Dockerfile
+      - Cargo.toml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: server.Dockerfile
+          push: false
+          platforms: linux/amd64
+          tags: thepipelinetool-examples-dev:latest
