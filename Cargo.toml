@@ -1,0 +1,10 @@
+[workspace]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+    "thepipelinetool",
+    "runner",
+    "utils",
+    "task",
+]
+resolver = "2"

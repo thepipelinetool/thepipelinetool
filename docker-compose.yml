@@ -1,0 +1,35 @@
+services:
+  dag-server:
+    container_name: dag-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+  dag-worker:
+    build:
+      context: .
+      dockerfile: worker.Dockerfile
+    deploy:
+      mode: replicated
+      replicas: 2
+    restart: always
+
+  db:
+    container_name: db
+    image: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=example
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - 5432
+    #   - ./test/postgres:/var/lib/postgresql/data
+  pgAdmin:
+    container_name: pgAdmin
+    image: dpage/pgadmin4
+    ports:
+      - 8081:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
