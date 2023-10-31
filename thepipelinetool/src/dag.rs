@@ -17,11 +17,11 @@ use utils::{execute_function, function_name_as_string};
 
 pub struct DAG<'a> {
     pub name: &'a str,
+    pub schedule: Option<&'a str>,
     pub nodes: Vec<Task>,
     pub functions: HashMap<String, Box<dyn Fn(Value) -> Value>>,
     pub edges: HashSet<(usize, usize)>,
 }
-pub trait Both: Runner + DefRunner {}
 
 impl<'a> DAG<'a> {
     pub fn new(name: &'a str) -> Self {
@@ -32,9 +32,14 @@ impl<'a> DAG<'a> {
         Self {
             nodes: Vec::new(),
             functions,
+            schedule: None,
             edges: HashSet::new(),
             name,
         }
+    }
+
+    pub fn set_schedule(&mut self, schedule: &'a str) {
+        self.schedule = Some(schedule);
     }
 
     pub fn expand<F, T, G, const N: usize>(
