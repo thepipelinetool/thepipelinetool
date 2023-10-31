@@ -3,7 +3,7 @@ use std::{time::Duration, vec};
 use thepipelinetool::prelude::*;
 
 fn main() {
-    let mut dag = DAG::new("simple_command");
+    let mut dag = DAG::new();
     let a = dag.add_command(
         json!(["bash", "-c", "sleep 3 && echo hello"]),
         TaskOptions {

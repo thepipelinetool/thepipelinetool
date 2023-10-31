@@ -15,7 +15,7 @@ fn main() {
         json!(["hello", "world"])
     }
 
-    let mut dag = DAG::new("direct");
+    let mut dag = DAG::new();
 
     let a = dag.add_task(hi, json!({}), TaskOptions::default());
     // let b = dag.add_task(hi, json!({}), TaskOptions::default());

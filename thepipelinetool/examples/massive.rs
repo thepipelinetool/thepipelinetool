@@ -9,7 +9,7 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new("simple");
+    let mut dag = DAG::new();
 
     // let a = dag.add_task(hi, vec, TaskOptions::default());
 

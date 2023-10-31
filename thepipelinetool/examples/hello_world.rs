@@ -51,7 +51,7 @@ fn hello_world3(args: Value) -> Value {
 
 fn main() {
     // let mut dag = DAG::new(true);
-    let mut dag = DAG::new("hello_world");
+    let mut dag = DAG::new();
     // let mut dag = DAG::new_persistent("".into(), true, SqliteRunner::new());
 
     let task0 = dag.add_task(hello_world0, Value::Null, TaskOptions::default());

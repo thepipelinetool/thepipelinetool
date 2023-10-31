@@ -46,7 +46,7 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new("simple_serialize");
+    let mut dag = DAG::new();
 
     let a = dag.add_task(hi2, Test {val: "hello!!".into()}, TaskOptions::default());
     let _ = dag.add_task_with_ref(hi, &a.value(), TaskOptions::default());

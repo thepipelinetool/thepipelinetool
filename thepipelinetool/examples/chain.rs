@@ -9,7 +9,7 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new("chain");
+    let mut dag = DAG::new();
 
     let a = dag.add_task(hi, json!({}), TaskOptions::default());
     let b = dag.add_task(hi, json!({}), TaskOptions::default());

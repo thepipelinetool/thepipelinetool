@@ -13,7 +13,7 @@ fn main() {
         println!("right");
     }
 
-    let mut dag = DAG::new("simple");
+    let mut dag = DAG::new();
 
     let _a = dag.branch(branch, json!({}), left, right, TaskOptions::default());
 

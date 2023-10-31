@@ -16,7 +16,6 @@ use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::{execute_function, function_name_as_string};
 pub struct DAG<'a> {
-    pub name: &'a str,
     pub schedule: Option<&'a str>,
     pub nodes: Vec<Task>,
     pub functions: HashMap<String, Box<dyn Fn(Value) -> Value>>,
@@ -24,7 +23,7 @@ pub struct DAG<'a> {
 }
 
 impl<'a> DAG<'a> {
-    pub fn new(name: &'a str) -> Self {
+    pub fn new() -> Self {
         let mut functions: HashMap<String, Box<dyn Fn(Value) -> Value>> = HashMap::new();
         let function_name = function_name_as_string(&collector).to_string();
         functions.insert(function_name.clone(), Box::new(collector));
@@ -34,7 +33,6 @@ impl<'a> DAG<'a> {
             functions,
             schedule: None,
             edges: HashSet::new(),
-            name,
         }
     }
 
@@ -351,7 +349,7 @@ impl<'a> DAG<'a> {
 
     pub fn parse_cli(&self) {
         let command = command!()
-            .about(format!("CLI Tool for {}", self.name))
+            .about(format!("DAG CLI Tool"))
             .subcommand(CliCommand::new("tasks").about("Displays tasks"))
             .subcommand(CliCommand::new("edges").about("Displays edges"))
             .subcommand(CliCommand::new("graph").about("Displays graph"))
@@ -392,8 +390,8 @@ impl<'a> DAG<'a> {
                                 )
                                 .required(true),
                             ),
-                    ),
-            );
+                    ).subcommand_required(true),
+            ).subcommand_required(true);
 
         let matches = command.get_matches();
 
@@ -421,7 +419,7 @@ impl<'a> DAG<'a> {
                         .map(|t| t.id)
                         .collect::<Vec<usize>>();
 
-                    let mut output = format!("{}\n", self.name);
+                    let mut output = format!("DAG\n");
                     let mut ts: Vec<usize> = vec![];
 
                     for (index, child) in tasks.iter().enumerate() {

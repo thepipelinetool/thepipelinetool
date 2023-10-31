@@ -12,7 +12,7 @@ fn main() {
         [0, 1]
     }
 
-    let mut dag = DAG::new("dynamic");
+    let mut dag = DAG::new();
 
     let a = dag.add_task(hi2, json!({}), TaskOptions::default());
     let b = dag.expand_lazy(hi, &a, TaskOptions::default());
