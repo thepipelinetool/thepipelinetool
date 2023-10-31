@@ -35,7 +35,7 @@ fn main() {
     // );
 
     let _ = dag.add_task_with_ref(hi, &a, TaskOptions::default());
-    let _ = dag.add_task(hi, a.get("hello"), TaskOptions::default());
+    let _ = dag.add_task_with_ref(hi, &a.get("hello"), TaskOptions::default());
     let b = dag.add_task_with_ref(hi2, &a, TaskOptions::default());
     let _ = dag.add_task_with_ref(hi2, &b, TaskOptions::default());
     // dag.add_task(dag.functions[""].clone(), b.value(), TaskOptions::default());

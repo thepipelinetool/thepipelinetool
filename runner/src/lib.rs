@@ -277,6 +277,8 @@ impl<U: Runner> DefRunner for U {
                         .iter()
                         .map(|id| TaskRef::<Value> {
                             _marker: std::marker::PhantomData,
+                            key: None,
+
                             task_ids: HashSet::from([*id])
                         })
                         .collect::<Vec<TaskRef<Value>>>()),
@@ -302,12 +304,14 @@ impl<U: Runner> DefRunner for U {
                             .replace(
                                 &serde_json::to_string(&TaskRef::<Value> {
                                     _marker: std::marker::PhantomData,
+                                    key: None,
 
                                     task_ids: HashSet::from([task.id]),
                                 })
                                 .unwrap(),
                                 &serde_json::to_string(&TaskRef::<Value> {
                                     _marker: std::marker::PhantomData,
+                                    key: None,
 
                                     task_ids: HashSet::from([collector_id]),
                                 })

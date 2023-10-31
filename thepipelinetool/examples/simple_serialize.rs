@@ -46,10 +46,12 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new("simple");
+    let mut dag = DAG::new("simple_serialize");
 
     let a = dag.add_task(hi2, Test {val: "hello!!".into()}, TaskOptions::default());
-    
+    let _ = dag.add_task_with_ref(hi, &a.value(), TaskOptions::default());
+    let _ = dag.add_task_with_ref(hi, &a.get("res"), TaskOptions::default());
+
     let b = dag.add_task(hi, json!({}), TaskOptions::default());
     let _c = dag.add_task(hi, json!([a.value(), b.get("hello")]), TaskOptions{
         timeout: None,

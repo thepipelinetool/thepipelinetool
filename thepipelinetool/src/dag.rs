@@ -88,6 +88,8 @@ impl<'a> DAG<'a> {
 
             TaskRef {
                 task_ids: HashSet::from([id]),
+                key: None,
+
                 _marker: std::marker::PhantomData,
             }
         })
@@ -134,6 +136,8 @@ impl<'a> DAG<'a> {
 
         TaskRef {
             task_ids: HashSet::from([id]),
+            key: None,
+
             _marker: std::marker::PhantomData,
         }
     }
@@ -179,6 +183,8 @@ impl<'a> DAG<'a> {
 
         TaskRef {
             task_ids: HashSet::from([id]),
+            key: None,
+
             _marker: std::marker::PhantomData,
         }
     }
@@ -230,6 +236,8 @@ impl<'a> DAG<'a> {
 
         let b = TaskRef::<T> {
             task_ids: HashSet::from([id]),
+            key: None,
+
             _marker: std::marker::PhantomData,
         };
 
@@ -281,6 +289,8 @@ impl<'a> DAG<'a> {
 
         TaskRef {
             task_ids: HashSet::from([id]),
+            key: None,
+
             _marker: std::marker::PhantomData,
         }
     }
@@ -300,6 +310,8 @@ impl<'a> DAG<'a> {
 
         TaskRef {
             task_ids: HashSet::from([last]),
+            key: None,
+
             _marker: std::marker::PhantomData,
         }
     }
@@ -313,6 +325,7 @@ impl<'a> DAG<'a> {
 
         TaskRef {
             task_ids,
+            key: None,
             _marker: std::marker::PhantomData,
         }
     }

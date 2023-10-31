@@ -15,12 +15,11 @@ fn main() {
     let b = dag.add_task(hi, json!({}), TaskOptions::default());
     let c = dag.add_task(hi, json!({}), TaskOptions::default());
 
-    dag.seq(&[&c, &b, &a]);
+    let d = dag.add_task(hi, json!({}), TaskOptions::default());
+    let e = dag.add_task(hi, json!({}), TaskOptions::default());
 
-    let _d = dag.add_task(hi, json!({}), TaskOptions::default());
-    let _e = dag.add_task(hi, json!({}), TaskOptions::default());
-
-    // let _ = TaskGroup(vec![d, e]) >> TaskGroup(vec![a]);
+    let p = &dag.par(&[&d, &e]);
+    dag.seq(&[&c, &b, &p, &a]);
 
     let _out = dag.expand(
         hi,
@@ -29,4 +28,5 @@ fn main() {
     );
 
     dag.parse_cli();
+    // println!("{}", dag.get_initial_mermaid_graph());
 }
