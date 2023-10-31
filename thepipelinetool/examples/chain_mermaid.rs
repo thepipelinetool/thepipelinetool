@@ -27,6 +27,6 @@ fn main() {
         TaskOptions::default(),
     );
 
-    dag.apply_cli_args();
+    dag.parse_cli();
     // println!("{}", dag.get_initial_mermaid_graph());
 }

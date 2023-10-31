@@ -17,5 +17,5 @@ fn main() {
 
     let _a = dag.branch(branch, json!({}), left, right, TaskOptions::default());
 
-    dag.apply_cli_args();
+    dag.parse_cli();
 }

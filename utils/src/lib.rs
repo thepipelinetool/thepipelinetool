@@ -33,10 +33,10 @@ pub fn value_to_file(v: &Value, file_path: &str) {
     file.write_all(json_string.as_bytes()).unwrap();
 }
 
-pub fn execute_function(args: &[String], task_function: &dyn Fn(Value) -> Value) {
-    let task_args = value_from_file(&args[3]);
+pub fn execute_function(in_file: &str, out_file: &str, task_function: &dyn Fn(Value) -> Value) {
+    let task_args = value_from_file(in_file);
     let task_result = (task_function)(task_args);
 
-    value_to_file(&task_result, &args[2]);
+    value_to_file(&task_result, out_file);
     process::exit(0);
 }

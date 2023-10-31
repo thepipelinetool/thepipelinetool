@@ -41,5 +41,5 @@ fn main() {
     // dag.add_task(dag.functions[""].clone(), b.value(), TaskOptions::default());
     // println!("{}", dag.get_mermaid_graph());
 
-    dag.apply_cli_args();
+    dag.parse_cli();
 }

@@ -17,5 +17,5 @@ fn main() {
     let k: &[usize; 10000] = binding.as_slice().try_into().unwrap();
     let _ = dag.expand(hi, k, TaskOptions::default());
 
-    dag.apply_cli_args();
+    dag.parse_cli();
 }

@@ -17,5 +17,5 @@ fn main() {
 
     let _c = vec![a, b];
 
-    dag.apply_cli_args();
+    dag.parse_cli();
 }

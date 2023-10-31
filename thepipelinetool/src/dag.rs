@@ -5,16 +5,21 @@ use std::{
     process::Command,
 };
 
+use clap::{
+    arg,
+    builder::{PossibleValuesParser, StringValueParser, TypedValueParser},
+    command, value_parser, ArgAction, Command as CliCommand,
+};
 use runner::{
     collector,
     local::{hash_dag, LocalRunner},
     DefRunner, Runner,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, value, Value};
+use std::path::PathBuf;
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::{execute_function, function_name_as_string};
-
 pub struct DAG<'a> {
     pub name: &'a str,
     pub schedule: Option<&'a str>,
@@ -336,78 +341,142 @@ impl<'a> DAG<'a> {
         )
     }
 
-    pub fn apply_cli_args(&self) {
-        let args: Vec<String> = env::args().collect();
+    pub fn parse_cli(&self) {
+        let command = command!()
+            .about(format!("CLI Tool for {}", self.name))
+            .subcommand(CliCommand::new("tasks").about("Displays tasks"))
+            .subcommand(CliCommand::new("edges").about("Displays edges"))
+            .subcommand(CliCommand::new("graph").about("Displays graph"))
+            .subcommand(CliCommand::new("hash").about("Displays hash"))
+            .subcommand(CliCommand::new("tree").about("Displays tree"))
+            .subcommand(
+                CliCommand::new("run")
+                    .subcommand(
+                        CliCommand::new("local").about("Runs dag locally").arg(
+                            arg!(
+                                [mode] "Mode for running locally"
+                            )
+                            .required(false)
+                            .value_parser(value_parser!(String))
+                            .default_values(&["max", "--blocking"])
+                            .default_missing_value("max"),
+                        ),
+                    )
+                    .subcommand(
+                        CliCommand::new("function")
+                            .about("Runs function")
+                            .arg(
+                                arg!(
+                                    <function_name> "Function name"
+                                )
+                                .required(true),
+                            )
+                            .arg(
+                                arg!(
+                                    <out_path> "Output file"
+                                )
+                                .required(true),
+                            )
+                            .arg(
+                                arg!(
+                                    <in_path> "Input file"
+                                )
+                                .required(true),
+                            ),
+                    ),
+            );
 
-        if args.len() == 1 {
-            return;
-        }
+        let matches = command.get_matches();
 
-        let cmd = args[1].as_str();
-
-        match cmd {
-            "tasks" => {
-                println!("{}", serde_json::to_string_pretty(&self.nodes).unwrap());
-            }
-            "edges" => {
-                println!("{}", serde_json::to_string_pretty(&self.edges).unwrap());
-            }
-            "graph" => {
-                print!("{}", self.get_initial_mermaid_graph());
-            }
-            "hash" => {
-                print!("{}", self.hash());
-            }
-            "tree" => {
-                let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
-                let dag_run_id = runner.enqueue_run("local", "");
-                let tasks = runner
-                    .get_default_tasks()
-                    .iter()
-                    .filter(|t| runner.get_upstream(&dag_run_id, &t.id).is_empty())
-                    .map(|t| t.id)
-                    .collect::<Vec<usize>>();
-
-                let mut output = format!("{}\n", self.name);
-                let mut ts: Vec<usize> = vec![];
-
-                for (index, child) in tasks.iter().enumerate() {
-                    let is_last = index == tasks.len() - 1;
-
-                    let connector = if is_last { "└── " } else { "├── " };
-                    ts.push(*child);
-                    output.push_str(&runner.get_tree(
-                        &dag_run_id,
-                        child,
-                        1,
-                        connector,
-                        vec![is_last],
-                        &mut ts,
-                    ));
+        if let Some(subcommand) = matches.subcommand_name() {
+            match subcommand {
+                "tasks" => {
+                    println!("{}", serde_json::to_string_pretty(&self.nodes).unwrap());
                 }
-                println!("{}", output);
-                println!("{:?}", ts);
-            }
-            "run_local" => {
-                let max_threads = max(
-                    usize::from(std::thread::available_parallelism().unwrap()) - 1,
-                    1,
-                );
-                // TODO use clap?
-                LocalRunner::new("", &self.nodes, &self.edges).run_dag_local(if args.len() > 2 {
-                    match args[2].as_str() {
-                        "--blocking" => 1,
-                        "max" => max_threads,
-                        _ => args[2].parse::<usize>().unwrap(),
+                "edges" => {
+                    println!("{}", serde_json::to_string_pretty(&self.edges).unwrap());
+                }
+                "graph" => {
+                    print!("{}", self.get_initial_mermaid_graph());
+                }
+                "hash" => {
+                    print!("{}", self.hash());
+                }
+                "tree" => {
+                    let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
+                    let dag_run_id = runner.enqueue_run("local", "");
+                    let tasks = runner
+                        .get_default_tasks()
+                        .iter()
+                        .filter(|t| runner.get_upstream(&dag_run_id, &t.id).is_empty())
+                        .map(|t| t.id)
+                        .collect::<Vec<usize>>();
+
+                    let mut output = format!("{}\n", self.name);
+                    let mut ts: Vec<usize> = vec![];
+
+                    for (index, child) in tasks.iter().enumerate() {
+                        let is_last = index == tasks.len() - 1;
+
+                        let connector = if is_last { "└── " } else { "├── " };
+                        ts.push(*child);
+                        output.push_str(&runner.get_tree(
+                            &dag_run_id,
+                            child,
+                            1,
+                            connector,
+                            vec![is_last],
+                            &mut ts,
+                        ));
                     }
-                } else {
-                    max_threads
-                });
-            }
-            _ => {
-                if args.len() == 4 && self.functions.contains_key(cmd) {
-                    execute_function(&args, &self.functions[cmd]);
+                    println!("{}", output);
+                    println!("{:?}", ts);
                 }
+                "run" => {
+                    let matches = matches.subcommand_matches("run").unwrap();
+                    if let Some(subcommand) = matches.subcommand_name() {
+                        match subcommand {
+                            "local" => {
+                                let sub_matches = matches.subcommand_matches("local").unwrap();
+                                let mode = sub_matches.get_one::<String>("mode").unwrap();
+
+                                let max_threads = max(
+                                    usize::from(std::thread::available_parallelism().unwrap()) - 1,
+                                    1,
+                                );
+                                let thread_count = match mode.as_str() {
+                                    "--blocking" => 1,
+                                    "max" => max_threads,
+                                    _ => mode.parse::<usize>().unwrap(),
+                                };
+                                LocalRunner::new("", &self.nodes, &self.edges)
+                                    .run_dag_local(thread_count);
+                            }
+                            "function" => {
+                                let sub_matches = matches.subcommand_matches("function").unwrap();
+                                let function_name =
+                                    sub_matches.get_one::<String>("function_name").unwrap();
+                                let in_path = sub_matches.get_one::<String>("in_path").unwrap();
+                                let out_path = sub_matches.get_one::<String>("out_path").unwrap();
+
+                                if self.functions.contains_key(function_name) {
+                                    execute_function(
+                                        &in_path,
+                                        &out_path,
+                                        &self.functions[function_name],
+                                    );
+                                } else {
+                                    panic!(
+                                        "no such function {function_name}\navailable functions: {:#?}",
+                                        self.functions.keys().collect::<Vec<&String>>()
+                                    )
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }

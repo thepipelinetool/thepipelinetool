@@ -151,7 +151,7 @@ fn main() {
     // (task1, task2) >> (c, c);
 
     // dag.save_graph();
-    dag.apply_cli_args();
+    dag.parse_cli();
     // println!("{}", dag.get_mermaid_graph());
 
     // function_name_as_string(|args| -> Value { args });

@@ -62,5 +62,5 @@ fn main() {
     let a = dag.add_task(hi3, json!({}), TaskOptions::default());
     let _h = dag.expand_lazy(hi4, &a, TaskOptions::default());
 
-    dag.apply_cli_args();
+    dag.parse_cli();
 }

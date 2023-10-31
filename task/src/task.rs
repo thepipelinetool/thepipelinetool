@@ -75,12 +75,20 @@ impl Task {
                     &timeout_as_secs,
                     &timeout_as_secs,
                     ex,
+                    "run",
+                    "function",
                     &function_name,
                     &out_path,
                     &in_path,
                 ]
             } else {
-                vec![function_name.as_str(), &out_path, &in_path]
+                vec![
+                    "run",
+                    "function",
+                    function_name.as_str(),
+                    &out_path,
+                    &in_path,
+                ]
             };
             let mut binding = Command::new(f);
             let output = binding

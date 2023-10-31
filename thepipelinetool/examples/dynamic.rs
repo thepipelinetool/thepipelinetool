@@ -22,6 +22,6 @@ fn main() {
 
     dag.expand_lazy(hi, &b, TaskOptions::default());
 
-    dag.apply_cli_args();
+    dag.parse_cli();
     // println!("{}", dag.get_mermaid_graph());
 }
