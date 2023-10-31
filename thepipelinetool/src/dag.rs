@@ -344,6 +344,7 @@ impl<'a> DAG<'a> {
     pub fn parse_cli(&self) {
         let command = command!()
             .about(format!("CLI Tool for {}", self.name))
+            .arg_required_else_help(true)
             .subcommand(CliCommand::new("tasks").about("Displays tasks"))
             .subcommand(CliCommand::new("edges").about("Displays edges"))
             .subcommand(CliCommand::new("graph").about("Displays graph"))
@@ -351,6 +352,7 @@ impl<'a> DAG<'a> {
             .subcommand(CliCommand::new("tree").about("Displays tree"))
             .subcommand(
                 CliCommand::new("run")
+                    .arg_required_else_help(true)
                     .subcommand(
                         CliCommand::new("local").about("Runs dag locally").arg(
                             arg!(
