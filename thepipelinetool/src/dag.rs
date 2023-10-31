@@ -5,19 +5,14 @@ use std::{
     process::Command,
 };
 
-use clap::{
-    arg,
-    builder::{PossibleValuesParser, StringValueParser, TypedValueParser},
-    command, value_parser, ArgAction, Command as CliCommand,
-};
+use clap::{arg, command, value_parser, Command as CliCommand};
 use runner::{
     collector,
     local::{hash_dag, LocalRunner},
     DefRunner, Runner,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::{json, value, Value};
-use std::path::PathBuf;
+use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::{execute_function, function_name_as_string};
 pub struct DAG<'a> {
@@ -344,7 +339,6 @@ impl<'a> DAG<'a> {
     pub fn parse_cli(&self) {
         let command = command!()
             .about(format!("CLI Tool for {}", self.name))
-            .arg_required_else_help(true)
             .subcommand(CliCommand::new("tasks").about("Displays tasks"))
             .subcommand(CliCommand::new("edges").about("Displays edges"))
             .subcommand(CliCommand::new("graph").about("Displays graph"))
@@ -360,7 +354,7 @@ impl<'a> DAG<'a> {
                             )
                             .required(false)
                             .value_parser(value_parser!(String))
-                            .default_values(&["max", "--blocking"])
+                            .default_values(["max", "--blocking"])
                             .default_missing_value("max"),
                         ),
                     )
@@ -463,8 +457,8 @@ impl<'a> DAG<'a> {
 
                                 if self.functions.contains_key(function_name) {
                                     execute_function(
-                                        &in_path,
-                                        &out_path,
+                                        in_path,
+                                        out_path,
                                         &self.functions[function_name],
                                     );
                                 } else {
