@@ -31,9 +31,25 @@ pub struct DAG<'a> {
 pub struct DagOptions<'a> {
     pub schedule: Option<&'a str>,
     pub start_date: Option<DateTime<FixedOffset>>,
+    pub end_date: Option<DateTime<FixedOffset>>,
     pub max_attempts: usize,
     pub retry_delay: Duration,
     pub timeout: Option<Duration>,
+    pub catchup: bool,
+}
+
+impl<'a> DagOptions<'a> {
+    pub fn set_schedule(&mut self, schedule: &'a str) {
+        self.schedule = Some(schedule);
+    }
+
+    pub fn set_start_date(&mut self, start_date: DateTime<FixedOffset>) {
+        self.start_date = Some(start_date);
+    }
+
+    pub fn set_end_date(&mut self, end_date: DateTime<FixedOffset>) {
+        self.end_date = Some(end_date);
+    }
 }
 
 impl<'a> Default for DagOptions<'a> {
@@ -41,9 +57,11 @@ impl<'a> Default for DagOptions<'a> {
         Self {
             schedule: None,
             start_date: None,
+            end_date: None,
             max_attempts: 1,
             retry_delay: Duration::ZERO,
             timeout: None,
+            catchup: false,
         }
     }
 }
@@ -65,14 +83,6 @@ impl<'a> DAG<'a> {
     // pub fn set_options(&mut self, options: DagOptions<'a>) {
     //     self.options = options;
     // }
-
-    pub fn set_schedule(&mut self, schedule: &'a str) {
-        self.options.schedule = Some(schedule);
-    }
-
-    pub fn set_start_date(&mut self, start_date: DateTime<FixedOffset>) {
-        self.options.start_date = Some(start_date);
-    }
 
     pub fn expand<F, T, G, const N: usize>(
         &mut self,
@@ -436,7 +446,10 @@ impl<'a> DAG<'a> {
             match subcommand {
                 "describe" => {
                     println!("Task count: {}", self.nodes.len());
-                    println!("Functions: {:#?}", self.functions.keys().collect::<Vec<&String>>());
+                    println!(
+                        "Functions: {:#?}",
+                        self.functions.keys().collect::<Vec<&String>>()
+                    );
 
                     if let Some(schedule) = self.options.schedule {
                         println!("Schedule: {schedule}");
@@ -457,7 +470,7 @@ impl<'a> DAG<'a> {
                                     return;
                                 }
 
-                                if let  Some(start_date) = self.options.start_date {
+                                if let Some(start_date) = self.options.start_date {
                                     println!("Start date: {start_date}");
                                 } else {
                                     println!("Start date: None");
@@ -466,7 +479,11 @@ impl<'a> DAG<'a> {
                                 println!("Upcoming:");
                                 let futures = cron.clone().iter_from(
                                     if let Some(start_date) = self.options.start_date {
-                                        start_date.into()
+                                        if self.options.catchup {
+                                            start_date.into()
+                                        } else {
+                                            Utc::now()
+                                        }
                                     } else {
                                         Utc::now()
                                     },
@@ -475,6 +492,11 @@ impl<'a> DAG<'a> {
                                     if !cron.contains(time) {
                                         println!("Failed check! Cron does not contain {}.", time);
                                         break;
+                                    }
+                                    if let Some(end_date) = self.options.end_date {
+                                        if time > end_date {
+                                            break;
+                                        }
                                     }
                                     println!("  {}", time.format("%F %R"));
                                 }
