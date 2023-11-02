@@ -13,6 +13,7 @@ utils = { path = "../utils" }
 runner = { path = "../runner" }
 serde = "1.0.189"
 clap = { version = "4.4.7", features = [ "cargo" ] }
+saffron = { git = "https://github.com/cloudflare/saffron.git" }
 
 [dev-dependencies]
 rand = "0.8"

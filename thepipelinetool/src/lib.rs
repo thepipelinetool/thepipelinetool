@@ -1,7 +1,7 @@
 mod dag;
 
 pub mod prelude {
-    pub use crate::dag::DAG;
+    pub use crate::dag::{DAG, DagOptions};
     pub use runner::local::{LocalRunner, hash_dag};
     pub use runner::{DefRunner, Runner};
     pub use serde_json::{json, Value};

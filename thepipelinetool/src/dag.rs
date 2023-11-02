@@ -3,23 +3,49 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     process::Command,
+    time::Duration,
 };
 
+use chrono::{DateTime, FixedOffset, Utc};
 use clap::{arg, command, value_parser, Command as CliCommand};
 use runner::{
     collector,
     local::{hash_dag, LocalRunner},
     DefRunner, Runner,
 };
+use saffron::{
+    parse::{CronExpr, English},
+    Cron,
+};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::{execute_function, function_name_as_string};
 pub struct DAG<'a> {
-    pub schedule: Option<&'a str>,
     pub nodes: Vec<Task>,
     pub functions: HashMap<String, Box<dyn Fn(Value) -> Value>>,
     pub edges: HashSet<(usize, usize)>,
+    pub options: DagOptions<'a>,
+}
+
+pub struct DagOptions<'a> {
+    pub schedule: Option<&'a str>,
+    pub start_date: Option<DateTime<FixedOffset>>,
+    pub max_attempts: usize,
+    pub retry_delay: Duration,
+    pub timeout: Option<Duration>,
+}
+
+impl<'a> Default for DagOptions<'a> {
+    fn default() -> Self {
+        Self {
+            schedule: None,
+            start_date: None,
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+            timeout: None,
+        }
+    }
 }
 
 impl<'a> DAG<'a> {
@@ -31,13 +57,21 @@ impl<'a> DAG<'a> {
         Self {
             nodes: Vec::new(),
             functions,
-            schedule: None,
             edges: HashSet::new(),
+            options: DagOptions::default(),
         }
     }
 
+    // pub fn set_options(&mut self, options: DagOptions<'a>) {
+    //     self.options = options;
+    // }
+
     pub fn set_schedule(&mut self, schedule: &'a str) {
-        self.schedule = Some(schedule);
+        self.options.schedule = Some(schedule);
+    }
+
+    pub fn set_start_date(&mut self, start_date: DateTime<FixedOffset>) {
+        self.options.start_date = Some(start_date);
     }
 
     pub fn expand<F, T, G, const N: usize>(
@@ -350,6 +384,7 @@ impl<'a> DAG<'a> {
     pub fn parse_cli(&self) {
         let command = command!()
             .about(format!("DAG CLI Tool"))
+            .subcommand(CliCommand::new("describe").about("Displays options"))
             .subcommand(CliCommand::new("tasks").about("Displays tasks"))
             .subcommand(CliCommand::new("edges").about("Displays edges"))
             .subcommand(CliCommand::new("graph").about("Displays graph"))
@@ -390,13 +425,66 @@ impl<'a> DAG<'a> {
                                 )
                                 .required(true),
                             ),
-                    ).subcommand_required(true),
-            ).subcommand_required(true);
+                    )
+                    .subcommand_required(true),
+            )
+            .subcommand_required(true);
 
         let matches = command.get_matches();
 
         if let Some(subcommand) = matches.subcommand_name() {
             match subcommand {
+                "describe" => {
+                    println!("Task count: {}", self.nodes.len());
+                    println!("Functions: {:#?}", self.functions.keys().collect::<Vec<&String>>());
+
+                    if let Some(schedule) = self.options.schedule {
+                        println!("Schedule: {schedule}");
+                        match schedule.parse::<CronExpr>() {
+                            Ok(cron) => {
+                                println!("Description: {}", cron.describe(English::default()));
+                            }
+                            Err(err) => {
+                                println!("{err}: {schedule}");
+                                return;
+                            }
+                        }
+
+                        match schedule.parse::<Cron>() {
+                            Ok(cron) => {
+                                if !cron.any() {
+                                    println!("Cron will never match any given time!");
+                                    return;
+                                }
+
+                                if let  Some(start_date) = self.options.start_date {
+                                    println!("Start date: {start_date}");
+                                } else {
+                                    println!("Start date: None");
+                                }
+
+                                println!("Upcoming:");
+                                let futures = cron.clone().iter_from(
+                                    if let Some(start_date) = self.options.start_date {
+                                        start_date.into()
+                                    } else {
+                                        Utc::now()
+                                    },
+                                );
+                                for time in futures.take(10) {
+                                    if !cron.contains(time) {
+                                        println!("Failed check! Cron does not contain {}.", time);
+                                        break;
+                                    }
+                                    println!("  {}", time.format("%F %R"));
+                                }
+                            }
+                            Err(err) => println!("{err}: {schedule}"),
+                        }
+                    } else {
+                        println!("No schedule set");
+                    }
+                }
                 "tasks" => {
                     println!("{}", serde_json::to_string_pretty(&self.nodes).unwrap());
                 }
