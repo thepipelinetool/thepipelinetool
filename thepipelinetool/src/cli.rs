@@ -8,7 +8,7 @@ use utils::execute_function;
 
 use crate::dag::DAG;
 
-impl<'a> DAG<'a> {
+impl DAG {
 
     pub fn parse_cli(&self) {
         let command = command!()
@@ -74,7 +74,7 @@ impl<'a> DAG<'a> {
                         self.functions.keys().collect::<Vec<&String>>()
                     );
 
-                    if let Some(schedule) = self.options.schedule {
+                    if let Some(schedule) = &self.options.schedule {
                         println!("Schedule: {schedule}");
                         match schedule.parse::<CronExpr>() {
                             Ok(cron) => {

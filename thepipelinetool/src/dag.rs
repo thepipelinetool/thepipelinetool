@@ -14,14 +14,14 @@ use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::function_name_as_string;
 
 use crate::options::DagOptions;
-pub struct DAG<'a> {
+pub struct DAG {
     pub nodes: Vec<Task>,
     pub functions: HashMap<String, Box<dyn Fn(Value) -> Value>>,
     pub edges: HashSet<(usize, usize)>,
-    pub options: DagOptions<'a>,
+    pub options: DagOptions,
 }
 
-impl<'a> DAG<'a> {
+impl DAG {
     pub fn new() -> Self {
         let mut functions: HashMap<String, Box<dyn Fn(Value) -> Value>> = HashMap::new();
         let function_name = function_name_as_string(&collector).to_string();
