@@ -336,7 +336,7 @@ impl DAG {
 
     pub fn get_initial_mermaid_graph(&self) -> String {
         let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
-        runner.enqueue_run("local", "", Some(Utc::now().into()));
+        runner.enqueue_run("local", "", Utc::now().into());
         runner.get_mermaid_graph(&0)
     }
 

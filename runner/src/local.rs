@@ -38,7 +38,7 @@ impl Runner for LocalRunner {
         self.task_results.insert(result.task_id, result.clone());
     }
 
-    fn create_new_run(&mut self, _dag_name: &str, _dag_hash: &str, _logical_date: Option<DateTime<FixedOffset>>) -> usize {
+    fn create_new_run(&mut self, _dag_name: &str, _dag_hash: &str, _logical_date: DateTime<FixedOffset>) -> usize {
         0
     }
 
