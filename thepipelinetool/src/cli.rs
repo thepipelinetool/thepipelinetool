@@ -102,7 +102,7 @@ impl DAG {
                                 println!("Upcoming:");
                                 let futures = cron.clone().iter_from(
                                     if let Some(start_date) = self.options.start_date {
-                                        if self.options.catchup {
+                                        if self.options.catchup || start_date > Utc::now() {
                                             start_date.into()
                                         } else {
                                             Utc::now()
