@@ -3,7 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{task::Task, task_result::TaskResult, task_status::TaskStatus};
 
@@ -38,7 +38,7 @@ impl Runner for LocalRunner {
         self.task_results.insert(result.task_id, result.clone());
     }
 
-    fn create_new_run(&mut self, _dag_name: &str, _dag_hash: &str, _logical_date: DateTime<FixedOffset>) -> usize {
+    fn create_new_run(&mut self, _dag_name: &str, _dag_hash: &str, _logical_date: DateTime<Utc>) -> usize {
         0
     }
 

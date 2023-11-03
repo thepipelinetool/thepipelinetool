@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use chrono::{Utc, DateTime, FixedOffset};
+use chrono::{Utc, DateTime};
 use local::hash_dag;
 use serde_json::{json, Value};
 use task::{
@@ -27,7 +27,7 @@ pub trait Runner {
     fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
     fn get_task_status(&self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
     fn set_task_status(&mut self, dag_run_id: &usize, task_id: &usize, task_status: TaskStatus);
-    fn create_new_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<FixedOffset>) -> usize;
+    fn create_new_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize;
     fn insert_task_results(&mut self, dag_run_id: &usize, result: &TaskResult);
     fn mark_finished(&self, dag_run_id: &usize);
     fn any_upstream_incomplete(&self, dag_run_id: &usize, task_id: &usize) -> bool;
@@ -67,7 +67,7 @@ pub trait Runner {
 }
 
 pub trait DefRunner {
-    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<FixedOffset>) -> usize;
+    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize;
     fn is_completed(&self, dag_run_id: &usize) -> bool;
     fn run(&mut self, dag_run_id: &usize, max_threads: usize);
 
@@ -114,7 +114,7 @@ impl<U: Runner> DefRunner for U {
             .all(|task| self.is_task_completed(dag_run_id, &task.id))
     }
 
-    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<FixedOffset>) -> usize {
+    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize {
         let dag_run_id = self.create_new_run(dag_name, dag_hash, logical_date);
 
         for task in self.get_default_tasks() {
