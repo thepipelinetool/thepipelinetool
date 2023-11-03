@@ -7,8 +7,8 @@ use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize)]
 pub struct DagOptions {
     pub schedule: Option<String>,
-    pub start_date: Option<DateTime<FixedOffset>>,
-    pub end_date: Option<DateTime<FixedOffset>>,
+    pub start_date: Option<DateTime<Utc>>,
+    pub end_date: Option<DateTime<Utc>>,
     pub max_attempts: usize,
     pub retry_delay: Duration,
     pub timeout: Option<Duration>,
@@ -20,11 +20,11 @@ impl DagOptions {
         self.schedule = Some(schedule.to_string());
     }
 
-    pub fn set_start_date(&mut self, start_date: DateTime<FixedOffset>) {
+    pub fn set_start_date(&mut self, start_date: DateTime<Utc>) {
         self.start_date = Some(start_date);
     }
 
-    pub fn set_end_date(&mut self, end_date: DateTime<FixedOffset>) {
+    pub fn set_end_date(&mut self, end_date: DateTime<Utc>) {
         self.end_date = Some(end_date);
     }
 }
