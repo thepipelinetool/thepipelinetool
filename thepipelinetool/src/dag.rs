@@ -17,7 +17,7 @@ use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Serialize, Deserialize};
 use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRef, Branch};
 use utils::{execute_function, function_name_as_string};
@@ -28,6 +28,7 @@ pub struct DAG<'a> {
     pub options: DagOptions<'a>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct DagOptions<'a> {
     pub schedule: Option<&'a str>,
     pub start_date: Option<DateTime<FixedOffset>>,
@@ -394,11 +395,12 @@ impl<'a> DAG<'a> {
     pub fn parse_cli(&self) {
         let command = command!()
             .about(format!("DAG CLI Tool"))
-            .subcommand(CliCommand::new("describe").about("Displays options"))
-            .subcommand(CliCommand::new("tasks").about("Displays tasks"))
-            .subcommand(CliCommand::new("edges").about("Displays edges"))
+            .subcommand(CliCommand::new("describe").about("Describes the DAG"))
+            .subcommand(CliCommand::new("options").about("Displays options as JSON"))
+            .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
+            .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
+            .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
             .subcommand(CliCommand::new("graph").about("Displays graph"))
-            .subcommand(CliCommand::new("hash").about("Displays hash"))
             .subcommand(CliCommand::new("tree").about("Displays tree"))
             .subcommand(
                 CliCommand::new("run")
@@ -444,6 +446,9 @@ impl<'a> DAG<'a> {
 
         if let Some(subcommand) = matches.subcommand_name() {
             match subcommand {
+                "options" => {
+                    println!("{}", serde_json::to_string_pretty(&self.options).unwrap());
+                }
                 "describe" => {
                     println!("Task count: {}", self.nodes.len());
                     println!(
