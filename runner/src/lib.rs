@@ -679,8 +679,10 @@ impl<U: Runner> DefRunner for U {
                 //     // out += &format!("  id{edge_id}-->id{task_id}\n");
                 // }
                 let name = format!("{function_name}_{task_id}");
-                let next = self
-                    .get_downstream(dag_run_id, &task_id)
+                let mut downstream = Vec::from_iter(self.get_downstream(dag_run_id, &task_id));
+                downstream.sort();
+
+                let next = downstream
                     .iter()
                     .map(|f| json!({"outcome": f.to_string()}))
                     .collect::<Vec<Value>>();
