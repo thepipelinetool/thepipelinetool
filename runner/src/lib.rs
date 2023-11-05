@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use chrono::{Utc, DateTime};
+use chrono::{DateTime, Utc};
 use local::hash_dag;
 use serde_json::{json, Value};
 use task::{
@@ -27,7 +27,12 @@ pub trait Runner {
     fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
     fn get_task_status(&self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
     fn set_task_status(&mut self, dag_run_id: &usize, task_id: &usize, task_status: TaskStatus);
-    fn create_new_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize;
+    fn create_new_run(
+        &mut self,
+        dag_name: &str,
+        dag_hash: &str,
+        logical_date: DateTime<Utc>,
+    ) -> usize;
     fn insert_task_results(&mut self, dag_run_id: &usize, result: &TaskResult);
     fn mark_finished(&self, dag_run_id: &usize);
     fn any_upstream_incomplete(&self, dag_run_id: &usize, task_id: &usize) -> bool;
@@ -67,7 +72,8 @@ pub trait Runner {
 }
 
 pub trait DefRunner {
-    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize;
+    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
+        -> usize;
     fn is_completed(&self, dag_run_id: &usize) -> bool;
     fn run(&mut self, dag_run_id: &usize, max_threads: usize);
 
@@ -94,7 +100,8 @@ pub trait DefRunner {
         upstream_deps: &HashMap<(usize, Option<String>), Option<String>>,
     ) -> Result<Value, Error>;
     fn run_dag_local(&mut self, max_threads: usize);
-    fn get_mermaid_graph(&self, dag_run_id: &usize) -> String;
+    // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String;
+    fn get_graphite_graph(&self, dag_run_id: &usize) -> Vec<Value>;
     fn get_tree(
         &self,
         dag_run_id: &usize,
@@ -114,7 +121,12 @@ impl<U: Runner> DefRunner for U {
             .all(|task| self.is_task_completed(dag_run_id, &task.id))
     }
 
-    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>) -> usize {
+    fn enqueue_run(
+        &mut self,
+        dag_name: &str,
+        dag_hash: &str,
+        logical_date: DateTime<Utc>,
+    ) -> usize {
         let dag_run_id = self.create_new_run(dag_name, dag_hash, logical_date);
 
         for task in self.get_default_tasks() {
@@ -589,7 +601,35 @@ impl<U: Runner> DefRunner for U {
         None
     }
 
-    fn get_mermaid_graph(&self, dag_run_id: &usize) -> String {
+    // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String {
+    //     let task_statuses: Vec<(String, TaskStatus)> = self
+    //         .get_all_tasks(dag_run_id)
+    //         .iter()
+    //         .map(|t| {
+    //             (
+    //                 t.function_name.clone(),
+    //                 self.get_task_status(dag_run_id, &t.id),
+    //             )
+    //         })
+    //         .collect();
+
+    //     let mut out = "".to_string();
+    //     out += "flowchart TD\n";
+
+    //     for (task_id, (function_name, task_status)) in task_statuses.iter().enumerate() {
+    //         let styling = get_styling_for_status(task_status);
+    //         out += &format!("  id{task_id}({function_name}_{task_id})\n");
+    //         out += &format!("  style id{task_id} {styling}\n");
+
+    //         for edge_id in self.get_upstream(dag_run_id, &task_id) {
+    //             out += &format!("  id{edge_id}-->id{task_id}\n");
+    //         }
+    //     }
+
+    //     out
+    // }
+
+    fn get_graphite_graph(&self, dag_run_id: &usize) -> Vec<Value> {
         let task_statuses: Vec<(String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
             .iter()
@@ -601,20 +641,57 @@ impl<U: Runner> DefRunner for U {
             })
             .collect();
 
-        let mut out = "".to_string();
-        out += "flowchart TD\n";
+        // let mut out = "".to_string();
+        // out += "flowchart TD\n";
 
-        for (task_id, (function_name, task_status)) in task_statuses.iter().enumerate() {
-            let styling = get_styling_for_status(task_status);
-            out += &format!("  id{task_id}({function_name}_{task_id})\n");
-            out += &format!("  style id{task_id} {styling}\n");
+        // const presetComplex = '['
+        // '{"id":"A","next":[{"outcome":"B","type":"one"}]},'
+        // '{"id":"U","next":[{"outcome":"G","type":"one"}]},'
+        // '{"id":"B","next":[{"outcome":"C","type":"one"},{"outcome":"D","type":"one"},{"outcome":"E","type":"one"},{"outcome":"F","type":"one"},{"outcome":"M","type":"one"}]},'
+        // '{"id":"C","next":[{"outcome":"G","type":"one"}]},'
+        // '{"id":"D","next":[{"outcome":"H","type":"one"}]},'
+        // '{"id":"E","next":[{"outcome":"H","type":"one"}]},'
+        // '{"id":"F","next":[{"outcome":"W","type":"one"},{"outcome":"N","type":"one"},{"outcome":"O","type":"one"}]},'
+        // '{"id":"W","next":[]},'
+        // '{"id":"N","next":[{"outcome":"I","type":"one"}]},'
+        // '{"id":"O","next":[{"outcome":"P","type":"one"}]},'
+        // '{"id":"P","next":[{"outcome":"I","type":"one"}]},'
+        // '{"id":"M","next":[{"outcome":"L","type":"one"}]},'
+        // '{"id":"G","next":[{"outcome":"I","type":"one"}]},'
+        // '{"id":"H","next":[{"outcome":"J","type":"one"}]},'
+        // '{"id":"I","next":[]},'
+        // '{"id":"J","next":[{"outcome":"K","type":"one"}]},'
+        // '{"id":"K","next":[{"outcome":"L","type":"one"}]},'
+        // '{"id":"L","next":[]}'
+        // ']';
 
-            for edge_id in self.get_upstream(dag_run_id, &task_id) {
-                out += &format!("  id{edge_id}-->id{task_id}\n");
-            }
-        }
+        task_statuses
+            .iter()
+            .enumerate()
+            .map(|(task_id, (function_name, task_status))| {
+                // let styling = get_styling_for_status(task_status);
+                // out += &format!("  id{task_id}({function_name}_{task_id})\n");
+                // out += &format!("  style id{task_id} {styling}\n");
 
-        out
+                // let node_input =
+
+                // for edge_id in self.get_upstream(dag_run_id, &task_id) {
+                //     // out += &format!("  id{edge_id}-->id{task_id}\n");
+                // }
+                let name = format!("{function_name}_{task_id}");
+                let next = self
+                    .get_downstream(dag_run_id, &task_id)
+                    .iter()
+                    .map(|f| json!({"outcome": f.to_string()}))
+                    .collect::<Vec<Value>>();
+                json!({
+                    "id": task_id.to_string(),
+                    "name": name,
+                    "next": next,
+                    "status": task_status.as_str(),
+                })
+            })
+            .collect()
     }
 
     fn update_referenced_dependencies(&mut self, dag_run_id: &usize, downstream_task_id: &usize) {

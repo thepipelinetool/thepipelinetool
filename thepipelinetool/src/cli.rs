@@ -137,7 +137,8 @@ impl DAG {
                     println!("{}", serde_json::to_string_pretty(&self.edges).unwrap());
                 }
                 "graph" => {
-                    print!("{}", self.get_initial_mermaid_graph());
+                    // print!("{}", self.get_initial_mermaid_graph());
+                    print!("{}", serde_json::to_string_pretty(&self.get_graphite_mermaid_graph()).unwrap());
                 }
                 "hash" => {
                     print!("{}", self.hash());

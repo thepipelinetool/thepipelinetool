@@ -334,10 +334,16 @@ impl DAG {
         self.add_task(run_command, args, options)
     }
 
-    pub fn get_initial_mermaid_graph(&self) -> String {
+    // pub fn get_initial_mermaid_graph(&self) -> String {
+    //     let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
+    //     runner.enqueue_run("local", "", Utc::now().into());
+    //     runner.get_mermaid_graph(&0)
+    // }
+
+    pub fn get_graphite_mermaid_graph(&self) -> Vec<Value> {
         let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
         runner.enqueue_run("local", "", Utc::now().into());
-        runner.get_mermaid_graph(&0)
+        runner.get_graphite_graph(&0)
     }
 
     pub fn hash(&self) -> String {
