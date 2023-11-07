@@ -13,8 +13,8 @@ fn main() {
 
     // let a = dag.add_task(hi, vec, TaskOptions::default());
 
-    let binding = (0..200).collect::<Vec<usize>>();
-    let k: &[usize; 200] = binding.as_slice().try_into().unwrap();
+    let binding = (0..50).collect::<Vec<usize>>();
+    let k: &[usize; 50] = binding.as_slice().try_into().unwrap();
     let _ = dag.expand(hi, k, TaskOptions::default());
 
     dag.parse_cli();
