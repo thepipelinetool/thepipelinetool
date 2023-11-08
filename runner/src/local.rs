@@ -48,7 +48,7 @@ impl Runner for LocalRunner {
                 && self.task_statuses[task_id] == TaskStatus::Skipped)
     }
 
-    fn get_task_result(&mut self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
+    fn get_task_result(&self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
         self.task_results[task_id].clone()
     }
 

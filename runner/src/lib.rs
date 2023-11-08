@@ -23,7 +23,7 @@ pub trait Runner {
     fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn new(name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self;
     fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn get_task_result(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
+    fn get_task_result(&self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
     fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
     fn get_task_status(&self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
     fn set_task_status(&mut self, dag_run_id: &usize, task_id: &usize, task_status: TaskStatus);
