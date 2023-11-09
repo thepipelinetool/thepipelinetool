@@ -545,8 +545,16 @@ impl<U: Runner> DefRunner for U {
 
             for task in tasks {
                 self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads, &counter);
+                if *counter.lock().unwrap() >= max_threads {
+                    break;
+                }
+            }
+            if *counter.lock().unwrap() == 0 {
+                drop(tx);
+                return;
             }
         }
+        'outer:
         for (run_id, received) in &rx {
             if *counter.lock().unwrap() >= 1 {
                 *counter.lock().unwrap() -= 1;
@@ -562,6 +570,10 @@ impl<U: Runner> DefRunner for U {
                     max_threads,
                     &counter,
                 );
+                if *counter.lock().unwrap()  == 0 {
+                    drop(tx);
+                    return;
+                }
             } else {
                 if self.is_completed(&run_id) {
                     drop(tx);
@@ -577,6 +589,9 @@ impl<U: Runner> DefRunner for U {
                         max_threads,
                         &counter,
                     );
+                    if *counter.lock().unwrap() >= max_threads {
+                        continue 'outer;
+                    }
                 }
 
                 for task in self.get_all_tasks_needs_running(dag_run_id) {
@@ -587,7 +602,15 @@ impl<U: Runner> DefRunner for U {
                         max_threads,
                         &counter,
                     );
+                    if *counter.lock().unwrap() >= max_threads {
+                        continue 'outer;
+                    }
                 }
+
+                // if *counter.lock().unwrap()  == 0 {
+                //     drop(tx);
+                //     return;
+                // }
             }
         }
     }
