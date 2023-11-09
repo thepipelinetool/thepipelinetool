@@ -22,7 +22,6 @@ pub trait Runner {
     fn get_dag_name(&self) -> String;
     fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn new(name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self;
-    fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn get_task_result(&self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
     fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
     fn get_task_status(&self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
@@ -53,6 +52,7 @@ pub trait Runner {
     fn remove_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
     fn insert_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
     fn get_default_tasks(&self) -> Vec<Task>;
+    fn get_all_tasks_incomplete(&self, dag_run_id: &usize) -> Vec<Task>;
     fn get_all_tasks(&self, dag_run_id: &usize) -> Vec<Task>;
 
     fn get_default_edges(&self) -> HashSet<(usize, usize)>;
@@ -72,6 +72,10 @@ pub trait Runner {
 }
 
 pub trait DefRunner {
+    fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn task_needs_running(&self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn get_all_tasks_needs_running(&self, dag_run_id: &usize) -> Vec<Task>;
+
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
     fn is_completed(&self, dag_run_id: &usize) -> bool;
@@ -116,9 +120,38 @@ pub trait DefRunner {
 
 impl<U: Runner> DefRunner for U {
     fn is_completed(&self, dag_run_id: &usize) -> bool {
-        self.get_all_tasks(dag_run_id)
+        self.get_all_tasks_incomplete(dag_run_id)
             .iter()
             .all(|task| self.is_task_completed(dag_run_id, &task.id))
+    }
+
+    fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool {
+        // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
+        //     || (self.task_statuses.contains_key(task_id)
+        //         && self.task_statuses[task_id] == TaskStatus::Skipped)
+        match self.get_task_status(dag_run_id, task_id) {
+            TaskStatus::Pending | TaskStatus::Running | TaskStatus::Retrying => false,
+            TaskStatus::Success | TaskStatus::Failure | TaskStatus::Skipped => true,
+        }
+    }
+
+    fn task_needs_running(&self, dag_run_id: &usize, task_id: &usize) -> bool {
+        // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
+        //     || (self.task_statuses.contains_key(task_id)
+        //         && self.task_statuses[task_id] == TaskStatus::Skipped)
+        // dbg!(&self.get_task_status(dag_run_id, task_id).as_str());
+        match self.get_task_status(dag_run_id, task_id) {
+            TaskStatus::Pending => true,
+            _ => false,
+        }
+    }
+
+    fn get_all_tasks_needs_running(&self, dag_run_id: &usize) -> Vec<Task> {
+        self.get_all_tasks_incomplete(dag_run_id)
+            .iter()
+            .filter(|n| self.task_needs_running(dag_run_id, &n.id))
+            .map(|t| t.clone())
+            .collect()
     }
 
     fn enqueue_run(
@@ -501,13 +534,18 @@ impl<U: Runner> DefRunner for U {
 
         let counter = Arc::new(Mutex::new(0));
 
-        for task in self.get_all_tasks(dag_run_id) {
-            self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads, &counter);
-        }
-        if self.is_completed(dag_run_id) {
-            drop(tx);
-            self.mark_finished(dag_run_id);
-            return;
+        {
+            // dbg!(&tasks.len());
+
+            if self.is_completed(dag_run_id) {
+                drop(tx);
+                return;
+            }
+            let tasks = self.get_all_tasks_needs_running(dag_run_id);
+
+            for task in tasks {
+                self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads, &counter);
+            }
         }
         for (run_id, received) in &rx {
             if *counter.lock().unwrap() >= 1 {
@@ -516,7 +554,7 @@ impl<U: Runner> DefRunner for U {
             let task_id: usize = received.task_id;
             self.handle_task_result(&run_id, received);
             // dbg!(3);
-            if !self.is_task_completed(&run_id, &task_id) {
+            if self.task_needs_running(&run_id, &task_id) {
                 self.attempt_run_task(
                     &run_id,
                     self.get_task_by_id(&run_id, &task_id),
@@ -541,8 +579,14 @@ impl<U: Runner> DefRunner for U {
                     );
                 }
 
-                for task in self.get_all_tasks(&run_id) {
-                    self.attempt_run_task(&run_id, task, &tx.clone(), max_threads, &counter);
+                for task in self.get_all_tasks_needs_running(dag_run_id) {
+                    self.attempt_run_task(
+                        &run_id,
+                        task.clone(),
+                        &tx.clone(),
+                        max_threads,
+                        &counter,
+                    );
                 }
             }
         }

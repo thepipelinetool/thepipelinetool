@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{task::Task, task_result::TaskResult, task_status::TaskStatus};
 
-use crate::Runner;
+use crate::{Runner, DefRunner};
 
 pub struct LocalRunner {
     task_results: HashMap<usize, TaskResult>,
@@ -38,14 +38,13 @@ impl Runner for LocalRunner {
         self.task_results.insert(result.task_id, result.clone());
     }
 
-    fn create_new_run(&mut self, _dag_name: &str, _dag_hash: &str, _logical_date: DateTime<Utc>) -> usize {
+    fn create_new_run(
+        &mut self,
+        _dag_name: &str,
+        _dag_hash: &str,
+        _logical_date: DateTime<Utc>,
+    ) -> usize {
         0
-    }
-
-    fn is_task_completed(&self, _dag_run_id: &usize, task_id: &usize) -> bool {
-        (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
-            || (self.task_statuses.contains_key(task_id)
-                && self.task_statuses[task_id] == TaskStatus::Skipped)
     }
 
     fn get_task_result(&self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
@@ -193,6 +192,14 @@ impl Runner for LocalRunner {
 
     fn get_dag_name(&self) -> String {
         "default".into()
+    }
+
+    fn get_all_tasks_incomplete(&self, dag_run_id: &usize) -> Vec<Task> {
+        self.nodes
+            .iter()
+            .filter(|n| !self.is_task_completed(dag_run_id, &n.id))
+            .map(|t| t.clone())
+            .collect()
     }
 
     fn get_all_tasks(&self, _dag_run_id: &usize) -> Vec<Task> {
