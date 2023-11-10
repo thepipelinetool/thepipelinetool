@@ -17,7 +17,7 @@ impl<T: Serialize> Branch<T> {
     pub fn left(val: T) -> Self {
         Self { is_left: true, val }
     }
-    
+
     pub fn right(val: T) -> Self {
         Self { is_left: true, val }
     }

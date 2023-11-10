@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{task::Task, task_result::TaskResult, task_status::TaskStatus};
 
-use crate::{Runner, DefRunner};
+use crate::{DefRunner, Runner};
 
 pub struct LocalRunner {
     task_results: HashMap<usize, TaskResult>,
@@ -34,8 +34,6 @@ impl LocalRunner {
 }
 
 impl Runner for LocalRunner {
-
-
     fn insert_task_results(&mut self, _dag_run_id: &usize, result: &TaskResult) {
         self.attempts.insert(result.task_id, result.attempt);
 
@@ -199,7 +197,8 @@ impl Runner for LocalRunner {
     }
 
     fn get_all_tasks_incomplete(&mut self, dag_run_id: &usize) -> Vec<Task> {
-        self.nodes.clone()
+        self.nodes
+            .clone()
             .iter()
             .filter(|n| !self.is_task_completed(dag_run_id, &n.id))
             .map(|t| t.clone())

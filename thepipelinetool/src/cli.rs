@@ -1,15 +1,17 @@
 use std::cmp::max;
 
 use chrono::Utc;
-use clap::{command, Command, arg, value_parser};
-use runner::{local::LocalRunner, Runner, DefRunner};
-use saffron::{parse::{CronExpr, English}, Cron};
+use clap::{arg, command, value_parser, Command};
+use runner::{local::LocalRunner, DefRunner, Runner};
+use saffron::{
+    parse::{CronExpr, English},
+    Cron,
+};
 use utils::execute_function;
 
 use crate::dag::DAG;
 
 impl DAG {
-
     pub fn parse_cli(&self) {
         let command = command!()
             .about(format!("DAG CLI Tool"))
@@ -138,7 +140,10 @@ impl DAG {
                 }
                 "graph" => {
                     // print!("{}", self.get_initial_mermaid_graph());
-                    print!("{}", serde_json::to_string_pretty(&self.get_graphite_mermaid_graph()).unwrap());
+                    print!(
+                        "{}",
+                        serde_json::to_string_pretty(&self.get_graphite_mermaid_graph()).unwrap()
+                    );
                 }
                 "hash" => {
                     print!("{}", self.hash());

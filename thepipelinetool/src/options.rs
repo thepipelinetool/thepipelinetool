@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct DagOptions {
