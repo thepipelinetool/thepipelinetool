@@ -201,7 +201,8 @@ impl Runner for LocalRunner {
             .clone()
             .iter()
             .filter(|n| !self.is_task_completed(dag_run_id, &n.id))
-            .map(|t| t.clone())
+            .cloned()
+            // .map(|t| t.clone())
             .collect()
     }
 

@@ -28,7 +28,7 @@ impl DagOptions {
     }
 }
 
-impl<'a> Default for DagOptions {
+impl Default for DagOptions {
     fn default() -> Self {
         Self {
             schedule: None,

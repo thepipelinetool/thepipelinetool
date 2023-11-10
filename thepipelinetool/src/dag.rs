@@ -342,7 +342,7 @@ impl DAG {
 
     pub fn get_graphite_mermaid_graph(&self) -> Vec<Value> {
         let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
-        runner.enqueue_run("local", "", Utc::now().into());
+        runner.enqueue_run("local", "", Utc::now());
         runner.get_graphite_graph(&0)
     }
 

@@ -139,17 +139,17 @@ impl<U: Runner> DefRunner for U {
         //     || (self.task_statuses.contains_key(task_id)
         //         && self.task_statuses[task_id] == TaskStatus::Skipped)
         // dbg!(&self.get_task_status(dag_run_id, task_id).as_str());
-        match self.get_task_status(dag_run_id, task_id) {
-            TaskStatus::Pending => true,
-            _ => false,
-        }
+        matches!(
+            self.get_task_status(dag_run_id, task_id),
+            TaskStatus::Pending
+        )
     }
 
     fn get_all_tasks_needs_running(&mut self, dag_run_id: &usize) -> Vec<Task> {
         self.get_all_tasks_incomplete(dag_run_id)
             .iter()
             .filter(|n| self.task_needs_running(dag_run_id, &n.id))
-            .map(|t| t.clone())
+            .cloned()
             .collect()
     }
 
@@ -664,7 +664,7 @@ impl<U: Runner> DefRunner for U {
                 .iter()
                 .collect::<Vec<&(usize, usize)>>(),
         );
-        let dag_run_id = &self.enqueue_run(&self.get_dag_name(), &hash, Utc::now().into());
+        let dag_run_id = &self.enqueue_run(&self.get_dag_name(), &hash, Utc::now());
 
         for task in self.get_default_tasks() {
             let mut visited = HashSet::new();

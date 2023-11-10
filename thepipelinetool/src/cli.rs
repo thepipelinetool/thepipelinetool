@@ -150,7 +150,7 @@ impl DAG {
                 }
                 "tree" => {
                     let mut runner = LocalRunner::new("", &self.nodes, &self.edges);
-                    let dag_run_id = runner.enqueue_run("local", "", Utc::now().into());
+                    let dag_run_id = runner.enqueue_run("local", "", Utc::now());
                     let tasks = runner
                         .get_default_tasks()
                         .iter()
