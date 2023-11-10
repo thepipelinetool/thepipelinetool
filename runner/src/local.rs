@@ -19,8 +19,8 @@ pub struct LocalRunner {
     nodes: Vec<Task>,
 }
 
-impl Runner for LocalRunner {
-    fn new(_name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
+impl LocalRunner {
+    pub fn new(_name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
             default_nodes: nodes.to_vec(),
             nodes: Vec::new(),
@@ -31,6 +31,10 @@ impl Runner for LocalRunner {
             dep_keys: HashMap::new(),
         }
     }
+}
+
+impl Runner for LocalRunner {
+
 
     fn insert_task_results(&mut self, _dag_run_id: &usize, result: &TaskResult) {
         self.attempts.insert(result.task_id, result.attempt);
@@ -47,7 +51,7 @@ impl Runner for LocalRunner {
         0
     }
 
-    fn get_task_result(&self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
+    fn get_task_result(&mut self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
         self.task_results[task_id].clone()
     }
 
@@ -58,7 +62,7 @@ impl Runner for LocalRunner {
         *self.attempts.get(task_id).unwrap() + 1
     }
 
-    fn get_task_status(&self, _dag_run_id: &usize, task_id: &usize) -> TaskStatus {
+    fn get_task_status(&mut self, _dag_run_id: &usize, task_id: &usize) -> TaskStatus {
         match self.task_statuses.get(task_id) {
             Some(task_status) => task_status.clone(),
             None => TaskStatus::Pending,
@@ -73,7 +77,7 @@ impl Runner for LocalRunner {
         // todo!()
     }
 
-    fn any_upstream_incomplete(&self, dag_run_id: &usize, task_id: &usize) -> bool {
+    fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
         self.get_upstream(dag_run_id, task_id)
             .iter()
             .any(|edge| !self.is_task_completed(dag_run_id, edge))
@@ -194,8 +198,8 @@ impl Runner for LocalRunner {
         "default".into()
     }
 
-    fn get_all_tasks_incomplete(&self, dag_run_id: &usize) -> Vec<Task> {
-        self.nodes
+    fn get_all_tasks_incomplete(&mut self, dag_run_id: &usize) -> Vec<Task> {
+        self.nodes.clone()
             .iter()
             .filter(|n| !self.is_task_completed(dag_run_id, &n.id))
             .map(|t| t.clone())

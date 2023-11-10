@@ -21,10 +21,9 @@ pub mod local;
 pub trait Runner {
     fn get_dag_name(&self) -> String;
     fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn new(name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self;
-    fn get_task_result(&self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
+    fn get_task_result(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
     fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
-    fn get_task_status(&self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
+    fn get_task_status(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
     fn set_task_status(&mut self, dag_run_id: &usize, task_id: &usize, task_status: TaskStatus);
     fn create_new_run(
         &mut self,
@@ -34,7 +33,7 @@ pub trait Runner {
     ) -> usize;
     fn insert_task_results(&mut self, dag_run_id: &usize, result: &TaskResult);
     fn mark_finished(&self, dag_run_id: &usize);
-    fn any_upstream_incomplete(&self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn get_dependency_keys(
         &self,
         dag_run_id: &usize,
@@ -52,7 +51,7 @@ pub trait Runner {
     fn remove_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
     fn insert_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
     fn get_default_tasks(&self) -> Vec<Task>;
-    fn get_all_tasks_incomplete(&self, dag_run_id: &usize) -> Vec<Task>;
+    fn get_all_tasks_incomplete(&mut self, dag_run_id: &usize) -> Vec<Task>;
     fn get_all_tasks(&self, dag_run_id: &usize) -> Vec<Task>;
 
     fn get_default_edges(&self) -> HashSet<(usize, usize)>;
@@ -72,13 +71,13 @@ pub trait Runner {
 }
 
 pub trait DefRunner {
-    fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn task_needs_running(&self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn get_all_tasks_needs_running(&self, dag_run_id: &usize) -> Vec<Task>;
+    fn is_task_completed(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn task_needs_running(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn get_all_tasks_needs_running(&mut self, dag_run_id: &usize) -> Vec<Task>;
 
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
-    fn is_completed(&self, dag_run_id: &usize) -> bool;
+    fn is_completed(&mut self, dag_run_id: &usize) -> bool;
     fn run(&mut self, dag_run_id: &usize, max_threads: usize);
 
     fn get_circular_dependencies(
@@ -105,7 +104,7 @@ pub trait DefRunner {
     ) -> Result<Value, Error>;
     fn run_dag_local(&mut self, max_threads: usize);
     // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String;
-    fn get_graphite_graph(&self, dag_run_id: &usize) -> Vec<Value>;
+    fn get_graphite_graph(&mut self, dag_run_id: &usize) -> Vec<Value>;
     fn get_tree(
         &self,
         dag_run_id: &usize,
@@ -119,13 +118,13 @@ pub trait DefRunner {
 }
 
 impl<U: Runner> DefRunner for U {
-    fn is_completed(&self, dag_run_id: &usize) -> bool {
+    fn is_completed(&mut self, dag_run_id: &usize) -> bool {
         self.get_all_tasks_incomplete(dag_run_id)
             .iter()
             .all(|task| self.is_task_completed(dag_run_id, &task.id))
     }
 
-    fn is_task_completed(&self, dag_run_id: &usize, task_id: &usize) -> bool {
+    fn is_task_completed(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
         // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
         //     || (self.task_statuses.contains_key(task_id)
         //         && self.task_statuses[task_id] == TaskStatus::Skipped)
@@ -135,7 +134,7 @@ impl<U: Runner> DefRunner for U {
         }
     }
 
-    fn task_needs_running(&self, dag_run_id: &usize, task_id: &usize) -> bool {
+    fn task_needs_running(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
         // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
         //     || (self.task_statuses.contains_key(task_id)
         //         && self.task_statuses[task_id] == TaskStatus::Skipped)
@@ -146,7 +145,7 @@ impl<U: Runner> DefRunner for U {
         }
     }
 
-    fn get_all_tasks_needs_running(&self, dag_run_id: &usize) -> Vec<Task> {
+    fn get_all_tasks_needs_running(&mut self, dag_run_id: &usize) -> Vec<Task> {
         self.get_all_tasks_incomplete(dag_run_id)
             .iter()
             .filter(|n| self.task_needs_running(dag_run_id, &n.id))
@@ -738,7 +737,7 @@ impl<U: Runner> DefRunner for U {
     //     out
     // }
 
-    fn get_graphite_graph(&self, dag_run_id: &usize) -> Vec<Value> {
+    fn get_graphite_graph(&mut self, dag_run_id: &usize) -> Vec<Value> {
         let task_statuses: Vec<(String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
             .iter()
@@ -934,16 +933,16 @@ impl<U: Runner> DefRunner for U {
     }
 }
 
-fn get_styling_for_status(task_status: &TaskStatus) -> String {
-    match task_status {
-        TaskStatus::Pending => "color:black,stroke:grey,fill:white,stroke-width:4px".into(),
-        TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
-        TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
-        TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
-        TaskStatus::Retrying => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
-        TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
-    }
-}
+// fn get_styling_for_status(task_status: &TaskStatus) -> String {
+//     match task_status {
+//         TaskStatus::Pending => "color:black,stroke:grey,fill:white,stroke-width:4px".into(),
+//         TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
+//         TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
+//         TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
+//         TaskStatus::Retrying => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
+//         TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
+//     }
+// }
 
 pub fn collector(args: Value) -> Value {
     args

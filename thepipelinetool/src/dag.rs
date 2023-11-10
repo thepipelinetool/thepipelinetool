@@ -7,7 +7,7 @@ use chrono::Utc;
 use runner::{
     collector,
     local::{hash_dag, LocalRunner},
-    DefRunner, Runner,
+    DefRunner,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
