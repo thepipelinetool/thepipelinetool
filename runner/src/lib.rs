@@ -1,10 +1,7 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     io::{Error, ErrorKind},
-    sync::{
-        mpsc::{self, Sender},
-        Arc, Mutex,
-    },
+    sync::mpsc::{self, Sender},
 };
 
 use chrono::{DateTime, Utc};
@@ -95,7 +92,7 @@ pub trait DefRunner {
         tx: &Sender<(usize, TaskResult)>,
         max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
-    ) -> bool;
+    ) -> (bool, bool);
     fn resolve_args(
         &mut self,
         dag_run_id: &usize,
@@ -249,21 +246,21 @@ impl<U: Runner> DefRunner for U {
         tx: &Sender<(usize, TaskResult)>,
         max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
-    ) -> bool {
+    ) -> (bool, bool) {
         // if *Arc::clone(thread_count).lock().unwrap() >= max_threads {
         //     return false;
         // }
 
         if self.is_task_completed(dag_run_id, &task.id) {
-            return false;
+            return (false, true);
         }
 
         if self.any_upstream_incomplete(dag_run_id, &task.id) {
-            return false;
+            return (false, false);
         }
 
         if !self.set_status_to_running_if_possible(dag_run_id, &task.id) {
-            return false;
+            return (false, true);
         }
 
         let resolution_result = self.resolve_args(
@@ -287,7 +284,7 @@ impl<U: Runner> DefRunner for U {
                 ),
             );
 
-            return false;
+            return (false, true);
         }
 
         if task.lazy_expand {
@@ -393,7 +390,7 @@ impl<U: Runner> DefRunner for U {
                 },
             ))
             .unwrap();
-            return true;
+            return (true, true);
         }
 
         // *thread_count.lock().unwrap() += 1;
@@ -408,7 +405,7 @@ impl<U: Runner> DefRunner for U {
         if max_threads == 1 {
             task_handle.join().unwrap();
         }
-        return true;
+        return (true, true);
     }
 
     fn resolve_args(
@@ -530,39 +527,46 @@ impl<U: Runner> DefRunner for U {
     }
 
     fn run(&mut self, dag_run_id: &usize, max_threads: usize) {
-        let counter = Arc::new(Mutex::new(0));
+        let mut thread_count = 0usize;
+        let tasks = self.get_all_tasks_needs_running(dag_run_id);
+        let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
+        let mut task_ids: HashSet<usize> = HashSet::new();
 
-        // dbg!(&tasks.len());
+        for task in &tasks {
+            tasks_map.insert(task.id, &task);
+            task_ids.insert(task.id);
+        }
 
-        let mut tasks = VecDeque::from(self.get_all_tasks_needs_running(dag_run_id));
+        let tasks_map = tasks_map;
+
         let (tx, rx) = mpsc::channel::<(usize, TaskResult)>();
-        let mut ran_task_ids: HashSet<usize> = HashSet::new();
 
-        while !tasks.is_empty() && *counter.lock().unwrap() < max_threads {
-            let task = tasks.pop_front().unwrap();
-            let ran = self.attempt_run_task(dag_run_id, &task, &tx.clone(), max_threads);
+        for task_id in &task_ids.clone() {
+            let task = tasks_map[task_id];
+            let (spawned_thread, run_attempted) =
+                self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads);
 
-            if ran {
-                *counter.lock().unwrap() += 1;
-                ran_task_ids.insert(task.id);
+            if spawned_thread {
+                thread_count += 1;
+            }
+
+            if run_attempted {
+                task_ids.remove(task_id);
+            }
+
+            if thread_count >= max_threads {
+                break;
             }
         }
 
-        // for task in tasks {
-        //     self.attempt_run_task(dag_run_id, &task, &tx.clone(), max_threads, &counter);
-        //     if *counter.lock().unwrap() >= max_threads {
-        //         break;
-        //     }
-        // }
-
-        if *counter.lock().unwrap() == 0 || self.is_completed(dag_run_id) {
+        if thread_count == 0 || self.is_completed(dag_run_id) {
             drop(tx);
             return;
         }
 
         'outer: for (run_id, received) in &rx {
-            if *counter.lock().unwrap() >= 1 {
-                *counter.lock().unwrap() -= 1;
+            if thread_count >= 1 {
+                thread_count -= 1;
             }
             let task_id: usize = received.task_id;
             self.handle_task_result(&run_id, received);
@@ -570,86 +574,74 @@ impl<U: Runner> DefRunner for U {
             let task_needs_running = self.task_needs_running(&run_id, &task_id);
 
             if task_needs_running {
-                let ran = self.attempt_run_task(
+                // let mut to_remove = vec![];
+
+                let (spawned_thread, run_attempted) = self.attempt_run_task(
                     &run_id,
                     &self.get_task_by_id(&run_id, &task_id),
                     &tx.clone(),
                     max_threads,
                     // &counter,
                 );
-                if ran {
-                    *counter.lock().unwrap() += 1;
+                if spawned_thread {
+                    thread_count += 1;
                 }
-                if *counter.lock().unwrap() >= max_threads {
+                if run_attempted {
+                    // completed_task_ids.insert(task_id);
+                    // to_remove.push(&task_id);
+                    task_ids.remove(&task_id);
+                }
+                if thread_count >= max_threads {
                     continue 'outer;
                 }
-            } else {
-                'inner: for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
-                    if ran_task_ids.contains(downstream_task_id) {
-                        continue 'inner;
-                    }
 
-                    let ran = self.attempt_run_task(
+                // for t in to_remove {
+                //     tasks.remove(t);
+                // }
+
+                // tasks.remove(to_remove[0])
+            } else {
+                // let mut to_remove = vec![];
+
+                // 'inner:
+                for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
+                    let (spawned_thread, run_attempted) = self.attempt_run_task(
                         &run_id,
                         &self.get_task_by_id(&run_id, downstream_task_id),
                         &tx.clone(),
                         max_threads,
-                        // &counter,
                     );
-                    if ran {
-                        *counter.lock().unwrap() += 1;
-                        ran_task_ids.insert(*downstream_task_id);
+                    if spawned_thread {
+                        thread_count += 1;
                     }
-                    if *counter.lock().unwrap() >= max_threads {
+                    if run_attempted {
+                        task_ids.remove(&task_id);
+                    }
+                    if thread_count >= max_threads {
                         continue 'outer;
                     }
                 }
             }
 
-            // if self.is_completed(&run_id) {
-            //     drop(tx);
-            //     self.mark_finished(&run_id);
-            //     return;
-            // }
+            for task_id in &task_ids.clone() {
+                let task = tasks_map[task_id];
 
-            'inner: while !tasks.is_empty() && *counter.lock().unwrap() < max_threads {
-                let task = tasks.pop_front().unwrap();
+                let (spawned_thread, run_attempted) =
+                    self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads);
 
-                if ran_task_ids.contains(&task.id) {
-                    continue 'inner;
+                if spawned_thread {
+                    thread_count += 1;
+                }
+                if run_attempted {
+                    task_ids.remove(task_id);
                 }
 
-                let ran = self.attempt_run_task(dag_run_id, &task, &tx.clone(), max_threads);
-
-                if ran {
-                    *counter.lock().unwrap() += 1;
-                    ran_task_ids.insert(task.id);
-                }
-
-                if *counter.lock().unwrap() >= max_threads {
+                if thread_count >= max_threads {
                     continue 'outer;
                 }
             }
 
-            // for task in self.get_all_tasks_needs_running(dag_run_id) {
-            //     let ran = self.attempt_run_task(
-            //         &run_id,
-            //         &task,
-            //         &tx.clone(),
-            //         max_threads,
-            //         // &counter,
-            //     );
-            //     if ran {
-            //         *counter.lock().unwrap() += 1;
-            //         ran_task_ids.insert(task.id);
-
-            //     }
-            //     if *counter.lock().unwrap() >= max_threads {
-            //         continue 'outer;
-            //     }
-            // }
-
-            if *counter.lock().unwrap() == 0 {
+            if thread_count == 0 {
                 drop(tx);
                 return;
             }
