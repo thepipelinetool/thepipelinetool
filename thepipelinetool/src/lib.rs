@@ -21,7 +21,12 @@ pub mod prelude {
     pub use utils::execute_function;
 }
 
-use std::{collections::HashSet, marker::PhantomData, ops::Shr, process::Command};
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    ops::{BitOr, Shr},
+    process::Command,
+};
 
 use chrono::Utc;
 use graph::dag::get_dag;
@@ -34,7 +39,7 @@ use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRefInner, Branch};
 use utils::function_name_as_string;
 
-impl<T, G> Shr<Output<G>> for Output<T>
+impl<T, G> Shr<TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
     G: Serialize,
@@ -44,19 +49,45 @@ where
     // that is used in the implementation below.
 {
     // type Output = R; // Define the output type of the operation
-    type Output = Output<G>; // Define the output type of the operation
+    type Output = TaskRef<G>; // Define the output type of the operation
 
-    fn shr(self, rhs: Output<G>) -> Self::Output {
+    fn shr(self, rhs: TaskRef<G>) -> Self::Output {
         // Define the behavior of the shift right operation
         // This could involve manipulating `dag.value` and `rhs.value`
         // and producing a result of type R.
         // let mut dag = get_dag().lock().unwrap();
 
+        // println!("!");
+
+        // println!("{:#?} {:#?}", self.0.task_ids, rhs.0.task_ids);
+
         seq(&self, &rhs)
     }
 }
 
-impl<T: Serialize> Serialize for Output<T> {
+impl<T, G> BitOr<TaskRef<G>> for TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+    // R: From<(HashSet<usize>, Option<String>)>,
+    // Define any constraints necessary for T, G, and R
+    // For example, T might need to support a certain operation
+    // that is used in the implementation below.
+{
+    // type Output = R; // Define the output type of the operation
+    type Output = TaskRef<G>; // Define the output type of the operation
+
+    fn bitor(self, rhs: TaskRef<G>) -> Self::Output {
+        // Define the behavior of the shift right operation
+        // This could involve manipulating `dag.value` and `rhs.value`
+        // and producing a result of type R.
+        // let mut dag = get_dag().lock().unwrap();
+
+        par(&self, &rhs)
+    }
+}
+
+impl<T: Serialize> Serialize for TaskRef<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -73,28 +104,28 @@ impl<T: Serialize> Serialize for Output<T> {
     }
 }
 
-impl<T: Serialize> Output<T> {
-    pub fn get(&self, key: &str) -> Output<Value> {
+impl<T: Serialize> TaskRef<T> {
+    pub fn get(&self, key: &str) -> TaskRef<Value> {
         assert!(self.0.task_ids.len() == 1, "Cannot use parallel ref as arg");
 
-        Output(TaskRefInner {
+        TaskRef(TaskRefInner {
             task_ids: self.0.task_ids.clone(),
             key: Some(key.to_string()),
             _marker: PhantomData,
         })
     }
 
-    pub fn value(&self) -> Output<Value> {
+    pub fn value(&self) -> TaskRef<Value> {
         assert!(self.0.task_ids.len() == 1, "Cannot use parallel ref as arg");
 
-        Output(TaskRefInner {
+        TaskRef(TaskRefInner {
             task_ids: self.0.task_ids.clone(),
             key: None,
             _marker: PhantomData,
         })
     }
 }
-pub struct Output<T: Serialize>(TaskRefInner<T>);
+pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
 
 // impl<T, G, K> Shr<dyn TaskRefTrait<G>> for T
 // where
@@ -120,7 +151,7 @@ pub fn expand<F, T, G, const N: usize>(
     function: F,
     template_args_vec: &[T; N],
     options: TaskOptions,
-) -> [Output<TaskRefInner<G>>; N]
+) -> [TaskRef<TaskRefInner<G>>; N]
 where
     T: Serialize + DeserializeOwned,
     G: Serialize,
@@ -162,7 +193,7 @@ where
         );
         i += 1;
 
-        Output(TaskRefInner {
+        TaskRef(TaskRefInner {
             task_ids: HashSet::from([id]),
             key: None,
 
@@ -174,9 +205,9 @@ where
 pub fn add_task_with_ref<F, T, G>(
     //
     function: F,
-    task_ref: &Output<T>,
+    task_ref: &TaskRef<T>,
     options: TaskOptions,
-) -> Output<G>
+) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned,
     G: Serialize,
@@ -212,7 +243,7 @@ where
     dag.functions
         .insert(function_name, Box::new(wrapped_function));
 
-    Output(TaskRefInner {
+    TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
 
@@ -220,7 +251,7 @@ where
     })
 }
 
-pub fn add_task<F, T, G>(function: F, template_args: T, options: TaskOptions) -> Output<G>
+pub fn add_task<F, T, G>(function: F, template_args: T, options: TaskOptions) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned,
     G: Serialize,
@@ -256,7 +287,7 @@ where
     dag.functions
         .insert(function_name, Box::new(wrapped_function));
 
-    Output(TaskRefInner {
+    TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
 
@@ -270,7 +301,7 @@ pub fn branch<F, K, T, L, J, R, M>(
     left: L,
     right: R,
     options: TaskOptions,
-) -> (Output<J>, Output<M>)
+) -> (TaskRef<J>, TaskRef<M>)
 where
     T: Serialize + DeserializeOwned,
     K: Serialize + DeserializeOwned,
@@ -310,7 +341,7 @@ where
     dag.functions
         .insert(function_name, Box::new(wrapped_function));
 
-    let b = Output::<T>(TaskRefInner::<T> {
+    let b = TaskRef::<T>(TaskRefInner::<T> {
         task_ids: HashSet::from([id]),
         key: None,
 
@@ -325,9 +356,9 @@ where
 
 pub fn expand_lazy<K, F, T, G>(
     function: F,
-    task_ref: &Output<T>,
+    task_ref: &TaskRef<T>,
     options: TaskOptions,
-) -> Output<Vec<G>>
+) -> TaskRef<Vec<G>>
 where
     K: Serialize + DeserializeOwned,
     T: Serialize + DeserializeOwned + IntoIterator<Item = K>,
@@ -364,7 +395,7 @@ where
     dag.functions
         .insert(function_name, Box::new(wrapped_function));
 
-    Output(TaskRefInner {
+    TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
 
@@ -372,12 +403,12 @@ where
     })
 }
 
-pub fn seq<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G> {
+pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     // assert!(!task_refs.is_empty());
     let mut dag = get_dag().lock().unwrap();
 
     let mut last: usize = 0;
-    // for t in 0..task_refs.len() - 1 {
+    // for t in 0..a.0.task_refs.len() - 1 {
     for up in a.0.task_ids.iter() {
         for down in b.0.task_ids.iter() {
             dag.edges.insert((*up, *down));
@@ -386,7 +417,7 @@ pub fn seq<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G
     }
     // }
 
-    Output(TaskRefInner {
+    TaskRef(TaskRefInner {
         task_ids: HashSet::from([last]),
         key: None,
 
@@ -394,7 +425,7 @@ pub fn seq<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G
     })
 }
 
-pub fn par<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G> {
+pub fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut task_ids: HashSet<usize> = HashSet::new();
 
     // for t in task_refs {
@@ -402,7 +433,7 @@ pub fn par<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G
     task_ids.extend(&b.0.task_ids);
     // }
 
-    Output(TaskRefInner {
+    TaskRef(TaskRefInner {
         task_ids,
         key: None,
         _marker: std::marker::PhantomData,
@@ -445,7 +476,7 @@ pub fn par<T: Serialize, G: Serialize>(a: &Output<T>, b: &Output<G>) -> Output<G
 //     }
 // }
 
-pub fn add_command(args: Value, options: TaskOptions) -> Output<Value> {
+pub fn add_command(args: Value, options: TaskOptions) -> TaskRef<Value> {
     assert!(args.is_array());
 
     add_task(run_command, args, options)
