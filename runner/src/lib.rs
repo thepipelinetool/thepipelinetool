@@ -651,9 +651,12 @@ impl<U: Runner> DefRunner for U {
             // no more running threads so drop sender
             if thread_count == 0 {
                 drop(tx);
-                self.mark_finished(dag_run_id);
-                return;
+                break 'outer;
             }
+        }
+
+        if self.is_completed(dag_run_id) {
+            self.mark_finished(dag_run_id);
         }
     }
 
