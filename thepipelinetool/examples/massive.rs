@@ -9,13 +9,11 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new();
-
-    // let a = dag.add_task(hi, vec, TaskOptions::default());
+    // let a = add_task(hi, vec, TaskOptions::default());
 
     let binding = (0..500).collect::<Vec<usize>>();
     let k: &[usize; 500] = binding.as_slice().try_into().unwrap();
-    let _ = dag.expand(hi, k, TaskOptions::default());
+    let _ = expand(hi, k, TaskOptions::default());
 
-    dag.parse_cli();
+    parse_cli();
 }

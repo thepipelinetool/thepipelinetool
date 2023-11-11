@@ -40,3 +40,7 @@ pub fn execute_function(in_file: &str, out_file: &str, task_function: &dyn Fn(Va
     value_to_file(&task_result, out_file);
     process::exit(0);
 }
+
+pub fn collector(args: Value) -> Value {
+    args
+}

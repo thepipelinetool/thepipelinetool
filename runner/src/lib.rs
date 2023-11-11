@@ -8,10 +8,10 @@ use chrono::{DateTime, Utc};
 use local::hash_dag;
 use serde_json::{json, Value};
 use task::{
-    task::Task, task_options::TaskOptions, task_ref::TaskRef, task_result::TaskResult,
+    task::Task, task_options::TaskOptions, task_ref::TaskRefInner, task_result::TaskResult,
     task_status::TaskStatus,
 };
-use utils::function_name_as_string;
+use utils::{collector, function_name_as_string};
 
 pub mod local;
 
@@ -316,13 +316,13 @@ impl<U: Runner> DefRunner for U {
                     function_name,
                     json!(lazy_ids
                         .iter()
-                        .map(|id| TaskRef::<Value> {
+                        .map(|id| TaskRefInner::<Value> {
                             _marker: std::marker::PhantomData,
                             key: None,
 
                             task_ids: HashSet::from([*id])
                         })
-                        .collect::<Vec<TaskRef<Value>>>()),
+                        .collect::<Vec<TaskRefInner<Value>>>()),
                     task.options,
                     false,
                     true,
@@ -343,14 +343,14 @@ impl<U: Runner> DefRunner for U {
                         &serde_json::to_string(&self.get_template_args(dag_run_id, d))
                             .unwrap()
                             .replace(
-                                &serde_json::to_string(&TaskRef::<Value> {
+                                &serde_json::to_string(&TaskRefInner::<Value> {
                                     _marker: std::marker::PhantomData,
                                     key: None,
 
                                     task_ids: HashSet::from([task.id]),
                                 })
                                 .unwrap(),
-                                &serde_json::to_string(&TaskRef::<Value> {
+                                &serde_json::to_string(&TaskRefInner::<Value> {
                                     _marker: std::marker::PhantomData,
                                     key: None,
 
@@ -405,7 +405,7 @@ impl<U: Runner> DefRunner for U {
         if max_threads == 1 {
             task_handle.join().unwrap();
         }
-        return (true, true);
+        (true, true)
     }
 
     fn resolve_args(
@@ -486,9 +486,9 @@ impl<U: Runner> DefRunner for U {
                     let upstream_task_id = map["upstream_task_id"].as_u64().unwrap() as usize;
                     let result: Value = results[&upstream_task_id].clone();
                     if map.contains_key("key") {
-                        return result.as_object().unwrap()[map["key"].as_str().unwrap()].clone();
+                        result.as_object().unwrap()[map["key"].as_str().unwrap()].clone()
                     } else {
-                        return result;
+                        result
                     }
                 })
                 .collect::<Vec<Value>>()));
@@ -534,7 +534,7 @@ impl<U: Runner> DefRunner for U {
         let mut downstream_ids: HashMap<usize, HashSet<usize>> = HashMap::new();
 
         for task in &tasks {
-            tasks_map.insert(task.id, &task);
+            tasks_map.insert(task.id, task);
             task_ids.insert(task.id);
 
             if !task.lazy_expand && !task.is_dynamic {
@@ -590,42 +590,40 @@ impl<U: Runner> DefRunner for U {
                 if thread_count >= max_threads {
                     continue 'outer;
                 }
-            } else {
-                if downstream_ids.contains_key(&task_id) {
-                    for downstream_task_id in downstream_ids[&task_id].iter() {
-                        let (spawned_thread, run_attempted) = self.attempt_run_task(
-                            &run_id,
-                            &tasks[*downstream_task_id],
-                            &tx.clone(),
-                            max_threads,
-                        );
-                        if spawned_thread {
-                            thread_count += 1;
-                        }
-                        if run_attempted {
-                            task_ids.remove(&task_id);
-                        }
-                        if thread_count >= max_threads {
-                            continue 'outer;
-                        }
+            } else if downstream_ids.contains_key(&task_id) {
+                for downstream_task_id in downstream_ids[&task_id].iter() {
+                    let (spawned_thread, run_attempted) = self.attempt_run_task(
+                        &run_id,
+                        &tasks[*downstream_task_id],
+                        &tx.clone(),
+                        max_threads,
+                    );
+                    if spawned_thread {
+                        thread_count += 1;
                     }
-                } else {
-                    for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
-                        let (spawned_thread, run_attempted) = self.attempt_run_task(
-                            &run_id,
-                            &self.get_task_by_id(&run_id, downstream_task_id),
-                            &tx.clone(),
-                            max_threads,
-                        );
-                        if spawned_thread {
-                            thread_count += 1;
-                        }
-                        if run_attempted {
-                            task_ids.remove(&task_id);
-                        }
-                        if thread_count >= max_threads {
-                            continue 'outer;
-                        }
+                    if run_attempted {
+                        task_ids.remove(&task_id);
+                    }
+                    if thread_count >= max_threads {
+                        continue 'outer;
+                    }
+                }
+            } else {
+                for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
+                    let (spawned_thread, run_attempted) = self.attempt_run_task(
+                        &run_id,
+                        &self.get_task_by_id(&run_id, downstream_task_id),
+                        &tx.clone(),
+                        max_threads,
+                    );
+                    if spawned_thread {
+                        thread_count += 1;
+                    }
+                    if run_attempted {
+                        task_ids.remove(&task_id);
+                    }
+                    if thread_count >= max_threads {
+                        continue 'outer;
                     }
                 }
             }
@@ -947,7 +945,3 @@ impl<U: Runner> DefRunner for U {
 //         TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
 //     }
 // }
-
-pub fn collector(args: Value) -> Value {
-    args
-}

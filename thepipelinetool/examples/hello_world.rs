@@ -51,13 +51,13 @@ fn hello_world3(args: Value) -> Value {
 
 fn main() {
     // let mut dag = DAG::new(true);
-    let mut dag = DAG::new();
+
     // let mut dag = DAG::new_persistent("".into(), true, SqliteRunner::new());
 
-    let task0 = dag.add_task(hello_world0, Value::Null, TaskOptions::default());
+    let task0 = add_task(hello_world0, Value::Null, TaskOptions::default());
 
-    let task1 = dag.add_task(hello_world2, Value::Null, TaskOptions::default());
-    let a = dag.add_task(
+    let task1 = add_task(hello_world2, Value::Null, TaskOptions::default());
+    let a = add_task(
         hello_world2,
         json!({
             "hi": task1.get("data"),
@@ -65,7 +65,7 @@ fn main() {
         }),
         TaskOptions::default(),
     );
-    let b = dag.add_task(
+    let b = add_task(
         hello_world1,
         json!({
             "hi": task1.get("data"),
@@ -73,7 +73,7 @@ fn main() {
         }),
         TaskOptions::default(),
     );
-    let d = dag.add_task(
+    let d = add_task(
         hello_world2,
         json!({
             "hi": a.get("data"),
@@ -82,13 +82,13 @@ fn main() {
         TaskOptions::default(),
     );
 
-    let task2 = dag.add_task(
+    let task2 = add_task(
         hello_world1,
         json!({"hi": task0.get("data")}),
         TaskOptions::default(),
     );
 
-    let task3 = dag.add_task(
+    let task3 = add_task(
         hello_world3,
         json!({
             "hi": task0.get("data"),
@@ -97,7 +97,7 @@ fn main() {
         TaskOptions::default(),
     );
 
-    let _task4 = dag.add_task(
+    let _task4 = add_task(
         hello_world3,
         json!({
             "hi": task3.get("data"),
@@ -109,13 +109,13 @@ fn main() {
         TaskOptions::default(),
     );
 
-    let anonymous = dag.add_task(
+    let anonymous = add_task(
         |args| -> Value { args },
         json!({"data": "anonymous"}),
         TaskOptions::default(),
     );
 
-    let _ = dag.add_task(
+    let _ = add_task(
         hello_world1,
         json!({
             "hi": anonymous.get("data"),
@@ -123,7 +123,7 @@ fn main() {
         }),
         TaskOptions::default(),
     );
-    let c = dag.add_task(
+    let c = add_task(
         hello_world1,
         json!({
             "hi": anonymous.get("data"),
@@ -132,9 +132,9 @@ fn main() {
         TaskOptions::default(),
     );
 
-    let x = dag.add_task(hello_world1, Value::Null, TaskOptions::default());
+    let x = add_task(hello_world1, Value::Null, TaskOptions::default());
 
-    let _y = dag.add_task(
+    let _y = add_task(
         hello_world1,
         json!({
             "hi": x.get("data"),
@@ -142,17 +142,17 @@ fn main() {
         TaskOptions::default(),
     );
     // task0 >> task2;
-    dag.seq(&[&task1, &c]);
-    dag.seq(&[&anonymous, &d]);
+    seq(&task1, &c);
+    seq(&anonymous, &d);
     // anonymous >> a;
 
     // a >> task0;
     // &y >> &x;
     // (task1, task2) >> (c, c);
 
-    // dag.save_graph();
-    dag.parse_cli();
-    // println!("{}", dag.get_mermaid_graph());
+    // save_graph();
+    parse_cli();
+    // println!("{}", get_mermaid_graph());
 
     // function_name_as_string(|args| -> Value { args });
 }

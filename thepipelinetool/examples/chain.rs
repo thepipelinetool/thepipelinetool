@@ -9,24 +9,23 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new();
+    let a = add_task(hi, json!({}), TaskOptions::default());
+    let b = add_task(hi, json!({}), TaskOptions::default());
+    let c = add_task(hi, json!({}), TaskOptions::default());
 
-    let a = dag.add_task(hi, json!({}), TaskOptions::default());
-    let b = dag.add_task(hi, json!({}), TaskOptions::default());
-    let c = dag.add_task(hi, json!({}), TaskOptions::default());
+    let d = add_task(hi, json!({}), TaskOptions::default());
+    let e = add_task(hi, json!({}), TaskOptions::default());
 
-    let d = dag.add_task(hi, json!({}), TaskOptions::default());
-    let e = dag.add_task(hi, json!({}), TaskOptions::default());
+    let p = &par(&d, &e);
+    // seq(&[&c, &b, &p, &a]);
+    let _ = a >> b >> c;
 
-    let p = &dag.par(&[&d, &e]);
-    dag.seq(&[&c, &b, &p, &a]);
-
-    let _out = dag.expand(
+    let _out = expand(
         hi,
         &[Value::Null, Value::Null, Value::Null],
         TaskOptions::default(),
     );
 
-    dag.parse_cli();
-    // println!("{}", dag.get_initial_mermaid_graph());
+    parse_cli();
+    // println!("{}", get_initial_mermaid_graph());
 }

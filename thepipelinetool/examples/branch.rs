@@ -1,7 +1,7 @@
 use thepipelinetool::prelude::*;
 
 fn main() {
-    fn branch(_: Value) -> Branch<usize> {
+    fn brnch(_: Value) -> Branch<usize> {
         Branch::left(0)
     }
 
@@ -13,9 +13,7 @@ fn main() {
         println!("right");
     }
 
-    let mut dag = DAG::new();
+    let _a = branch(brnch, json!({}), left, right, TaskOptions::default());
 
-    let _a = dag.branch(branch, json!({}), left, right, TaskOptions::default());
-
-    dag.parse_cli();
+    parse_cli();
 }

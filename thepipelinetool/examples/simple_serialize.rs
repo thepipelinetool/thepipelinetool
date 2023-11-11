@@ -49,20 +49,18 @@ fn main() {
         })
     }
 
-    let mut dag = DAG::new();
-
-    let a = dag.add_task(
+    let a = add_task(
         hi2,
         Test {
             val: "hello!!".into(),
         },
         TaskOptions::default(),
     );
-    let _ = dag.add_task_with_ref(hi, &a.value(), TaskOptions::default());
-    let _ = dag.add_task_with_ref(hi, &a.get("res"), TaskOptions::default());
+    let _ = add_task_with_ref(hi, &a.value(), TaskOptions::default());
+    let _ = add_task_with_ref(hi, &a.get("res"), TaskOptions::default());
 
-    let b = dag.add_task(hi, json!({}), TaskOptions::default());
-    let _c = dag.add_task(
+    let b = add_task(hi, json!({}), TaskOptions::default());
+    let _c = add_task(
         hi,
         json!([a.value(), b.get("hello")]),
         TaskOptions {
@@ -71,7 +69,7 @@ fn main() {
         },
     );
 
-    dag.expand(
+    expand(
         hi2,
         &[
             Test {
@@ -84,8 +82,8 @@ fn main() {
         TaskOptions::default(),
     );
 
-    let a = dag.add_task(hi3, json!({}), TaskOptions::default());
-    let _h = dag.expand_lazy(hi4, &a, TaskOptions::default());
+    let a = add_task(hi3, json!({}), TaskOptions::default());
+    let _h = expand_lazy(hi4, &a, TaskOptions::default());
 
-    dag.parse_cli();
+    parse_cli();
 }
