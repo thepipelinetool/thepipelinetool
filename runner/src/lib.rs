@@ -531,13 +531,19 @@ impl<U: Runner> DefRunner for U {
         let tasks = self.get_all_tasks_needs_running(dag_run_id);
         let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
         let mut task_ids: HashSet<usize> = HashSet::new();
+        let mut downstream_ids: HashMap<usize, HashSet<usize>> = HashMap::new();
 
         for task in &tasks {
             tasks_map.insert(task.id, &task);
             task_ids.insert(task.id);
+
+            if !task.lazy_expand && !task.is_dynamic {
+                downstream_ids.insert(task.id, self.get_downstream(dag_run_id, &task.id));
+            }
         }
 
         let tasks_map = tasks_map;
+        let downstream_ids = downstream_ids;
 
         let (tx, rx) = mpsc::channel::<(usize, TaskResult)>();
 
@@ -570,55 +576,56 @@ impl<U: Runner> DefRunner for U {
             }
             let task_id: usize = received.task_id;
             self.handle_task_result(&run_id, received);
-            // dbg!(3);
-            let task_needs_running = self.task_needs_running(&run_id, &task_id);
 
-            if task_needs_running {
-                // let mut to_remove = vec![];
-
-                let (spawned_thread, run_attempted) = self.attempt_run_task(
-                    &run_id,
-                    &self.get_task_by_id(&run_id, &task_id),
-                    &tx.clone(),
-                    max_threads,
-                    // &counter,
-                );
+            // retry run if task failed
+            if self.task_needs_running(&run_id, &task_id) {
+                let (spawned_thread, run_attempted) =
+                    self.attempt_run_task(&run_id, &tasks[task_id], &tx.clone(), max_threads);
                 if spawned_thread {
                     thread_count += 1;
                 }
                 if run_attempted {
-                    // completed_task_ids.insert(task_id);
-                    // to_remove.push(&task_id);
                     task_ids.remove(&task_id);
                 }
                 if thread_count >= max_threads {
                     continue 'outer;
                 }
-
-                // for t in to_remove {
-                //     tasks.remove(t);
-                // }
-
-                // tasks.remove(to_remove[0])
             } else {
-                // let mut to_remove = vec![];
-
-                // 'inner:
-                for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
-                    let (spawned_thread, run_attempted) = self.attempt_run_task(
-                        &run_id,
-                        &self.get_task_by_id(&run_id, downstream_task_id),
-                        &tx.clone(),
-                        max_threads,
-                    );
-                    if spawned_thread {
-                        thread_count += 1;
+                if downstream_ids.contains_key(&task_id) {
+                    for downstream_task_id in downstream_ids[&task_id].iter() {
+                        let (spawned_thread, run_attempted) = self.attempt_run_task(
+                            &run_id,
+                            &tasks[*downstream_task_id],
+                            &tx.clone(),
+                            max_threads,
+                        );
+                        if spawned_thread {
+                            thread_count += 1;
+                        }
+                        if run_attempted {
+                            task_ids.remove(&task_id);
+                        }
+                        if thread_count >= max_threads {
+                            continue 'outer;
+                        }
                     }
-                    if run_attempted {
-                        task_ids.remove(&task_id);
-                    }
-                    if thread_count >= max_threads {
-                        continue 'outer;
+                } else {
+                    for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
+                        let (spawned_thread, run_attempted) = self.attempt_run_task(
+                            &run_id,
+                            &self.get_task_by_id(&run_id, downstream_task_id),
+                            &tx.clone(),
+                            max_threads,
+                        );
+                        if spawned_thread {
+                            thread_count += 1;
+                        }
+                        if run_attempted {
+                            task_ids.remove(&task_id);
+                        }
+                        if thread_count >= max_threads {
+                            continue 'outer;
+                        }
                     }
                 }
             }
@@ -641,6 +648,7 @@ impl<U: Runner> DefRunner for U {
                 }
             }
 
+            // no more running threads so drop sender
             if thread_count == 0 {
                 drop(tx);
                 return;
