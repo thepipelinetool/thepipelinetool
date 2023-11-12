@@ -23,6 +23,17 @@ impl TaskStatus {
         }
     }
 
+    pub fn as_u8(&self) -> u8 {
+        match *self {
+            TaskStatus::Pending => 0,
+            TaskStatus::Running => 1,
+            TaskStatus::Retrying => 2,
+            TaskStatus::Success => 3,
+            TaskStatus::Failure => 4,
+            TaskStatus::Skipped => 5,
+        }
+    }
+
     // Convert a &str to a TaskStatus
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
