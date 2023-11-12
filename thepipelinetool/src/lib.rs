@@ -46,14 +46,7 @@ pub fn get_tasks() -> &'static RwLock<Vec<Task>> {
 
 pub fn get_functions() -> &'static RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>
 {
-    FUNCTIONS.get_or_init(|| {
-        let mut functions: HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>> =
-            HashMap::new();
-        let function_name = function_name_as_string(&collector).to_string();
-        functions.insert(function_name.clone(), Box::new(collector));
-
-        RwLock::new(functions)
-    })
+    FUNCTIONS.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
 pub fn get_edges() -> &'static RwLock<HashSet<(usize, usize)>> {
@@ -380,11 +373,11 @@ where
         serde_json::to_value(output).unwrap()
     };
     {
-        get_functions()
-            .write()
-            .unwrap()
-            .insert(function_name, Box::new(wrapped_function));
+        let mut functions = get_functions().write().unwrap();
+        functions.insert(function_name.clone(), Box::new(wrapped_function));
+        functions.insert(function_name_as_string(collector), Box::new(collector));
     }
+
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
