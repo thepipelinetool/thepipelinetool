@@ -3,17 +3,13 @@ use thepipelinetool::prelude::*;
 fn hi(_args: Value) -> Value {
     println!("hi");
 
-    json!({
-        "hello": "world"
-    })
+    json!({ "hello": "world" })
 }
 
 fn hi2(_args: Value) -> Value {
     println!("hi");
 
-    json!({
-        "hello": "world"
-    })
+    json!({ "hello": "world" })
 }
 
 #[dag]

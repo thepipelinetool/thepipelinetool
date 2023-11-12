@@ -245,7 +245,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
-                options: options.clone(),
+                options: *options,
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,

@@ -14,9 +14,7 @@ struct TestResult {
 fn hi(args: Value) -> Value {
     println!("{}", args);
 
-    json!({
-        "hello": "world"
-    })
+    json!({ "hello": "world" })
 }
 
 fn hi2(args: Test) -> TestResult {
@@ -43,9 +41,7 @@ fn hi3(args: Value) -> Vec<Test> {
 fn hi4(args: Test) -> Value {
     println!("{}", args.val);
 
-    json!({
-        "hello": "world"
-    })
+    json!({ "hello": "world" })
 }
 
 #[dag]

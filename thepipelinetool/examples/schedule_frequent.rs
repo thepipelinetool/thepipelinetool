@@ -3,9 +3,7 @@ use thepipelinetool::prelude::*;
 fn hi(args: Value) -> Value {
     println!("{}", args);
 
-    json!({
-        "hello": "world"
-    })
+    json!({ "hello": "world" })
 }
 
 #[dag]
