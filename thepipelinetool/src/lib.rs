@@ -7,6 +7,7 @@ pub mod prelude {
     pub use crate::{
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy,
     };
+    pub use graph::options::DagOptions;
     // pub use crate::options::*;
     pub use runner::local::{hash_dag, LocalRunner};
     pub use runner::{DefRunner, Runner};
