@@ -12,7 +12,7 @@ pub struct Dag {
     pub nodes: Vec<Task>,
     pub functions: HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>,
     pub edges: HashSet<(usize, usize)>,
-    pub options: DagOptions,
+    // pub options: DagOptions,
 }
 
 impl Dag {
@@ -26,14 +26,14 @@ impl Dag {
             nodes: Vec::new(),
             functions,
             edges: HashSet::new(),
-            options: DagOptions::default(),
+            // options: DagOptions::default(),
         }
     }
 }
 
 use std::sync::OnceLock;
 
-use crate::options::DagOptions;
+// use crate::options::DagOptions;
 // static DAG: OnceLock<Dag> = OnceLock::new();
 // pub fn get_dag() -> &'static Dag {
 //     DAG.get_or_init(|| Dag::new())

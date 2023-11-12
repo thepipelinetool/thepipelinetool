@@ -1,20 +1,35 @@
-use std::cmp::max;
+use std::{
+    cmp::max,
+    sync::{Mutex, OnceLock},
+};
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command};
 use graph::dag::get_dag;
-use runner::{local::{LocalRunner, hash_dag}, DefRunner, Runner};
+use runner::{
+    local::{hash_dag, LocalRunner},
+    DefRunner, Runner,
+};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
 use utils::execute_function;
 
+use crate::options::DagOptions;
+
 // use crate::hash;
 
 // use crate::dag::Dag;
 
 // impl Dag {
+
+static OPTIONS: OnceLock<Mutex<DagOptions>> = OnceLock::new();
+
+pub fn get_options() -> &'static Mutex<DagOptions> {
+    OPTIONS.get_or_init(|| Mutex::new(DagOptions::default()))
+}
+
 pub fn parse_cli() {
     let dag = get_dag().lock().unwrap();
     let command = command!()
@@ -71,7 +86,10 @@ pub fn parse_cli() {
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
             "options" => {
-                println!("{}", serde_json::to_string_pretty(&dag.options).unwrap());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&get_options().lock().unwrap().clone()).unwrap()
+                );
             }
             "describe" => {
                 println!("Task count: {}", dag.nodes.len());
@@ -80,7 +98,9 @@ pub fn parse_cli() {
                     dag.functions.keys().collect::<Vec<&String>>()
                 );
 
-                if let Some(schedule) = &dag.options.schedule {
+                let options = get_options().lock().unwrap();
+
+                if let Some(schedule) = &options.schedule {
                     println!("Schedule: {schedule}");
                     match schedule.parse::<CronExpr>() {
                         Ok(cron) => {
@@ -99,7 +119,7 @@ pub fn parse_cli() {
                                 return;
                             }
 
-                            if let Some(start_date) = dag.options.start_date {
+                            if let Some(start_date) = options.start_date {
                                 println!("Start date: {start_date}");
                             } else {
                                 println!("Start date: None");
@@ -107,8 +127,8 @@ pub fn parse_cli() {
 
                             println!("Upcoming:");
                             let futures = cron.clone().iter_from(
-                                if let Some(start_date) = dag.options.start_date {
-                                    if dag.options.catchup || start_date > Utc::now() {
+                                if let Some(start_date) = options.start_date {
+                                    if options.catchup || start_date > Utc::now() {
                                         start_date.into()
                                     } else {
                                         Utc::now()
@@ -122,7 +142,7 @@ pub fn parse_cli() {
                                     println!("Failed check! Cron does not contain {}.", time);
                                     break;
                                 }
-                                if let Some(end_date) = dag.options.end_date {
+                                if let Some(end_date) = options.end_date {
                                     if time > end_date {
                                         break;
                                     }
@@ -148,12 +168,9 @@ pub fn parse_cli() {
                 let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
                 runner.enqueue_run("local", "", Utc::now());
                 println!("1");
-                
+
                 let graph = runner.get_graphite_graph(&0);
-                print!(
-                    "{}",
-                    serde_json::to_string_pretty(&graph).unwrap()
-                );
+                print!("{}", serde_json::to_string_pretty(&graph).unwrap());
             }
             "hash" => {
                 let hash = hash_dag(

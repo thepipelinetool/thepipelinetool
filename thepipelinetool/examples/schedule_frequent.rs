@@ -1,4 +1,3 @@
-use graph::dag::get_dag;
 use thepipelinetool::prelude::*;
 
 fn main() {
@@ -10,9 +9,9 @@ fn main() {
         })
     }
 
-    let mut dag = get_dag().lock().unwrap();
+    // let mut dag = get_dag().lock().unwrap();
 
-    dag.options.set_schedule("*/1 * * * *");
+    set_schedule("*/1 * * * *");
     // options
     //     .set_start_date(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap());
     // options

@@ -1,13 +1,14 @@
 mod cli;
 // mod dag;
-// mod options;
+mod options;
 
 pub mod prelude {
     pub use crate::cli::*;
+    pub use crate::options::DagOptions;
     pub use crate::{
-        add_command, add_task, add_task_with_ref, branch, expand, expand_lazy,
+        add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, set_catchup,
+        set_end_date, set_schedule, set_start_date,
     };
-    pub use graph::options::DagOptions;
     // pub use crate::options::*;
     pub use runner::local::{hash_dag, LocalRunner};
     pub use runner::{DefRunner, Runner};
@@ -28,6 +29,8 @@ use std::{
     process::Command,
 };
 
+use chrono::{DateTime, FixedOffset};
+use cli::get_options;
 use graph::dag::get_dag;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
@@ -486,7 +489,6 @@ pub fn add_command(args: Value, options: TaskOptions) -> TaskRef<Value> {
 // pub fn hash() -> String {
 //     // let dag = get_dag().lock().unwrap();
 
-    
 // }
 // }
 
@@ -511,4 +513,20 @@ fn run_command(args: Value) -> Value {
     }
 
     json!(result_raw.to_string().trim_end())
+}
+
+pub fn set_schedule(schedule: &str) {
+    get_options().lock().unwrap().schedule = Some(schedule.to_string());
+}
+
+pub fn set_start_date(start_date: DateTime<FixedOffset>) {
+    get_options().lock().unwrap().start_date = Some(start_date);
+}
+
+pub fn set_end_date(end_date: DateTime<FixedOffset>) {
+    get_options().lock().unwrap().end_date = Some(end_date);
+}
+
+pub fn set_catchup(catchup: bool) {
+    get_options().lock().unwrap().catchup = catchup;
 }
