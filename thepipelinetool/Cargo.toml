@@ -13,6 +13,7 @@ utils = { path = "../utils" }
 #graph = { path = "../graph" }
 runner = { path = "../runner" }
 serde = "1.0.189"
+proc_macro = { path = "../proc_macro" }
 clap = { version = "4.4.7", features = [ "cargo" ] }
 saffron = { git = "https://github.com/cloudflare/saffron.git" }
 

@@ -6,5 +6,6 @@ members = [
     "runner",
     "utils",
     "task",
+    "proc_macro",
 ]
 resolver = "2"

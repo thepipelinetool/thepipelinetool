@@ -18,6 +18,8 @@ pub mod prelude {
     pub use task::task_status::TaskStatus;
     pub use task::Branch;
     pub use utils::execute_function;
+    pub use proc_macro::dag;
+
 }
 
 use chrono::{DateTime, FixedOffset};
