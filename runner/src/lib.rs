@@ -180,10 +180,11 @@ impl<U: Runner> DefRunner for U {
 
     fn handle_task_result(&mut self, dag_run_id: &usize, result: TaskResult) {
         let mut result = result;
-        let mut b = Value::Null;
+        let mut branch_left = false;
+        
         if result.is_branch {
-            b = result.result.clone();
-            result.result = result.result["val"].clone();
+            branch_left = result.result["is_left"].as_bool().unwrap();
+            result.result = result.result["val"].take();
         }
 
         self.insert_task_results(dag_run_id, &result);
@@ -201,7 +202,7 @@ impl<U: Runner> DefRunner for U {
         }
 
         if result.is_branch && result.success {
-            let to_skip = if b["is_left"].as_bool().unwrap() {
+            let to_skip = if branch_left {
                 result.task_id + 2
             } else {
                 result.task_id + 1
