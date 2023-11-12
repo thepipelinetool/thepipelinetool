@@ -17,13 +17,13 @@ fn main() {
         })
     }
 
-    let a = add_task(hi, json!({}), TaskOptions::default());
-    let b = add_task(hi, json!({}), TaskOptions::default());
-    let c = add_task(hi, json!({}), TaskOptions::default());
+    let a = add_task(hi, json!({}), &TaskOptions::default());
+    let b = add_task(hi, json!({}), &TaskOptions::default());
+    let c = add_task(hi, json!({}), &TaskOptions::default());
 
-    let d = add_task(hi2, json!({}), TaskOptions::default());
-    let e = add_task(hi2, json!({}), TaskOptions::default());
-    let f = add_task(hi2, json!({}), TaskOptions::default());
+    let d = add_task(hi2, json!({}), &TaskOptions::default());
+    let e = add_task(hi2, json!({}), &TaskOptions::default());
+    let f = add_task(hi2, json!({}), &TaskOptions::default());
 
     // let p = par(&d, &e);
     // let p = ;
@@ -34,7 +34,7 @@ fn main() {
     let _out = expand(
         hi,
         &[Value::Null, Value::Null, Value::Null],
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     parse_cli();

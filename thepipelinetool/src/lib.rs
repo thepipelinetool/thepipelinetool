@@ -122,7 +122,7 @@ pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
 pub fn expand<F, T, G, const N: usize>(
     function: F,
     template_args_vec: &[T; N],
-    options: TaskOptions,
+    options: &TaskOptions,
 ) -> [TaskRef<TaskRefInner<G>>; N]
 where
     T: Serialize + DeserializeOwned,
@@ -158,7 +158,7 @@ where
                     id,
                     function_name: function_name.clone(),
                     template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
-                    options,
+                    options: *options,
                     lazy_expand: false,
                     is_dynamic: false,
                     is_branch: false,
@@ -179,7 +179,7 @@ where
 pub fn add_task_with_ref<F, T, G>(
     function: F,
     task_ref: &TaskRef<T>,
-    options: TaskOptions,
+    options: &TaskOptions,
 ) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned,
@@ -196,7 +196,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
-                options,
+                options: *options,
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,
@@ -226,7 +226,7 @@ where
     })
 }
 
-pub fn add_task<F, T, G>(function: F, template_args: T, options: TaskOptions) -> TaskRef<G>
+pub fn add_task<F, T, G>(function: F, template_args: T, options: &TaskOptions) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned,
     G: Serialize,
@@ -244,7 +244,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
-                options,
+                options: options.clone(),
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,
@@ -279,7 +279,7 @@ pub fn branch<F, K, T, L, J, R, M>(
     template_args: K,
     left: L,
     right: R,
-    options: TaskOptions,
+    options: &TaskOptions,
 ) -> (TaskRef<J>, TaskRef<M>)
 where
     T: Serialize + DeserializeOwned,
@@ -300,7 +300,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
-                options,
+                options: *options,
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: true,
@@ -338,7 +338,7 @@ where
 pub fn expand_lazy<K, F, T, G>(
     function: F,
     task_ref: &TaskRef<T>,
-    options: TaskOptions,
+    options: &TaskOptions,
 ) -> TaskRef<Vec<G>>
 where
     K: Serialize + DeserializeOwned,
@@ -356,7 +356,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
-                options,
+                options: *options,
                 lazy_expand: true,
                 is_dynamic: false,
                 is_branch: false,
@@ -416,7 +416,7 @@ fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G>
     })
 }
 
-pub fn add_command(args: Value, options: TaskOptions) -> TaskRef<Value> {
+pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
     assert!(args.is_array());
 
     add_task(run_command, args, options)

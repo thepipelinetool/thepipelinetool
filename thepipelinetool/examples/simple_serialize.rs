@@ -54,16 +54,16 @@ fn main() {
         Test {
             val: "hello!!".into(),
         },
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
-    let _ = add_task_with_ref(hi, &a.value(), TaskOptions::default());
-    let _ = add_task_with_ref(hi, &a.get("res"), TaskOptions::default());
+    let _ = add_task_with_ref(hi, &a.value(), &TaskOptions::default());
+    let _ = add_task_with_ref(hi, &a.get("res"), &TaskOptions::default());
 
-    let b = add_task(hi, json!({}), TaskOptions::default());
+    let b = add_task(hi, json!({}), &TaskOptions::default());
     let _c = add_task(
         hi,
         json!([a.value(), b.get("hello")]),
-        TaskOptions {
+        &TaskOptions {
             timeout: None,
             ..Default::default()
         },
@@ -79,11 +79,11 @@ fn main() {
                 val: "hello2!!".into(),
             },
         ],
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
-    let a = add_task(hi3, json!({}), TaskOptions::default());
-    let _h = expand_lazy(hi4, &a, TaskOptions::default());
+    let a = add_task(hi3, json!({}), &TaskOptions::default());
+    let _h = expand_lazy(hi4, &a, &TaskOptions::default());
 
     parse_cli();
 }

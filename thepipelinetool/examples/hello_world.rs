@@ -54,16 +54,16 @@ fn main() {
 
     // let mut dag = DAG::new_persistent("".into(), true, SqliteRunner::new());
 
-    let task0 = add_task(hello_world0, Value::Null, TaskOptions::default());
+    let task0 = add_task(hello_world0, Value::Null, &TaskOptions::default());
 
-    let task1 = add_task(hello_world2, Value::Null, TaskOptions::default());
+    let task1 = add_task(hello_world2, Value::Null, &TaskOptions::default());
     let a = add_task(
         hello_world2,
         json!({
             "hi": task1.get("data"),
             "hello": task1.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
     let b = add_task(
         hello_world1,
@@ -71,7 +71,7 @@ fn main() {
             "hi": task1.get("data"),
             "hello": task1.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
     let d = add_task(
         hello_world2,
@@ -79,13 +79,13 @@ fn main() {
             "hi": a.get("data"),
             "hello": b.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     let task2 = add_task(
         hello_world1,
         json!({"hi": task0.get("data")}),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     let task3 = add_task(
@@ -94,7 +94,7 @@ fn main() {
             "hi": task0.get("data"),
             "hello": task2.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     let _task4 = add_task(
@@ -106,13 +106,13 @@ fn main() {
             "whatup": task0.value(),
             "howdy": "hello",
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     let anonymous = add_task(
         |args| -> Value { args },
         json!({"data": "anonymous"}),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
     let _ = add_task(
@@ -121,7 +121,7 @@ fn main() {
             "hi": anonymous.get("data"),
             "hello": anonymous.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
     let c = add_task(
         hello_world1,
@@ -129,17 +129,17 @@ fn main() {
             "hi": anonymous.get("data"),
             "hello": anonymous.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
 
-    let x = add_task(hello_world1, Value::Null, TaskOptions::default());
+    let x = add_task(hello_world1, Value::Null, &TaskOptions::default());
 
     let _y = add_task(
         hello_world1,
         json!({
             "hi": x.get("data"),
         }),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
     // task0 >> task2;
     let _ = task1 >> c;

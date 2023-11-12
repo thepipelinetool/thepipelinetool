@@ -17,12 +17,12 @@ fn main() {
     set_end_date(DateTime::parse_from_rfc3339("1997-06-19T16:39:57-08:00").unwrap());
     set_catchup(true);
 
-    let a = add_task(hi, json!({}), TaskOptions::default());
-    let b = add_task(hi, json!({}), TaskOptions::default());
+    let a = add_task(hi, json!({}), &TaskOptions::default());
+    let b = add_task(hi, json!({}), &TaskOptions::default());
     let _c = add_task(
         hi,
         json!([a.value(), b.get("hello")]),
-        TaskOptions {
+        &TaskOptions {
             timeout: None,
             ..Default::default()
         },

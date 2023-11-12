@@ -5,9 +5,9 @@ use thepipelinetool::prelude::*;
 fn main() {
     let a = add_command(
         json!(["bash", "-c", "sleep 2 && echo hello"]),
-        TaskOptions::default(),
+        &TaskOptions::default(),
     );
-    let b = add_command(json!(["echo", a.value()]), TaskOptions::default());
+    let b = add_command(json!(["echo", a.value()]), &TaskOptions::default());
 
     let _c = vec![a, b];
 

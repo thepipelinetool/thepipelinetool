@@ -13,6 +13,6 @@ fn right(_: usize) -> () {
 }
 
 fn main() {
-    let _ = branch(branch_task, json!({}), left, right, TaskOptions::default());
+    let _ = branch(branch_task, json!({}), left, right, &TaskOptions::default());
     parse_cli();
 }
