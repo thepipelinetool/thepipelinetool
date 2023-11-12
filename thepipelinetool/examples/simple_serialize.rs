@@ -11,45 +11,45 @@ struct TestResult {
     res: String,
 }
 
+fn hi(args: Value) -> Value {
+    println!("{}", args);
+
+    json!({
+        "hello": "world"
+    })
+}
+
+fn hi2(args: Test) -> TestResult {
+    println!("{}", args.val);
+
+    TestResult {
+        res: "world".into(),
+    }
+}
+
+fn hi3(args: Value) -> Vec<Test> {
+    println!("{}", args);
+
+    vec![
+        Test {
+            val: "hell234o2!!".into(),
+        },
+        Test {
+            val: "hello342!!".into(),
+        },
+    ]
+}
+
+fn hi4(args: Test) -> Value {
+    println!("{}", args.val);
+
+    json!({
+        "hello": "world"
+    })
+}
+
 #[dag]
 fn main() {
-    fn hi(args: Value) -> Value {
-        println!("{}", args);
-
-        json!({
-            "hello": "world"
-        })
-    }
-
-    fn hi2(args: Test) -> TestResult {
-        println!("{}", args.val);
-
-        TestResult {
-            res: "world".into(),
-        }
-    }
-
-    fn hi3(args: Value) -> Vec<Test> {
-        println!("{}", args);
-
-        vec![
-            Test {
-                val: "hell234o2!!".into(),
-            },
-            Test {
-                val: "hello342!!".into(),
-            },
-        ]
-    }
-
-    fn hi4(args: Test) -> Value {
-        println!("{}", args.val);
-
-        json!({
-            "hello": "world"
-        })
-    }
-
     let a = add_task(
         hi2,
         Test {

@@ -51,12 +51,7 @@ fn hello_world3(args: Value) -> Value {
 
 #[dag]
 fn main() {
-    // let mut dag = DAG::new(true);
-
-    // let mut dag = DAG::new_persistent("".into(), true, SqliteRunner::new());
-
     let task0 = add_task(hello_world0, Value::Null, &TaskOptions::default());
-
     let task1 = add_task(hello_world2, Value::Null, &TaskOptions::default());
     let a = add_task(
         hello_world2,
@@ -142,18 +137,7 @@ fn main() {
         }),
         &TaskOptions::default(),
     );
-    // task0 >> task2;
+
     let _ = task1 >> c;
     let _ = anonymous >> d;
-    // anonymous >> a;
-
-    // a >> task0;
-    // &y >> &x;
-    // (task1, task2) >> (c, c);
-
-    // save_graph();
-
-    // println!("{}", get_mermaid_graph());
-
-    // function_name_as_string(|args| -> Value { args });
 }

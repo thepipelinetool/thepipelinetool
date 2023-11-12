@@ -8,7 +8,5 @@ fn main() {
         json!(["bash", "-c", "sleep 2 && echo hello"]),
         &TaskOptions::default(),
     );
-    let b = add_command(json!(["echo", a.value()]), &TaskOptions::default());
-
-    let _c = vec![a, b];
+    let _ = add_command(json!(["echo", a.value()]), &TaskOptions::default());
 }
