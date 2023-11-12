@@ -3,14 +3,14 @@ use std::cmp::max;
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command};
 use graph::dag::get_dag;
-use runner::{local::LocalRunner, DefRunner, Runner};
+use runner::{local::{LocalRunner, hash_dag}, DefRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
 use utils::execute_function;
 
-use crate::{get_graphite_mermaid_graph, hash};
+// use crate::hash;
 
 // use crate::dag::Dag;
 
@@ -144,13 +144,23 @@ pub fn parse_cli() {
             }
             "graph" => {
                 // print!("{}", dag.get_initial_mermaid_graph());
+
+                let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
+                runner.enqueue_run("local", "", Utc::now());
+                println!("1");
+                
+                let graph = runner.get_graphite_graph(&0);
                 print!(
                     "{}",
-                    serde_json::to_string_pretty(&get_graphite_mermaid_graph()).unwrap()
+                    serde_json::to_string_pretty(&graph).unwrap()
                 );
             }
             "hash" => {
-                print!("{}", hash());
+                let hash = hash_dag(
+                    &serde_json::to_string(&dag.nodes).unwrap(),
+                    &dag.edges.iter().collect::<Vec<&(usize, usize)>>(),
+                );
+                print!("{hash}");
             }
             "tree" => {
                 let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);

@@ -142,8 +142,8 @@ fn main() {
         TaskOptions::default(),
     );
     // task0 >> task2;
-    seq(&task1, &c);
-    seq(&anonymous, &d);
+    let _ = task1 >> c;
+    let _ = anonymous >> d;
     // anonymous >> a;
 
     // a >> task0;

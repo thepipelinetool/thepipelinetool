@@ -6,7 +6,6 @@ pub mod prelude {
     pub use crate::cli::*;
     pub use crate::{
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy,
-        get_graphite_mermaid_graph, par, seq,
     };
     // pub use crate::options::*;
     pub use runner::local::{hash_dag, LocalRunner};
@@ -28,12 +27,7 @@ use std::{
     process::Command,
 };
 
-use chrono::Utc;
 use graph::dag::get_dag;
-use runner::{
-    local::{hash_dag, LocalRunner},
-    DefRunner,
-};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRefInner, Branch};
@@ -403,7 +397,7 @@ where
     })
 }
 
-pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
+fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     // assert!(!task_refs.is_empty());
     let mut dag = get_dag().lock().unwrap();
 
@@ -425,7 +419,7 @@ pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRe
     })
 }
 
-pub fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
+fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut task_ids: HashSet<usize> = HashSet::new();
 
     // for t in task_refs {
@@ -488,22 +482,11 @@ pub fn add_command(args: Value, options: TaskOptions) -> TaskRef<Value> {
 //     runner.get_mermaid_graph(&0)
 // }
 
-pub fn get_graphite_mermaid_graph() -> Vec<Value> {
-    let dag = get_dag().lock().unwrap();
+// pub fn hash() -> String {
+//     // let dag = get_dag().lock().unwrap();
 
-    let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
-    runner.enqueue_run("local", "", Utc::now());
-    runner.get_graphite_graph(&0)
-}
-
-pub fn hash() -> String {
-    let dag = get_dag().lock().unwrap();
-
-    hash_dag(
-        &serde_json::to_string(&dag.nodes).unwrap(),
-        &dag.edges.iter().collect::<Vec<&(usize, usize)>>(),
-    )
-}
+    
+// }
 // }
 
 fn run_command(args: Value) -> Value {
