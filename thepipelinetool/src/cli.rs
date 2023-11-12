@@ -1,11 +1,8 @@
-use std::{
-    cmp::max,
-    sync::{Mutex, OnceLock},
-};
+use std::cmp::max;
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command};
-use graph::dag::get_dag;
+// use graph::dag::get_dag;
 use runner::{
     local::{hash_dag, LocalRunner},
     DefRunner, Runner,
@@ -16,7 +13,9 @@ use saffron::{
 };
 use utils::execute_function;
 
-use crate::options::DagOptions;
+use crate::{get_edges, get_functions, get_options, get_tasks};
+
+// use crate::{options::DagOptions};
 
 // use crate::hash;
 
@@ -24,14 +23,12 @@ use crate::options::DagOptions;
 
 // impl Dag {
 
-static OPTIONS: OnceLock<Mutex<DagOptions>> = OnceLock::new();
-
-pub fn get_options() -> &'static Mutex<DagOptions> {
-    OPTIONS.get_or_init(|| Mutex::new(DagOptions::default()))
-}
-
 pub fn parse_cli() {
-    let dag = get_dag().lock().unwrap();
+    // let tasks = get_tasks().lock().unwrap();
+    // let edges = get_edges().lock().unwrap();
+    // let options = get_options().lock().unwrap();
+    // let functions = get_functions().lock().unwrap();
+
     let command = command!()
         .about("DAG CLI Tool")
         .subcommand(Command::new("describe").about("Describes the DAG"))
@@ -86,19 +83,24 @@ pub fn parse_cli() {
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
             "options" => {
+                let options = get_options().read().unwrap();
+
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&get_options().lock().unwrap().clone()).unwrap()
+                    serde_json::to_string_pretty(&options.clone()).unwrap()
                 );
             }
             "describe" => {
-                println!("Task count: {}", dag.nodes.len());
+                let tasks = get_tasks().read().unwrap();
+                // let edges = get_edges().lock().unwrap();
+                let options = get_options().read().unwrap();
+                let functions = get_functions().read().unwrap();
+
+                println!("Task count: {}", tasks.len());
                 println!(
                     "Functions: {:#?}",
-                    dag.functions.keys().collect::<Vec<&String>>()
+                    functions.keys().collect::<Vec<&String>>()
                 );
-
-                let options = get_options().lock().unwrap();
 
                 if let Some(schedule) = &options.schedule {
                     println!("Schedule: {schedule}");
@@ -157,15 +159,21 @@ pub fn parse_cli() {
                 }
             }
             "tasks" => {
-                println!("{}", serde_json::to_string_pretty(&dag.nodes).unwrap());
+                let tasks = get_tasks().read().unwrap();
+
+                println!("{}", serde_json::to_string_pretty(&*tasks).unwrap());
             }
             "edges" => {
-                println!("{}", serde_json::to_string_pretty(&dag.edges).unwrap());
+                let edges = get_edges().read().unwrap();
+
+                println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
             }
             "graph" => {
                 // print!("{}", dag.get_initial_mermaid_graph());
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
 
-                let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
+                let mut runner = LocalRunner::new("", &tasks, &edges);
                 runner.enqueue_run("local", "", Utc::now());
                 println!("1");
 
@@ -173,14 +181,20 @@ pub fn parse_cli() {
                 print!("{}", serde_json::to_string_pretty(&graph).unwrap());
             }
             "hash" => {
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
+
                 let hash = hash_dag(
-                    &serde_json::to_string(&dag.nodes).unwrap(),
-                    &dag.edges.iter().collect::<Vec<&(usize, usize)>>(),
+                    &serde_json::to_string(&*tasks).unwrap(),
+                    &edges.iter().collect::<Vec<&(usize, usize)>>(),
                 );
                 print!("{hash}");
             }
             "tree" => {
-                let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
+
+                let mut runner = LocalRunner::new("", &tasks, &edges);
                 let dag_run_id = runner.enqueue_run("local", "", Utc::now());
                 let tasks = runner
                     .get_default_tasks()
@@ -214,6 +228,8 @@ pub fn parse_cli() {
                 if let Some(subcommand) = matches.subcommand_name() {
                     match subcommand {
                         "local" => {
+                            let tasks = get_tasks().read().unwrap();
+                            let edges = get_edges().read().unwrap();
                             let sub_matches = matches.subcommand_matches("local").unwrap();
                             let mode = sub_matches.get_one::<String>("mode").unwrap();
 
@@ -226,22 +242,23 @@ pub fn parse_cli() {
                                 "max" => max_threads,
                                 _ => mode.parse::<usize>().unwrap(),
                             };
-                            LocalRunner::new("", &dag.nodes, &dag.edges)
-                                .run_dag_local(thread_count);
+                            LocalRunner::new("", &tasks, &edges).run_dag_local(thread_count);
                         }
                         "function" => {
+                            let functions = get_functions().read().unwrap();
+
                             let sub_matches = matches.subcommand_matches("function").unwrap();
                             let function_name =
                                 sub_matches.get_one::<String>("function_name").unwrap();
                             let in_path = sub_matches.get_one::<String>("in_path").unwrap();
                             let out_path = sub_matches.get_one::<String>("out_path").unwrap();
 
-                            if dag.functions.contains_key(function_name) {
-                                execute_function(in_path, out_path, &dag.functions[function_name]);
+                            if functions.contains_key(function_name) {
+                                execute_function(in_path, out_path, &functions[function_name]);
                             } else {
                                 panic!(
                                     "no such function {function_name}\navailable functions: {:#?}",
-                                    dag.functions.keys().collect::<Vec<&String>>()
+                                    functions.keys().collect::<Vec<&String>>()
                                 )
                             }
                         }

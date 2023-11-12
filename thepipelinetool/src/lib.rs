@@ -1,5 +1,4 @@
 mod cli;
-// mod dag;
 mod options;
 
 pub mod prelude {
@@ -9,7 +8,6 @@ pub mod prelude {
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, set_catchup,
         set_end_date, set_schedule, set_start_date,
     };
-    // pub use crate::options::*;
     pub use runner::local::{hash_dag, LocalRunner};
     pub use runner::{DefRunner, Runner};
     pub use serde::{Deserialize, Serialize};
@@ -22,43 +20,57 @@ pub mod prelude {
     pub use utils::execute_function;
 }
 
+use chrono::{DateTime, FixedOffset};
+use options::DagOptions;
+use serde::{de::DeserializeOwned, Serialize};
+use serde_json::{json, Value};
+use std::sync::{OnceLock, RwLock};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     marker::PhantomData,
     ops::{BitOr, Shr},
     process::Command,
 };
-
-use chrono::{DateTime, FixedOffset};
-use cli::get_options;
-use graph::dag::get_dag;
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json::{json, Value};
 use task::{task::Task, task_options::TaskOptions, task_ref::TaskRefInner, Branch};
-use utils::function_name_as_string;
+use utils::{collector, function_name_as_string};
+
+static TASKS: OnceLock<RwLock<Vec<Task>>> = OnceLock::new();
+static FUNCTIONS: OnceLock<RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>> =
+    OnceLock::new();
+static EDGES: OnceLock<RwLock<HashSet<(usize, usize)>>> = OnceLock::new();
+static OPTIONS: OnceLock<RwLock<DagOptions>> = OnceLock::new();
+
+pub fn get_tasks() -> &'static RwLock<Vec<Task>> {
+    TASKS.get_or_init(|| RwLock::new(Vec::new()))
+}
+
+pub fn get_functions() -> &'static RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>
+{
+    FUNCTIONS.get_or_init(|| {
+        let mut functions: HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>> =
+            HashMap::new();
+        let function_name = function_name_as_string(&collector).to_string();
+        functions.insert(function_name.clone(), Box::new(collector));
+
+        RwLock::new(functions)
+    })
+}
+
+pub fn get_edges() -> &'static RwLock<HashSet<(usize, usize)>> {
+    EDGES.get_or_init(|| RwLock::new(HashSet::new()))
+}
+
+pub fn get_options() -> &'static RwLock<DagOptions> {
+    OPTIONS.get_or_init(|| RwLock::new(DagOptions::default()))
+}
 
 impl<T, G> Shr<TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
     G: Serialize,
-    // R: From<(HashSet<usize>, Option<String>)>,
-    // Define any constraints necessary for T, G, and R
-    // For example, T might need to support a certain operation
-    // that is used in the implementation below.
 {
-    // type Output = R; // Define the output type of the operation
-    type Output = TaskRef<G>; // Define the output type of the operation
-
+    type Output = TaskRef<G>;
     fn shr(self, rhs: TaskRef<G>) -> Self::Output {
-        // Define the behavior of the shift right operation
-        // This could involve manipulating `dag.value` and `rhs.value`
-        // and producing a result of type R.
-        // let mut dag = get_dag().lock().unwrap();
-
-        // println!("!");
-
-        // println!("{:#?} {:#?}", self.0.task_ids, rhs.0.task_ids);
-
         seq(&self, &rhs)
     }
 }
@@ -67,20 +79,9 @@ impl<T, G> BitOr<TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
     G: Serialize,
-    // R: From<(HashSet<usize>, Option<String>)>,
-    // Define any constraints necessary for T, G, and R
-    // For example, T might need to support a certain operation
-    // that is used in the implementation below.
 {
-    // type Output = R; // Define the output type of the operation
-    type Output = TaskRef<G>; // Define the output type of the operation
-
+    type Output = TaskRef<G>;
     fn bitor(self, rhs: TaskRef<G>) -> Self::Output {
-        // Define the behavior of the shift right operation
-        // This could involve manipulating `dag.value` and `rhs.value`
-        // and producing a result of type R.
-        // let mut dag = get_dag().lock().unwrap();
-
         par(&self, &rhs)
     }
 }
@@ -125,27 +126,7 @@ impl<T: Serialize> TaskRef<T> {
 }
 pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
 
-// impl<T, G, K> Shr<dyn TaskRefTrait<G>> for T
-// where
-//     T: TaskRef<K>,
-//     K: Serialize,
-// {
-//     type Output = T;
-
-//     fn shr(self, rhs: dyn TaskRefTrait<G>) -> Self::Output {
-
-//         seq([])
-//     }
-//     // Implement the trait methods here
-// }
-
-// impl Dag {
-// pub fn set_options( options: DagOptions<'a>) {
-//     dag.options = options;
-// }
-
 pub fn expand<F, T, G, const N: usize>(
-    //
     function: F,
     template_args_vec: &[T; N],
     options: TaskOptions,
@@ -155,9 +136,6 @@ where
     G: Serialize,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
-    // let mut dag = get_dag().lock().unwrap();
-    let mut dag = get_dag().lock().unwrap();
-
     let function_name = function_name_as_string(&function).to_string();
 
     let wrapped_function = move |value: Value| -> Value {
@@ -168,27 +146,32 @@ where
         // Serialize the G type back into Value
         serde_json::to_value(output).unwrap()
     };
-
-    dag.functions
-        .insert(function_name.clone(), Box::new(wrapped_function));
-
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name.clone(), Box::new(wrapped_function));
+    }
     let mut i = 0;
 
-    [(); N].map(|_| {
-        let id = dag.nodes.len();
+    // let mut tasks = ;
 
-        dag.nodes.insert(
-            id,
-            Task {
+    [(); N].map(|_| {
+        let id = get_tasks().read().unwrap().len();
+        {
+            get_tasks().write().unwrap().insert(
                 id,
-                function_name: function_name.clone(),
-                template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
-                options,
-                lazy_expand: false,
-                is_dynamic: false,
-                is_branch: false,
-            },
-        );
+                Task {
+                    id,
+                    function_name: function_name.clone(),
+                    template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
+                    options,
+                    lazy_expand: false,
+                    is_dynamic: false,
+                    is_branch: false,
+                },
+            );
+        }
         i += 1;
 
         TaskRef(TaskRefInner {
@@ -201,7 +184,6 @@ where
 }
 
 pub fn add_task_with_ref<F, T, G>(
-    //
     function: F,
     task_ref: &TaskRef<T>,
     options: TaskOptions,
@@ -211,23 +193,23 @@ where
     G: Serialize,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
-    let mut dag = get_dag().lock().unwrap();
-
-    let id = dag.nodes.len();
+    let id = get_tasks().read().unwrap().len();
 
     let function_name = function_name_as_string(&function).to_string();
-    dag.nodes.insert(
-        id,
-        Task {
+    {
+        get_tasks().write().unwrap().insert(
             id,
-            function_name: function_name.to_string(),
-            template_args: serde_json::to_value(task_ref).unwrap(),
-            options,
-            lazy_expand: false,
-            is_dynamic: false,
-            is_branch: false,
-        },
-    );
+            Task {
+                id,
+                function_name: function_name.to_string(),
+                template_args: serde_json::to_value(task_ref).unwrap(),
+                options,
+                lazy_expand: false,
+                is_dynamic: false,
+                is_branch: false,
+            },
+        );
+    }
 
     let wrapped_function = move |value: Value| -> Value {
         // Deserialize the Value into T
@@ -237,10 +219,12 @@ where
         // Serialize the G type back into Value
         serde_json::to_value(output).unwrap()
     };
-
-    dag.functions
-        .insert(function_name, Box::new(wrapped_function));
-
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name, Box::new(wrapped_function));
+    }
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
@@ -255,23 +239,25 @@ where
     G: Serialize,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
-    let mut dag = get_dag().lock().unwrap();
+    // let mut tasks = ;
 
-    let id = dag.nodes.len();
+    let id = get_tasks().read().unwrap().len();
 
     let function_name = function_name_as_string(&function).to_string();
-    dag.nodes.insert(
-        id,
-        Task {
+    {
+        get_tasks().write().unwrap().insert(
             id,
-            function_name: function_name.to_string(),
-            template_args: serde_json::to_value(template_args).unwrap(),
-            options,
-            lazy_expand: false,
-            is_dynamic: false,
-            is_branch: false,
-        },
-    );
+            Task {
+                id,
+                function_name: function_name.to_string(),
+                template_args: serde_json::to_value(template_args).unwrap(),
+                options,
+                lazy_expand: false,
+                is_dynamic: false,
+                is_branch: false,
+            },
+        );
+    }
 
     let wrapped_function = move |value: Value| -> Value {
         // Deserialize the Value into T
@@ -281,10 +267,12 @@ where
         // Serialize the G type back into Value
         serde_json::to_value(output).unwrap()
     };
-
-    dag.functions
-        .insert(function_name, Box::new(wrapped_function));
-
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name, Box::new(wrapped_function));
+    }
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
@@ -309,23 +297,23 @@ where
     L: Fn(T) -> J + 'static + Sync + Send,
     R: Fn(T) -> M + 'static + Sync + Send,
 {
-    let mut dag = get_dag().lock().unwrap();
-
-    let id = dag.nodes.len();
-
+    let id = get_tasks().read().unwrap().len();
     let function_name = function_name_as_string(&function).to_string();
-    dag.nodes.insert(
-        id,
-        Task {
+
+    {
+        get_tasks().write().unwrap().insert(
             id,
-            function_name: function_name.to_string(),
-            template_args: serde_json::to_value(template_args).unwrap(),
-            options,
-            lazy_expand: false,
-            is_dynamic: false,
-            is_branch: true,
-        },
-    );
+            Task {
+                id,
+                function_name: function_name.to_string(),
+                template_args: serde_json::to_value(template_args).unwrap(),
+                options,
+                lazy_expand: false,
+                is_dynamic: false,
+                is_branch: true,
+            },
+        );
+    }
 
     let wrapped_function = move |value: Value| -> Value {
         // Deserialize the Value into T
@@ -335,10 +323,12 @@ where
         // Serialize the G type back into Value
         serde_json::to_value(output).unwrap()
     };
-
-    dag.functions
-        .insert(function_name, Box::new(wrapped_function));
-
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name, Box::new(wrapped_function));
+    }
     let b = TaskRef::<T>(TaskRefInner::<T> {
         task_ids: HashSet::from([id]),
         key: None,
@@ -360,26 +350,26 @@ pub fn expand_lazy<K, F, T, G>(
 where
     K: Serialize + DeserializeOwned,
     T: Serialize + DeserializeOwned + IntoIterator<Item = K>,
-    G: Serialize, // + IntoIterator<Item = T>,
+    G: Serialize,
     F: Fn(K) -> G + 'static + Sync + Send,
 {
-    let mut dag = get_dag().lock().unwrap();
-
-    let id = dag.nodes.len();
+    let id = get_tasks().read().unwrap().len();
 
     let function_name = function_name_as_string(&function).to_string();
-    dag.nodes.insert(
-        id,
-        Task {
+    {
+        get_tasks().write().unwrap().insert(
             id,
-            function_name: function_name.to_string(),
-            template_args: serde_json::to_value(task_ref).unwrap(),
-            options,
-            lazy_expand: true,
-            is_dynamic: false,
-            is_branch: false,
-        },
-    );
+            Task {
+                id,
+                function_name: function_name.to_string(),
+                template_args: serde_json::to_value(task_ref).unwrap(),
+                options,
+                lazy_expand: true,
+                is_dynamic: false,
+                is_branch: false,
+            },
+        );
+    }
 
     let wrapped_function = move |value: Value| -> Value {
         // Deserialize the Value into T
@@ -389,10 +379,12 @@ where
         // Serialize the G type back into Value
         serde_json::to_value(output).unwrap()
     };
-
-    dag.functions
-        .insert(function_name, Box::new(wrapped_function));
-
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name, Box::new(wrapped_function));
+    }
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
@@ -402,34 +394,27 @@ where
 }
 
 fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
-    // assert!(!task_refs.is_empty());
-    let mut dag = get_dag().lock().unwrap();
-
     let mut last: usize = 0;
-    // for t in 0..a.0.task_refs.len() - 1 {
+    let mut edges = get_edges().write().unwrap();
+
     for up in a.0.task_ids.iter() {
         for down in b.0.task_ids.iter() {
-            dag.edges.insert((*up, *down));
+            edges.insert((*up, *down));
             last = *down;
         }
     }
-    // }
 
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([last]),
         key: None,
-
         _marker: std::marker::PhantomData,
     })
 }
 
 fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut task_ids: HashSet<usize> = HashSet::new();
-
-    // for t in task_refs {
     task_ids.extend(&a.0.task_ids);
     task_ids.extend(&b.0.task_ids);
-    // }
 
     TaskRef(TaskRefInner {
         task_ids,
@@ -438,59 +423,11 @@ fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G>
     })
 }
 
-// pub fn seq<T: Serialize>(task_refs: &[&MyWrapper<T>]) -> MyWrapper<T> {
-//     assert!(!task_refs.is_empty());
-//     let mut dag = get_dag().lock().unwrap();
-
-//     let mut last: usize = 0;
-//     for t in 0..task_refs.len() - 1 {
-//         for up in task_refs[t].0.task_ids.iter() {
-//             for down in task_refs[t + 1].0.task_ids.iter() {
-//                 dag.edges.insert((*up, *down));
-//                 last = *down;
-//             }
-//         }
-//     }
-
-//     MyWrapper(TaskRef {
-//         task_ids: HashSet::from([last]),
-//         key: None,
-
-//         _marker: std::marker::PhantomData,
-//     })
-// }
-
-// pub fn par<T: Serialize>(task_refs: &[&TaskRef<T>]) -> TaskRef<T> {
-//     let mut task_ids: HashSet<usize> = HashSet::new();
-
-//     for t in task_refs {
-//         task_ids.extend(&t.task_ids);
-//     }
-
-//     TaskRef {
-//         task_ids,
-//         key: None,
-//         _marker: std::marker::PhantomData,
-//     }
-// }
-
 pub fn add_command(args: Value, options: TaskOptions) -> TaskRef<Value> {
     assert!(args.is_array());
 
     add_task(run_command, args, options)
 }
-
-// pub fn get_initial_mermaid_graph(&self) -> String {
-//     let mut runner = LocalRunner::new("", &dag.nodes, &dag.edges);
-//     runner.enqueue_run("local", "", Utc::now().into());
-//     runner.get_mermaid_graph(&0)
-// }
-
-// pub fn hash() -> String {
-//     // let dag = get_dag().lock().unwrap();
-
-// }
-// }
 
 fn run_command(args: Value) -> Value {
     let mut args: Vec<&str> = args
@@ -516,17 +453,17 @@ fn run_command(args: Value) -> Value {
 }
 
 pub fn set_schedule(schedule: &str) {
-    get_options().lock().unwrap().schedule = Some(schedule.to_string());
+    get_options().write().unwrap().schedule = Some(schedule.to_string());
 }
 
 pub fn set_start_date(start_date: DateTime<FixedOffset>) {
-    get_options().lock().unwrap().start_date = Some(start_date);
+    get_options().write().unwrap().start_date = Some(start_date);
 }
 
 pub fn set_end_date(end_date: DateTime<FixedOffset>) {
-    get_options().lock().unwrap().end_date = Some(end_date);
+    get_options().write().unwrap().end_date = Some(end_date);
 }
 
 pub fn set_catchup(catchup: bool) {
-    get_options().lock().unwrap().catchup = catchup;
+    get_options().write().unwrap().catchup = catchup;
 }
