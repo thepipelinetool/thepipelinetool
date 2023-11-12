@@ -1,5 +1,6 @@
 use thepipelinetool::prelude::*;
 
+#[dag]
 fn main() {
     fn hi(args: u8) -> u8 {
         println!("{}", args);
@@ -20,6 +21,5 @@ fn main() {
 
     expand_lazy(hi, &b, &TaskOptions::default());
 
-    parse_cli();
     // println!("{}", get_mermaid_graph());
 }

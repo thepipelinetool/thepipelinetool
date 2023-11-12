@@ -11,6 +11,7 @@ struct TestResult {
     res: String,
 }
 
+#[dag]
 fn main() {
     fn hi(args: Value) -> Value {
         println!("{}", args);
@@ -84,6 +85,4 @@ fn main() {
 
     let a = add_task(hi3, json!({}), &TaskOptions::default());
     let _h = expand_lazy(hi4, &a, &TaskOptions::default());
-
-    parse_cli();
 }

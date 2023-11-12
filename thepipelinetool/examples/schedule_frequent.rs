@@ -1,5 +1,6 @@
 use thepipelinetool::prelude::*;
 
+#[dag]
 fn main() {
     fn hi(args: Value) -> Value {
         println!("{}", args);
@@ -28,6 +29,4 @@ fn main() {
             ..Default::default()
         },
     );
-
-    parse_cli();
 }

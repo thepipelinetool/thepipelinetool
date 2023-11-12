@@ -1,5 +1,6 @@
 use thepipelinetool::prelude::*;
 
+#[dag]
 fn main() {
     fn hi(args: Value) -> Value {
         println!("{}", args);
@@ -38,6 +39,4 @@ fn main() {
     let _ = add_task_with_ref(hi2, &b, &TaskOptions::default());
     // add_task(functions[""].clone(), b.value(), &TaskOptions::default());
     // println!("{}", get_mermaid_graph());
-
-    parse_cli();
 }

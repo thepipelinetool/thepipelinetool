@@ -49,6 +49,7 @@ fn hello_world3(args: Value) -> Value {
     })
 }
 
+#[dag]
 fn main() {
     // let mut dag = DAG::new(true);
 
@@ -151,7 +152,7 @@ fn main() {
     // (task1, task2) >> (c, c);
 
     // save_graph();
-    parse_cli();
+
     // println!("{}", get_mermaid_graph());
 
     // function_name_as_string(|args| -> Value { args });

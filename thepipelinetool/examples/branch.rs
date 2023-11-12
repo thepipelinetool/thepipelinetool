@@ -15,5 +15,4 @@ fn right(_: usize) -> () {
 #[dag]
 fn main() {
     let _ = branch(branch_task, json!({}), left, right, &TaskOptions::default());
-    // parse_cli();
 }

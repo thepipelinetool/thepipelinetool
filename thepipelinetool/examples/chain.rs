@@ -1,5 +1,6 @@
 use thepipelinetool::prelude::*;
 
+#[dag]
 fn main() {
     fn hi(_args: Value) -> Value {
         println!("hi");
@@ -37,6 +38,5 @@ fn main() {
         &TaskOptions::default(),
     );
 
-    parse_cli();
     // println!("{}", get_initial_mermaid_graph());
 }

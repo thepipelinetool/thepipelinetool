@@ -2,6 +2,7 @@ use std::{time::Duration, vec};
 
 use thepipelinetool::prelude::*;
 
+#[dag]
 fn main() {
     let a = add_command(
         json!(["bash", "-c", "sleep 3 && echo hello"]),
@@ -15,6 +16,4 @@ fn main() {
     let b = add_command(json!(["echo", a.value()]), &TaskOptions::default());
 
     let _c = vec![a, b];
-
-    parse_cli();
 }

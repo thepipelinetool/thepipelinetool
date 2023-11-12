@@ -8,6 +8,7 @@ pub mod prelude {
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, set_catchup,
         set_end_date, set_schedule, set_start_date,
     };
+    pub use proc_macro::dag;
     pub use runner::local::{hash_dag, LocalRunner};
     pub use runner::{DefRunner, Runner};
     pub use serde::{Deserialize, Serialize};
@@ -18,8 +19,6 @@ pub mod prelude {
     pub use task::task_status::TaskStatus;
     pub use task::Branch;
     pub use utils::execute_function;
-    pub use proc_macro::dag;
-
 }
 
 use chrono::{DateTime, FixedOffset};
