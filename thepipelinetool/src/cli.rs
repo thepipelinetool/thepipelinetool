@@ -1,12 +1,13 @@
-use std::cmp::max;
+use std::{
+    cmp::max,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command};
 // use graph::dag::get_dag;
-use runner::{
-    local::{hash_dag, LocalRunner},
-    DefRunner, Runner,
-};
+use runner::{local::LocalRunner, DefRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
@@ -270,4 +271,38 @@ pub fn parse_cli() {
         }
     }
 }
-// }
+
+fn hash_dag(nodes: &str, edges: &[&(usize, usize)]) -> String {
+    let mut s = DefaultHasher::new();
+    let mut edges: Vec<&&(usize, usize)> = edges.iter().collect();
+    edges.sort();
+
+    let to_hash = serde_json::to_string(&nodes).unwrap() + &serde_json::to_string(&edges).unwrap();
+    to_hash.hash(&mut s);
+    to_base62(s.finish())
+}
+
+const BASE62: &[char] = &[
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
+    'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
+    'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z',
+];
+
+fn to_base62(mut num: u64) -> String {
+    let mut chars = Vec::new();
+
+    while num > 0 {
+        chars.push(BASE62[(num % 62) as usize]);
+        num /= 62;
+    }
+
+    chars.reverse();
+
+    while chars.len() < 7 {
+        chars.push('0');
+    }
+
+    chars.truncate(7); // Ensure length is 7
+    chars.iter().collect()
+}

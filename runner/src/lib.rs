@@ -5,7 +5,6 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use local::hash_dag;
 use serde_json::{json, Value};
 use task::{
     task::Task, task_options::TaskOptions, task_ref::TaskRefInner, task_result::TaskResult,
@@ -181,7 +180,7 @@ impl<U: Runner> DefRunner for U {
     fn handle_task_result(&mut self, dag_run_id: &usize, result: TaskResult) {
         let mut result = result;
         let mut branch_left = false;
-        
+
         if result.is_branch {
             branch_left = result.result["is_left"].as_bool().unwrap();
             result.result = result.result["val"].take();
@@ -660,14 +659,7 @@ impl<U: Runner> DefRunner for U {
     }
 
     fn run_dag_local(&mut self, max_threads: usize) {
-        let hash = hash_dag(
-            &serde_json::to_string(&self.get_default_tasks()).unwrap(),
-            &self
-                .get_default_edges()
-                .iter()
-                .collect::<Vec<&(usize, usize)>>(),
-        );
-        let dag_run_id = &self.enqueue_run(&self.get_dag_name(), &hash, Utc::now());
+        let dag_run_id = &self.enqueue_run(&self.get_dag_name(), &"", Utc::now());
 
         for task in self.get_default_tasks() {
             let mut visited = HashSet::new();

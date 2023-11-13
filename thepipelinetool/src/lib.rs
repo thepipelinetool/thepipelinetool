@@ -9,7 +9,7 @@ pub mod prelude {
         set_end_date, set_schedule, set_start_date,
     };
     pub use proc_macro::dag;
-    pub use runner::local::{hash_dag, LocalRunner};
+    pub use runner::local::LocalRunner;
     pub use runner::{DefRunner, Runner};
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
