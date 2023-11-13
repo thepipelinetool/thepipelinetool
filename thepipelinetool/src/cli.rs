@@ -170,13 +170,11 @@ pub fn parse_cli() {
                 println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
             }
             "graph" => {
-                // print!("{}", dag.get_initial_mermaid_graph());
                 let tasks = get_tasks().read().unwrap();
                 let edges = get_edges().read().unwrap();
 
                 let mut runner = LocalRunner::new("", &tasks, &edges);
                 runner.enqueue_run("local", "", Utc::now());
-                println!("1");
 
                 let graph = runner.get_graphite_graph(&0);
                 print!("{}", serde_json::to_string_pretty(&graph).unwrap());
