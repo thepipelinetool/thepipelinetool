@@ -64,6 +64,9 @@ pub trait Runner {
     ) -> usize;
     fn get_template_args(&self, dag_run_id: &usize, task_id: &usize) -> Value;
     fn set_template_args(&mut self, dag_run_id: &usize, task_id: &usize, template_args_str: &str);
+    fn handle_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize) -> Box<dyn Fn(String) + Send>;
+    fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
+
 }
 
 pub trait DefRunner {
@@ -394,12 +397,15 @@ impl<U: Runner> DefRunner for U {
         }
 
         // *thread_count.lock().unwrap() += 1;
+
+        self.init_log(dag_run_id, &task.id, attempt);
         let task_handle = task.execute(
             *dag_run_id,
             self.get_dag_name(),
             resolution_result.unwrap(),
             attempt,
             tx,
+            self.handle_log(dag_run_id, &task.id, attempt)
         );
 
         if max_threads == 1 {

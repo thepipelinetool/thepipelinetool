@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     hash::{Hash, Hasher},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use chrono::{DateTime, Utc};
@@ -11,6 +12,7 @@ use crate::{DefRunner, Runner};
 
 pub struct LocalRunner {
     task_results: HashMap<usize, TaskResult>,
+    task_logs: Arc<Mutex<HashMap<usize, String>>>,
     task_statuses: HashMap<usize, TaskStatus>,
     attempts: HashMap<usize, usize>,
     dep_keys: HashMap<usize, HashMap<(usize, Option<String>), Option<String>>>,
@@ -29,12 +31,35 @@ impl LocalRunner {
             task_statuses: HashMap::new(),
             attempts: HashMap::new(),
             dep_keys: HashMap::new(),
+            task_logs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
 impl Runner for LocalRunner {
+    fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
+        let mut task_logs = self.task_logs.lock().unwrap();
+        task_logs.insert(*task_id, "".into());
+    }
+
+    fn handle_log(
+        &mut self,
+        _dag_run_id: &usize,
+        task_id: &usize,
+        _attempt: usize,
+    ) -> Box<dyn Fn(String) + Send> {
+        let task_logs = self.task_logs.clone();
+        let task_id = *task_id;
+
+        Box::new(move |s| {
+            let mut task_logs = task_logs.lock().unwrap();
+            *task_logs.get_mut(&task_id).unwrap() += &s;
+        })
+    }
+
     fn insert_task_results(&mut self, _dag_run_id: &usize, result: &TaskResult) {
+        dbg!(&self.task_logs.lock().unwrap());
+
         self.attempts.insert(result.task_id, result.attempt);
 
         self.task_results.insert(result.task_id, result.clone());

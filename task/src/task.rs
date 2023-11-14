@@ -1,10 +1,10 @@
 use std::{
     env,
     panic::RefUnwindSafe,
-    process::Command,
-    sync::mpsc::Sender,
+    process::{Command, Stdio},
+    sync::{mpsc::Sender, Arc, Mutex},
     thread::{self, JoinHandle},
-    time::Duration,
+    time::Duration, io::{BufReader, BufRead},
 };
 
 use chrono::Utc;
@@ -35,6 +35,7 @@ impl Task {
         resolved_args: Value,
         attempt: usize,
         tx: &Sender<(usize, TaskResult)>,
+        handle_log: Box<dyn Fn(String) + Send>
     ) -> JoinHandle<()> {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
@@ -90,24 +91,79 @@ impl Task {
                     &in_path,
                 ]
             };
-            let mut binding = Command::new(f);
-            let output = binding
+            let mut command = Command::new(f);
+            command
                 .args(a)
-                .output()
-                .unwrap_or_else(|_| panic!("failed to run function: {}", function_name));
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+            // .output()
+            // .unwrap_or_else(|_| panic!("failed to run function: {}", function_name));
+
+            let mut child = command.spawn().expect("failed to start command");
+
+            let stdout = child.stdout.take().expect("failed to take stdout");
+            let stderr = child.stderr.take().expect("failed to take stderr");
 
             let end = Utc::now();
 
-            let result_raw = String::from_utf8_lossy(&output.stdout);
-            let err_raw = String::from_utf8_lossy(&output.stderr);
+            // let result_raw = String::from_utf8_lossy(&output.stdout);
+            // let err_raw = String::from_utf8_lossy(&output.stderr);
 
-            let timed_out = matches!(output.status.code(), Some(124));
+
+            // Shared string for accumulating stdout
+            let stdout_accum = Arc::new(Mutex::new(String::new()));
+
+            // Clone the Arc to move into the stdout thread
+            let stdout_accum_clone = Arc::clone(&stdout_accum);
+
+            // Spawn a thread to handle stdout
+            let stdout_handle = thread::spawn(move || {
+                let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    let line = line.expect("failed to read line from stdout");
+                    // println!("stdout: {}", &line);
+                    let mut accum = stdout_accum_clone.lock().unwrap();
+                    accum.push_str(&line);
+                    accum.push('\n'); 
+
+                    handle_log(line);
+                }
+            });
+
+            let stderr_accum = Arc::new(Mutex::new(String::new()));
+
+            // Clone the Arc to move into the stdout thread
+            let stderr_accum_clone = Arc::clone(&stderr_accum);
+
+
+            // Spawn a thread to handle stderr
+            let stderr_handle = thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    let line = line.expect("failed to read line from stdout");
+                    // println!("stderr: {}", &line);
+                    let mut accum = stderr_accum_clone.lock().unwrap();
+                    accum.push_str(&line);
+                    accum.push('\n'); 
+                }
+            });
+
+
+            let status = child.wait().expect("failed to wait on child");
+            let timed_out = matches!(status.code(), Some(124));
+
+            // Join the stdout and stderr threads
+            stdout_handle.join().expect("stdout thread panicked");
+            stderr_handle.join().expect("stderr thread panicked");
+
+            let result_raw = stdout_accum.lock().unwrap().clone();
+            let err_raw = stderr_accum.lock().unwrap().clone();
 
             tx1.send((
                 dag_run_id,
                 TaskResult {
                     task_id,
-                    result: if output.status.success() {
+                    result: if status.success() {
                         value_from_file(&out_path)
                     } else {
                         Value::Null
@@ -117,7 +173,7 @@ impl Task {
                     function_name,
                     template_args_str,
                     resolved_args_str,
-                    success: output.status.success(),
+                    success: status.success(),
                     stdout: result_raw.into(),
                     stderr: err_raw.into(),
                     started: start.to_rfc3339(),
