@@ -90,7 +90,10 @@ fn main() {
             "hi": task0.get("data"),
             "hello": task2.get("data"),
         }),
-        &TaskOptions::default(),
+        &TaskOptions{
+            max_attempts: 3,
+            ..Default::default()
+        },
     );
 
     let _task4 = add_task(
@@ -102,7 +105,10 @@ fn main() {
             "whatup": task0.value(),
             "howdy": "hello",
         }),
-        &TaskOptions::default(),
+        &TaskOptions{
+            max_attempts: 3,
+            ..Default::default()
+        },
     );
 
     let anonymous = add_task(
