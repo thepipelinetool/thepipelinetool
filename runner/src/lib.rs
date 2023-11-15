@@ -546,12 +546,13 @@ impl<U: Runner> DefRunner for U {
 
     fn run(&mut self, dag_run_id: &usize, max_threads: usize) {
         let mut thread_count = 0usize;
-        let tasks = self.get_all_tasks_needs_running(dag_run_id);
+        // let tasks = ;
         let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
         let mut task_ids: HashSet<usize> = HashSet::new();
         let mut downstream_ids: HashMap<usize, HashSet<usize>> = HashMap::new();
 
-        for task in &tasks {
+        let binding = self.get_all_tasks_needs_running(dag_run_id);
+        for task in &binding {
             tasks_map.insert(task.id, task);
             task_ids.insert(task.id);
 
@@ -598,7 +599,7 @@ impl<U: Runner> DefRunner for U {
             // retry run if task failed
             if self.task_needs_running(&run_id, &task_id) {
                 let (spawned_thread, run_attempted) =
-                    self.attempt_run_task(&run_id, &tasks[task_id], &tx.clone());
+                    self.attempt_run_task(&run_id, &tasks_map[&task_id], &tx.clone());
                 if spawned_thread {
                     thread_count += 1;
                 }
@@ -611,7 +612,7 @@ impl<U: Runner> DefRunner for U {
             } else if downstream_ids.contains_key(&task_id) {
                 for downstream_task_id in downstream_ids[&task_id].iter() {
                     let (spawned_thread, run_attempted) =
-                        self.attempt_run_task(&run_id, &tasks[*downstream_task_id], &tx.clone());
+                        self.attempt_run_task(&run_id, &tasks_map[downstream_task_id], &tx.clone());
                     if spawned_thread {
                         thread_count += 1;
                     }
