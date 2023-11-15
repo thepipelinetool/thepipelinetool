@@ -35,7 +35,8 @@ impl Task {
         resolved_args: Value,
         attempt: usize,
         tx: &Sender<(usize, TaskResult)>,
-        handle_log: Box<dyn Fn(String) + Send>
+        handle_stdout: Box<dyn Fn(String) + Send>,
+        handle_stderr: Box<dyn Fn(String) + Send>
     ) -> JoinHandle<()> {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
@@ -116,6 +117,17 @@ impl Task {
             // Clone the Arc to move into the stdout thread
             let stdout_accum_clone = Arc::clone(&stdout_accum);
 
+
+            // let handle = move |value: String| {
+            //     // Deserialize the Value into T
+            //     // let input: T = serde_json::from_value(value).unwrap();
+            //     // // Call the original function
+            //     // let output: G = function(input);
+            //     // // Serialize the G type back into Value
+            //     // serde_json::to_value(output).unwrap()
+            //     handle_log(value);
+            // };
+
             // Spawn a thread to handle stdout
             let stdout_handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
@@ -126,7 +138,7 @@ impl Task {
                     accum.push_str(&line);
                     accum.push('\n'); 
 
-                    handle_log(line);
+                    handle_stdout(line);
                 }
             });
 
@@ -145,6 +157,8 @@ impl Task {
                     let mut accum = stderr_accum_clone.lock().unwrap();
                     accum.push_str(&line);
                     accum.push('\n'); 
+
+                    handle_stderr(line);
                 }
             });
 

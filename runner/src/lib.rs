@@ -405,7 +405,9 @@ impl<U: Runner> DefRunner for U {
             resolution_result.unwrap(),
             attempt,
             tx,
+            self.handle_log(dag_run_id, &task.id, attempt),
             self.handle_log(dag_run_id, &task.id, attempt)
+
         );
 
         if max_threads == 1 {
