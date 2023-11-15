@@ -15,6 +15,13 @@ use utils::{collector, function_name_as_string};
 pub mod local;
 
 pub trait Runner {
+    fn get_log(
+        &mut self,
+        dag_run_id: &usize,
+        task_id: &usize,
+        attempt: usize,
+        // pool: Pool<Postgres>,
+    ) -> String;
     fn get_dag_name(&self) -> String;
     fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn get_task_result(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
@@ -64,9 +71,13 @@ pub trait Runner {
     ) -> usize;
     fn get_template_args(&self, dag_run_id: &usize, task_id: &usize) -> Value;
     fn set_template_args(&mut self, dag_run_id: &usize, task_id: &usize, template_args_str: &str);
-    fn handle_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize) -> Box<dyn Fn(String) + Send>;
+    fn handle_log(
+        &mut self,
+        dag_run_id: &usize,
+        task_id: &usize,
+        attempt: usize,
+    ) -> Box<dyn Fn(String) + Send>;
     fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
-
 }
 
 pub trait DefRunner {
@@ -92,7 +103,7 @@ pub trait DefRunner {
         dag_run_id: &usize,
         task: &Task,
         tx: &Sender<(usize, TaskResult)>,
-        max_threads: usize,
+        // max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
     ) -> (bool, bool);
     fn resolve_args(
@@ -191,7 +202,7 @@ impl<U: Runner> DefRunner for U {
 
         self.insert_task_results(dag_run_id, &result);
 
-        result.print_task_result();
+        result.print_task_result(self.get_template_args(dag_run_id, &result.task_id), self.get_log(dag_run_id, &result.task_id, result.attempt));
 
         if result.needs_retry() {
             println!(
@@ -247,7 +258,7 @@ impl<U: Runner> DefRunner for U {
         dag_run_id: &usize,
         task: &Task,
         tx: &Sender<(usize, TaskResult)>,
-        max_threads: usize,
+        // max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
     ) -> (bool, bool) {
         // if *Arc::clone(thread_count).lock().unwrap() >= max_threads {
@@ -272,6 +283,7 @@ impl<U: Runner> DefRunner for U {
             &self.get_dependency_keys(dag_run_id, &task.id),
         );
         let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
+        self.init_log(dag_run_id, &task.id, attempt);
 
         if let Err(resolution_result) = resolution_result {
             self.handle_task_result(
@@ -380,9 +392,9 @@ impl<U: Runner> DefRunner for U {
                     max_attempts: task.options.max_attempts,
                     function_name: task.function_name.clone(),
                     success: true,
-                    stdout: "".into(),
-                    stderr: "".into(),
-                    template_args_str: "".into(),
+                    // stdout: "".into(),
+                    // stderr: "".into(),
+                    // template_args_str: "".into(),
                     resolved_args_str: "".into(),
                     started: start.to_rfc3339(),
                     ended: start.to_rfc3339(),
@@ -398,21 +410,19 @@ impl<U: Runner> DefRunner for U {
 
         // *thread_count.lock().unwrap() += 1;
 
-        self.init_log(dag_run_id, &task.id, attempt);
-        let task_handle = task.execute(
+        task.execute(
             *dag_run_id,
             self.get_dag_name(),
             resolution_result.unwrap(),
             attempt,
             tx,
             self.handle_log(dag_run_id, &task.id, attempt),
-            self.handle_log(dag_run_id, &task.id, attempt)
-
+            self.handle_log(dag_run_id, &task.id, attempt),
         );
 
-        if max_threads == 1 {
-            task_handle.join().unwrap();
-        }
+        // if max_threads == 1 {
+        //     task_handle.join().unwrap();
+        // }
         (true, true)
     }
 
@@ -558,7 +568,7 @@ impl<U: Runner> DefRunner for U {
         for task_id in &task_ids.clone() {
             let task = tasks_map[task_id];
             let (spawned_thread, run_attempted) =
-                self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads);
+                self.attempt_run_task(dag_run_id, task, &tx.clone());
 
             if spawned_thread {
                 thread_count += 1;
@@ -588,7 +598,7 @@ impl<U: Runner> DefRunner for U {
             // retry run if task failed
             if self.task_needs_running(&run_id, &task_id) {
                 let (spawned_thread, run_attempted) =
-                    self.attempt_run_task(&run_id, &tasks[task_id], &tx.clone(), max_threads);
+                    self.attempt_run_task(&run_id, &tasks[task_id], &tx.clone());
                 if spawned_thread {
                     thread_count += 1;
                 }
@@ -600,12 +610,8 @@ impl<U: Runner> DefRunner for U {
                 }
             } else if downstream_ids.contains_key(&task_id) {
                 for downstream_task_id in downstream_ids[&task_id].iter() {
-                    let (spawned_thread, run_attempted) = self.attempt_run_task(
-                        &run_id,
-                        &tasks[*downstream_task_id],
-                        &tx.clone(),
-                        max_threads,
-                    );
+                    let (spawned_thread, run_attempted) =
+                        self.attempt_run_task(&run_id, &tasks[*downstream_task_id], &tx.clone());
                     if spawned_thread {
                         thread_count += 1;
                     }
@@ -622,7 +628,6 @@ impl<U: Runner> DefRunner for U {
                         &run_id,
                         &self.get_task_by_id(&run_id, downstream_task_id),
                         &tx.clone(),
-                        max_threads,
                     );
                     if spawned_thread {
                         thread_count += 1;
@@ -640,7 +645,7 @@ impl<U: Runner> DefRunner for U {
                 let task = tasks_map[task_id];
 
                 let (spawned_thread, run_attempted) =
-                    self.attempt_run_task(dag_run_id, task, &tx.clone(), max_threads);
+                    self.attempt_run_task(dag_run_id, task, &tx.clone());
 
                 if spawned_thread {
                     thread_count += 1;

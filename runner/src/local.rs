@@ -37,7 +37,20 @@ impl LocalRunner {
 }
 
 impl Runner for LocalRunner {
+
+    fn get_log(
+        &mut self,
+        _dag_run_id: &usize,
+        task_id: &usize,
+        _attempt: usize,
+        // pool: Pool<Postgres>,
+    ) -> String {
+        dbg!(task_id);
+        self.task_logs.lock().unwrap()[task_id].clone()
+    }
+    
     fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
+        dbg!(&task_id);
         let mut task_logs = self.task_logs.lock().unwrap();
         task_logs.insert(*task_id, "".into());
     }
@@ -234,4 +247,5 @@ impl Runner for LocalRunner {
     fn get_all_tasks(&self, _dag_run_id: &usize) -> Vec<Task> {
         self.nodes.clone()
     }
+
 }

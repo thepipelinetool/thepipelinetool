@@ -115,7 +115,7 @@ impl Task {
             let stdout_accum = Arc::new(Mutex::new(String::new()));
 
             // Clone the Arc to move into the stdout thread
-            let stdout_accum_clone = Arc::clone(&stdout_accum);
+            // let stdout_accum_clone = Arc::clone(&stdout_accum);
 
 
             // let handle = move |value: String| {
@@ -132,31 +132,30 @@ impl Task {
             let stdout_handle = thread::spawn(move || {
                 let reader = BufReader::new(stdout);
                 for line in reader.lines() {
-                    let line = line.expect("failed to read line from stdout");
+                    let line = format!("{}\n", line.expect("failed to read line from stdout"));
                     // println!("stdout: {}", &line);
-                    let mut accum = stdout_accum_clone.lock().unwrap();
-                    accum.push_str(&line);
-                    accum.push('\n'); 
+                    // let mut accum = stdout_accum_clone.lock().unwrap();
+                    // accum.push_str(&line);
+                    // accum.push('\n'); 
 
                     handle_stdout(line);
                 }
             });
 
-            let stderr_accum = Arc::new(Mutex::new(String::new()));
+            // let stderr_accum = Arc::new(Mutex::new(String::new()));
 
             // Clone the Arc to move into the stdout thread
-            let stderr_accum_clone = Arc::clone(&stderr_accum);
+            // let stderr_accum_clone = Arc::clone(&stderr_accum);
 
 
             // Spawn a thread to handle stderr
             let stderr_handle = thread::spawn(move || {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines() {
-                    let line = line.expect("failed to read line from stdout");
+                    let line = format!("{}\n", line.expect("failed to read line from stdout"));
                     // println!("stderr: {}", &line);
-                    let mut accum = stderr_accum_clone.lock().unwrap();
-                    accum.push_str(&line);
-                    accum.push('\n'); 
+                    // let mut accum = stderr_accum_clone.lock().unwrap();
+                    // accum.push_str(&line);
 
                     handle_stderr(line);
                 }
@@ -170,8 +169,8 @@ impl Task {
             stdout_handle.join().expect("stdout thread panicked");
             stderr_handle.join().expect("stderr thread panicked");
 
-            let result_raw = stdout_accum.lock().unwrap().clone();
-            let err_raw = stderr_accum.lock().unwrap().clone();
+            // let result_raw = stdout_accum.lock().unwrap().clone();
+            // let err_raw = stderr_accum.lock().unwrap().clone();
 
             tx1.send((
                 dag_run_id,
@@ -185,11 +184,11 @@ impl Task {
                     attempt,
                     max_attempts,
                     function_name,
-                    template_args_str,
+                    // template_args_str,
                     resolved_args_str,
                     success: status.success(),
-                    stdout: result_raw.into(),
-                    stderr: err_raw.into(),
+                    // stdout: result_raw.into(),
+                    // stderr: err_raw.into(),
                     started: start.to_rfc3339(),
                     ended: end.to_rfc3339(),
                     elapsed: end.timestamp() - start.timestamp(),

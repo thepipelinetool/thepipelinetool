@@ -10,9 +10,9 @@ pub struct TaskResult {
     pub max_attempts: isize,
     pub function_name: String,
     pub success: bool,
-    pub stdout: String,
-    pub stderr: String,
-    pub template_args_str: String,
+    // pub stdout: String,
+    // pub stderr: String,
+    // pub template_args_str: String,
     pub resolved_args_str: String,
     pub started: String,
     pub ended: String,
@@ -48,9 +48,9 @@ impl TaskResult {
             max_attempts,
             function_name,
             success: false,
-            stdout: "".into(),
-            stderr: "".into(),
-            template_args_str,
+            // stdout: "".into(),
+            // stderr: "".into(),
+            // template_args_str,
             resolved_args_str: "".into(),
             started: start.to_rfc3339(),
             ended: start.to_rfc3339(),
@@ -61,20 +61,19 @@ impl TaskResult {
         }
     }
 
-    pub fn print_task_result(&self) {
+    pub fn print_task_result(&self, template_args: Value, log: String) {
         println!("=============================================");
         println!("TASK RUN");
         println!("id:\t\t{}", self.task_id);
         println!("attempt:\t{}/{}", self.attempt, self.max_attempts);
         println!("function_name:\t{}", self.function_name);
-        println!("template_args:\t{}", self.template_args_str);
+        println!("template_args:\t{}", serde_json::to_string_pretty(&template_args).unwrap());
         println!("rendered_args:\t{}", self.resolved_args_str);
         println!(
             "result: {}",
             serde_json::to_string_pretty(&self.result).unwrap()
         );
-        println!("------stdout------\n{}\n------------------", self.stdout);
-        println!("------stderr------\n{}\n------------------", self.stderr);
+        println!("------Log------\n{}\n------------------", log);
         println!("success:\t{}", self.success);
         println!("started:\t{}", self.started);
         println!("ended:\t\t{}", self.ended);
