@@ -151,7 +151,7 @@ impl<U: Runner> DefRunner for U {
         // dbg!(&self.get_task_status(dag_run_id, task_id).as_str());
         matches!(
             self.get_task_status(dag_run_id, task_id),
-            TaskStatus::Pending
+            TaskStatus::Pending | TaskStatus::Retrying
         )
     }
 
