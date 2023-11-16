@@ -86,7 +86,7 @@ impl<T: Serialize> Serialize for TaskRef<T> {
         S: serde::Serializer,
     {
         let mut json_value = json!({
-            "upstream_task_id": self.0.task_ids.iter().next().unwrap_or(&0),
+            "upstream_task_id": self.0.task_ids.iter().next().unwrap(),
         });
 
         if self.0.key.is_some() {
