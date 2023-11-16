@@ -1,12 +1,12 @@
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    collections::{hash_map::DefaultHasher, BinaryHeap, HashMap, HashSet},
     hash::{Hash, Hasher},
     sync::{Arc, Mutex, RwLock},
 };
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use task::{task::Task, task_result::TaskResult, task_status::TaskStatus};
+use task::{task::{Task, QueuedTask}, task_result::TaskResult, task_status::TaskStatus};
 
 use crate::{DefRunner, Runner};
 
@@ -19,6 +19,8 @@ pub struct LocalRunner {
     edges: HashSet<(usize, usize)>,
     default_nodes: Vec<Task>,
     nodes: Vec<Task>,
+    priority_queue: BinaryHeap<QueuedTask>,
+    task_depth: HashMap<usize, usize>,
 }
 
 impl LocalRunner {
@@ -32,11 +34,30 @@ impl LocalRunner {
             attempts: HashMap::new(),
             dep_keys: HashMap::new(),
             task_logs: Arc::new(Mutex::new(HashMap::new())),
+            priority_queue: BinaryHeap::new(),
+            task_depth: HashMap::new(),
         }
     }
 }
 
 impl Runner for LocalRunner {
+    fn get_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize) -> usize {
+        if !self.task_depth.contains_key(task_id) {
+            let depth = self
+                .get_upstream(_dag_run_id, task_id)
+                .iter()
+                .map(|up| self.get_task_depth(_dag_run_id, up) + 1)
+                .max()
+                .unwrap_or(0);
+            self.task_depth.insert(*task_id, depth);
+        }
+        self.task_depth[task_id]
+
+    }
+
+    fn set_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize, depth: usize) {
+        self.task_depth.insert(*task_id, depth);
+    }
 
     fn get_log(
         &mut self,
@@ -46,9 +67,9 @@ impl Runner for LocalRunner {
         // pool: Pool<Postgres>,
     ) -> String {
         dbg!(task_id);
-        self.task_logs.lock().unwrap()[task_id].clone()
+        self.task_logs.lock().unwrap().get(task_id).unwrap_or(&"".to_string()).clone()
     }
-    
+
     // fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
     //     dbg!(&task_id);
     //     let mut task_logs = self.task_logs.lock().unwrap();
@@ -221,17 +242,17 @@ impl Runner for LocalRunner {
         self.nodes[*task_id].clone()
     }
 
-    fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
-        let current_task_status = self.get_task_status(dag_run_id, task_id);
+    // fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
+    //     let current_task_status = self.get_task_status(dag_run_id, task_id);
 
-        if !(current_task_status == TaskStatus::Pending
-            || current_task_status == TaskStatus::Retrying)
-        {
-            return false;
-        }
-        self.set_task_status(dag_run_id, task_id, TaskStatus::Running);
-        true
-    }
+    //     if !(current_task_status == TaskStatus::Pending
+    //         || current_task_status == TaskStatus::Retrying)
+    //     {
+    //         return false;
+    //     }
+    //     self.set_task_status(dag_run_id, task_id, TaskStatus::Running);
+    //     true
+    // }
 
     fn get_dag_name(&self) -> String {
         "default".into()
@@ -251,4 +272,30 @@ impl Runner for LocalRunner {
         self.nodes.clone()
     }
 
+    fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize) {
+        let depth = self.get_task_depth(dag_run_id, task_id);
+        self.priority_queue.push(QueuedTask::new(depth, *task_id));
+    }
+
+    fn get_priority_queue(&mut self) -> Vec<QueuedTask> {
+        // self.priority_queue.iter().collect()
+        let mut vec = vec![];
+        let len = self.priority_queue.len();
+        for i in 0..len {
+            vec.push(self.priority_queue.pop().unwrap());
+        }
+        vec
+    }
+
+
+    fn pop_priority_queue(&mut self) -> Option<QueuedTask> {
+        self.priority_queue.pop()
+    }
+    fn push_priority_queue(&mut self, queued_task: QueuedTask) {
+        self.priority_queue.push(queued_task);
+    }
+
+    fn priority_queue_len(&self) -> usize {
+       self.priority_queue.len()
+    }
 }

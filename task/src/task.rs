@@ -17,12 +17,89 @@ use crate::{task_options::TaskOptions, task_result::TaskResult};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: usize,
+    // pub dag_name: String,
     pub function_name: String,
     pub template_args: Value,
     pub options: TaskOptions,
     pub lazy_expand: bool,
     pub is_dynamic: bool,
     pub is_branch: bool,
+}
+
+impl Ord for QueuedTask {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.depth.cmp(&self.depth)
+            .then_with(|| other.task_id.cmp(&self.task_id))
+    }
+
+    fn max(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        std::cmp::max_by(self, other, Ord::cmp)
+    }
+
+    fn min(self, other: Self) -> Self
+    where
+        Self: Sized,
+    {
+        std::cmp::min_by(self, other, Ord::cmp)
+    }
+
+    // fn clamp(self, min: Self, max: Self) -> Self
+    // where
+    //     Self: Sized,
+    //     Self: PartialOrd,
+    // {
+    //     assert!(min <= max);
+    //     if self < std::cmp::min {
+    //         std::cmp::min
+    //     } else if self > std::cmp::max {
+    //         std::cmp::max
+    //     } else {
+    //         self
+    //     }
+
+    //     // todo!()
+    // }
+}
+
+impl PartialOrd for QueuedTask {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+// impl PartialEq for QueuedTask {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.depth == other.depth
+//     }
+// }
+
+// impl Eq for QueuedTask {
+
+// }
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct QueuedTask {
+    pub depth: usize,
+    pub task_id: usize,
+}
+
+impl QueuedTask {
+    pub fn new(depth: usize, task_id: usize) -> Self {
+        Self {
+            depth,
+            task_id
+        }
+    }
+
+    pub fn increment(&self) -> Self {
+        Self {
+            depth: self.depth + 1,
+            task_id: self.task_id,
+        }
+    }
 }
 
 impl RefUnwindSafe for Task {}
