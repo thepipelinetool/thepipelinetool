@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     io::{Error, ErrorKind},
-    sync::mpsc::{self, Sender},
+    sync::{mpsc::{self, Sender}, atomic::{Ordering}, Mutex, Arc},
 };
 
 use chrono::{DateTime, Utc};
@@ -77,7 +77,7 @@ pub trait Runner {
         task_id: &usize,
         attempt: usize,
     ) -> Box<dyn Fn(String) + Send>;
-    fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
+    // fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
 }
 
 pub trait DefRunner {
@@ -88,7 +88,7 @@ pub trait DefRunner {
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
     fn is_completed(&mut self, dag_run_id: &usize) -> bool;
-    fn run(&mut self, dag_run_id: &usize, max_threads: usize);
+    fn run(&mut self, dag_run_id: &usize, max_threads: usize, thread_count: Arc<Mutex<usize>>);
 
     fn get_circular_dependencies(
         &self,
@@ -283,7 +283,7 @@ impl<U: Runner> DefRunner for U {
             &self.get_dependency_keys(dag_run_id, &task.id),
         );
         let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
-        self.init_log(dag_run_id, &task.id, attempt);
+        // self.init_log(dag_run_id, &task.id, attempt);
 
         if let Err(resolution_result) = resolution_result {
             self.handle_task_result(
@@ -544,8 +544,8 @@ impl<U: Runner> DefRunner for U {
         Ok(resolved_args)
     }
 
-    fn run(&mut self, dag_run_id: &usize, max_threads: usize) {
-        let mut thread_count = 0usize;
+    fn run(&mut self, dag_run_id: &usize, max_threads: usize, thread_count: Arc<Mutex<usize>>) {
+        // let mut thread_count = 0usize;
         // let tasks = ;
         let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
         let mut task_ids: HashSet<usize> = HashSet::new();
@@ -572,26 +572,27 @@ impl<U: Runner> DefRunner for U {
                 self.attempt_run_task(dag_run_id, task, &tx.clone());
 
             if spawned_thread {
-                thread_count += 1;
+                // *thread_count.lock().unwrap() += 1;
+                *thread_count.lock().unwrap() += 1;
             }
 
             if run_attempted {
                 task_ids.remove(task_id);
             }
 
-            if thread_count >= max_threads {
+            if *thread_count.lock().unwrap() >= max_threads {
                 break;
             }
         }
 
-        if thread_count == 0 {
+        if *thread_count.lock().unwrap() == 0 {
             drop(tx);
             return;
         }
 
         'outer: for (run_id, received) in &rx {
-            if thread_count >= 1 {
-                thread_count -= 1;
+            if *thread_count.lock().unwrap() >= 1 {
+                *thread_count.lock().unwrap() -= 1;
             }
             let task_id: usize = received.task_id;
             self.handle_task_result(&run_id, received);
@@ -601,12 +602,12 @@ impl<U: Runner> DefRunner for U {
                 let (spawned_thread, run_attempted) =
                     self.attempt_run_task(&run_id, &tasks_map[&task_id], &tx.clone());
                 if spawned_thread {
-                    thread_count += 1;
+                    *thread_count.lock().unwrap() += 1;
                 }
                 if run_attempted {
                     task_ids.remove(&task_id);
                 }
-                if thread_count >= max_threads {
+                if *thread_count.lock().unwrap() >= max_threads {
                     continue 'outer;
                 }
             } else if downstream_ids.contains_key(&task_id) {
@@ -614,12 +615,12 @@ impl<U: Runner> DefRunner for U {
                     let (spawned_thread, run_attempted) =
                         self.attempt_run_task(&run_id, &tasks_map[downstream_task_id], &tx.clone());
                     if spawned_thread {
-                        thread_count += 1;
+                        *thread_count.lock().unwrap() += 1;
                     }
                     if run_attempted {
                         task_ids.remove(&task_id);
                     }
-                    if thread_count >= max_threads {
+                    if *thread_count.lock().unwrap() >= max_threads {
                         continue 'outer;
                     }
                 }
@@ -631,12 +632,12 @@ impl<U: Runner> DefRunner for U {
                         &tx.clone(),
                     );
                     if spawned_thread {
-                        thread_count += 1;
+                        *thread_count.lock().unwrap() += 1;
                     }
                     if run_attempted {
                         task_ids.remove(&task_id);
                     }
-                    if thread_count >= max_threads {
+                    if *thread_count.lock().unwrap() >= max_threads {
                         continue 'outer;
                     }
                 }
@@ -649,19 +650,19 @@ impl<U: Runner> DefRunner for U {
                     self.attempt_run_task(dag_run_id, task, &tx.clone());
 
                 if spawned_thread {
-                    thread_count += 1;
+                    *thread_count.lock().unwrap() += 1;
                 }
                 if run_attempted {
                     task_ids.remove(task_id);
                 }
 
-                if thread_count >= max_threads {
+                if *thread_count.lock().unwrap() >= max_threads {
                     continue 'outer;
                 }
             }
 
             // no more running threads so drop sender
-            if thread_count == 0 {
+            if *thread_count.lock().unwrap() == 0 {
                 drop(tx);
                 break 'outer;
             }
@@ -685,7 +686,7 @@ impl<U: Runner> DefRunner for U {
             }
         }
 
-        self.run(dag_run_id, max_threads);
+        self.run(dag_run_id, max_threads, Arc::new(Mutex::new(0)));
     }
 
     fn get_circular_dependencies(

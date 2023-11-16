@@ -49,11 +49,11 @@ impl Runner for LocalRunner {
         self.task_logs.lock().unwrap()[task_id].clone()
     }
     
-    fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
-        dbg!(&task_id);
-        let mut task_logs = self.task_logs.lock().unwrap();
-        task_logs.insert(*task_id, "".into());
-    }
+    // fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
+    //     dbg!(&task_id);
+    //     let mut task_logs = self.task_logs.lock().unwrap();
+    //     task_logs.insert(*task_id, "".into());
+    // }
 
     fn handle_log(
         &mut self,
@@ -66,6 +66,9 @@ impl Runner for LocalRunner {
 
         Box::new(move |s| {
             let mut task_logs = task_logs.lock().unwrap();
+            if !task_logs.contains_key(&task_id) {
+                task_logs.insert(task_id, "".into());
+            }
             *task_logs.get_mut(&task_id).unwrap() += &s;
         })
     }
