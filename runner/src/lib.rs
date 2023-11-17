@@ -341,7 +341,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             let downstream = self.get_downstream(dag_run_id, &task.id);
 
             let mut lazy_ids: Vec<usize> = vec![];
-
+            dbg!(&resolution_result);
+            dbg!(task.id);
             // only expands json arrays, (expand over maps?)
             for res in resolution_result.as_array().unwrap() {
                 let new_id = self.append_new_task_and_set_status_to_pending(
@@ -356,8 +357,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
                 lazy_ids.push(new_id);
                 self.insert_edge(dag_run_id, &(task.id, new_id));
-
-                self.enqueue_task(dag_run_id, &new_id);
             }
 
             if !downstream.is_empty() {
@@ -418,6 +417,9 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
 
                 self.enqueue_task(dag_run_id, &collector_id);
+            }
+            for lazy_id in &lazy_ids {
+                self.enqueue_task(dag_run_id, &lazy_id);
             }
 
             let start = Utc::now();
@@ -485,7 +487,9 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 ));
             }
             let task_result = self.get_task_result(dag_run_id, upstream_task_id);
+            dbg!(&task_result);
             results.insert(*upstream_task_id, task_result.result.clone());
+            dbg!(&results);
 
             if !task_result.success {
                 return Err(Error::new(
@@ -580,7 +584,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
             }
         }
-        Ok(resolved_args)
+        // dbg!()
+        Ok(dbg!(resolved_args))
     }
 
     fn work(
@@ -633,6 +638,12 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
         // let (spawned_thread, run_attempted) =
 
+        dbg!(
+            dag_run_id,
+            &task.template_args,
+            &self.get_dependency_keys(dag_run_id, &task.id),
+        );
+
         let resolution_result = self.resolve_args(
             dag_run_id,
             &task.template_args,
@@ -664,7 +675,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             &task,
             // &tx.clone(),
             attempt,
-            resolution_result.unwrap(),
+            dbg!(resolution_result.unwrap()),
         );
         self.handle_task_result(dag_run_id, result);
 
