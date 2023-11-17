@@ -926,11 +926,12 @@ impl<U: Runner + Send + Sync> DefRunner for U {
     // }
 
     fn get_graphite_graph(&mut self, dag_run_id: &usize) -> Vec<Value> {
-        let task_statuses: Vec<(String, TaskStatus)> = self
+        let task_statuses: Vec<(usize, String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
             .iter()
             .map(|t| {
                 (
+                    t.id,
                     t.function_name.clone(),
                     self.get_task_status(dag_run_id, &t.id),
                 )
@@ -963,8 +964,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
         task_statuses
             .iter()
-            .enumerate()
-            .map(|(task_id, (function_name, task_status))| {
+            // .enumerate()
+            .map(|(task_id, function_name, task_status)| {
                 // let styling = get_styling_for_status(task_status);
                 // out += &format!("  id{task_id}({function_name}_{task_id})\n");
                 // out += &format!("  style id{task_id} {styling}\n");
