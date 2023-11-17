@@ -1,7 +1,9 @@
 use std::{
     cmp::max,
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashSet},
     hash::{Hash, Hasher},
+    sync::{Arc, Mutex},
+    thread,
 };
 
 use chrono::Utc;
@@ -241,7 +243,61 @@ pub fn parse_cli() {
                                 "max" => max_threads,
                                 _ => mode.parse::<usize>().unwrap(),
                             };
-                            LocalRunner::new("", &tasks, &edges).run_dag_local(thread_count);
+                            let mut runner = LocalRunner::new("", &tasks, &edges);
+                            let dag_run_id = runner.enqueue_run(&"", &"", Utc::now());
+                            let default_tasks = runner.get_default_tasks();
+
+                            for task in &default_tasks {
+                                let mut visited = HashSet::new();
+                                let mut path = Vec::new();
+                                let deps = runner.get_circular_dependencies(
+                                    &dag_run_id,
+                                    task.id,
+                                    &mut visited,
+                                    &mut path,
+                                );
+
+                                if let Some(deps) = deps {
+                                    panic!("{:?}", deps);
+                                }
+                            }
+
+                            // for task in default_tasks {
+                            //     // let depth = self.get_task_depth(dag_run_id, &task.id);
+                            //     // if depth == 0 {
+                            //     runner.enqueue_task(&dag_run_id, &task.id);
+                            //     // }
+                            // }
+                            // dbg!(2);
+                            // let runner = Arc::new(Mutex::new(runner));
+                            // // for _ in 0..thread_count {
+                            //     dbg!(2);
+
+                            //     let runner = runner.clone();
+                            //     thread::spawn(move || {
+                            //         let runner = runner.clone();
+
+                            loop {
+                                // dbg!(2);
+                                // let runner = runner.clone();
+
+                                // let mut runner = runner.lock().unwrap();
+                                // dbg!(2);
+
+                                // runner.lock().unwrap().run_dag_local();
+                                runner.work(&dag_run_id);
+                                // dbg!(runner.print_priority_queue());
+
+                                if runner.is_completed(&dag_run_id) {
+                                    runner.mark_finished(&dag_run_id);
+                                    break;
+                                }
+                            }
+                            //     dbg!(1);
+                            // });
+                            // }
+
+                            // .run_dag_local();
                         }
                         "function" => {
                             let functions = get_functions().read().unwrap();

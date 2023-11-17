@@ -6,7 +6,11 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use task::{task::{Task, QueuedTask}, task_result::TaskResult, task_status::TaskStatus};
+use task::{
+    task::{QueuedTask, Task},
+    task_result::TaskResult,
+    task_status::TaskStatus,
+};
 
 use crate::{DefRunner, Runner};
 
@@ -52,7 +56,6 @@ impl Runner for LocalRunner {
             self.task_depth.insert(*task_id, depth);
         }
         self.task_depth[task_id]
-
     }
 
     fn set_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize, depth: usize) {
@@ -67,7 +70,12 @@ impl Runner for LocalRunner {
         // pool: Pool<Postgres>,
     ) -> String {
         dbg!(task_id);
-        self.task_logs.lock().unwrap().get(task_id).unwrap_or(&"".to_string()).clone()
+        self.task_logs
+            .lock()
+            .unwrap()
+            .get(task_id)
+            .unwrap_or(&"".to_string())
+            .clone()
     }
 
     // fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
@@ -95,7 +103,7 @@ impl Runner for LocalRunner {
     }
 
     fn insert_task_results(&mut self, _dag_run_id: &usize, result: &TaskResult) {
-        dbg!(&self.task_logs.lock().unwrap());
+        // dbg!(&self.task_logs.lock().unwrap());
 
         self.attempts.insert(result.task_id, result.attempt);
 
@@ -277,16 +285,17 @@ impl Runner for LocalRunner {
         self.priority_queue.push(QueuedTask::new(depth, *task_id));
     }
 
-    fn get_priority_queue(&mut self) -> Vec<QueuedTask> {
+    fn print_priority_queue(&mut self) {
         // self.priority_queue.iter().collect()
-        let mut vec = vec![];
-        let len = self.priority_queue.len();
-        for i in 0..len {
-            vec.push(self.priority_queue.pop().unwrap());
-        }
-        vec
+        // let mut vec = vec![];
+        // let len = self.priority_queue.len();
+        // for i in 0..len {
+        //     vec.push(self.priority_queue.pop().unwrap());
+        // }
+        // vec
+        println!("{:#?}", self.priority_queue);
+        // println!("{:?}", &self.task_statuses);
     }
-
 
     fn pop_priority_queue(&mut self) -> Option<QueuedTask> {
         self.priority_queue.pop()
@@ -296,6 +305,6 @@ impl Runner for LocalRunner {
     }
 
     fn priority_queue_len(&self) -> usize {
-       self.priority_queue.len()
+        self.priority_queue.len()
     }
 }

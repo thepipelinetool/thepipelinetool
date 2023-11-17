@@ -111,10 +111,10 @@ impl Task {
         dag_name: String,
         resolved_args: Value,
         attempt: usize,
-        tx: &Sender<(usize, TaskResult)>,
+        // tx: &Sender<(usize, TaskResult)>,
         handle_stdout: Box<dyn Fn(String) + Send>,
         handle_stderr: Box<dyn Fn(String) + Send>
-    ) -> JoinHandle<()> {
+    ) -> TaskResult {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
         let template_args_str = serde_json::to_string_pretty(&self.template_args).unwrap();
@@ -128,9 +128,9 @@ impl Task {
         let in_path = format!("./in_{function_name}_{task_id}.json");
         value_to_file(&resolved_args, &in_path);
 
-        let tx1 = tx.clone();
+        // let tx1 = tx.clone();
 
-        thread::spawn(move || {
+        // thread::spawn(move || {
             if attempt > 1 {
                 thread::sleep(retry_delay);
             }
@@ -249,8 +249,8 @@ impl Task {
             // let result_raw = stdout_accum.lock().unwrap().clone();
             // let err_raw = stderr_accum.lock().unwrap().clone();
 
-            tx1.send((
-                dag_run_id,
+            // tx1.send((
+            //     dag_run_id,
                 TaskResult {
                     task_id,
                     result: if status.success() {
@@ -274,11 +274,12 @@ impl Task {
                         "timed out".into()
                     } else {
                         "".into()
-                    },
+                    }
+                    ,
                     is_branch,
-                },
-            ))
-            .unwrap();
-        })
+                }
+            // ))
+            // .unwrap();
+        // })
     }
 }
