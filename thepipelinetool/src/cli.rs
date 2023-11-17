@@ -9,7 +9,7 @@ use std::{
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command};
 // use graph::dag::get_dag;
-use runner::{local::LocalRunner, DefRunner, Runner};
+use runner::{in_memory::InMemoryRunner, DefRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
@@ -175,7 +175,7 @@ pub fn parse_cli() {
                 let tasks = get_tasks().read().unwrap();
                 let edges = get_edges().read().unwrap();
 
-                let mut runner = LocalRunner::new("", &tasks, &edges);
+                let mut runner = InMemoryRunner::new("", &tasks, &edges);
                 runner.enqueue_run("local", "", Utc::now());
 
                 let graph = runner.get_graphite_graph(&0);
@@ -195,7 +195,7 @@ pub fn parse_cli() {
                 let tasks = get_tasks().read().unwrap();
                 let edges = get_edges().read().unwrap();
 
-                let mut runner = LocalRunner::new("", &tasks, &edges);
+                let mut runner = InMemoryRunner::new("", &tasks, &edges);
                 let dag_run_id = runner.enqueue_run("local", "", Utc::now());
                 let tasks = runner
                     .get_default_tasks()
@@ -243,7 +243,7 @@ pub fn parse_cli() {
                                 "max" => max_threads,
                                 _ => mode.parse::<usize>().unwrap(),
                             };
-                            let mut runner = LocalRunner::new("", &tasks, &edges);
+                            let mut runner = InMemoryRunner::new("", &tasks, &edges);
                             let dag_run_id = runner.enqueue_run(&"", &"", Utc::now());
                             let default_tasks = runner.get_default_tasks();
 
@@ -285,7 +285,11 @@ pub fn parse_cli() {
                                 // dbg!(2);
 
                                 // runner.lock().unwrap().run_dag_local();
-                                runner.work(&dag_run_id);
+                                if let Some(queued_task) = runner.pop_priority_queue() {
+                                    runner.work(&dag_run_id, queued_task);
+                                } else {
+                                    break;
+                                }
                                 // dbg!(runner.print_priority_queue());
 
                                 if runner.is_completed(&dag_run_id) {

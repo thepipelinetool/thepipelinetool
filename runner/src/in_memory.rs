@@ -14,12 +14,12 @@ use task::{
 
 use crate::{DefRunner, Runner};
 
-pub struct LocalRunner {
+pub struct InMemoryRunner {
     task_results: HashMap<usize, TaskResult>,
     task_logs: Arc<Mutex<HashMap<usize, String>>>,
     task_statuses: HashMap<usize, TaskStatus>,
     attempts: HashMap<usize, usize>,
-    dep_keys: HashMap<usize, HashMap<(usize, Option<String>), Option<String>>>,
+    dep_keys: HashMap<usize, HashMap<(usize, String), String>>,
     edges: HashSet<(usize, usize)>,
     default_nodes: Vec<Task>,
     nodes: Vec<Task>,
@@ -27,7 +27,7 @@ pub struct LocalRunner {
     task_depth: HashMap<usize, usize>,
 }
 
-impl LocalRunner {
+impl InMemoryRunner {
     pub fn new(_name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
             default_nodes: nodes.to_vec(),
@@ -44,7 +44,7 @@ impl LocalRunner {
     }
 }
 
-impl Runner for LocalRunner {
+impl Runner for InMemoryRunner {
     fn get_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize) -> usize {
         if !self.task_depth.contains_key(task_id) {
             let depth = self
@@ -155,8 +155,8 @@ impl Runner for LocalRunner {
         &self,
         _dag_run_id: &usize,
         task_id: &usize,
-    ) -> HashMap<(usize, Option<String>), Option<String>> {
-        let h: HashMap<(usize, Option<String>), Option<String>> = HashMap::new();
+    ) -> HashMap<(usize, String), String> {
+        let h: HashMap<(usize, String), String> = HashMap::new();
 
         self.dep_keys.get(task_id).unwrap_or(&h).clone()
     }
@@ -175,7 +175,7 @@ impl Runner for LocalRunner {
         self.dep_keys
             .get_mut(&downstream_task_id)
             .unwrap_or(&mut HashMap::new())
-            .remove(&(upstream_task_id, None));
+            .remove(&(upstream_task_id, "".into()));
 
         self.edges.remove(edge);
     }
@@ -197,8 +197,8 @@ impl Runner for LocalRunner {
         &mut self,
         _dag_run_id: &usize,
         task_id: &usize,
-        upstream: (usize, Option<String>),
-        v: Option<String>,
+        upstream: (usize, String),
+        v: String,
     ) {
         self.dep_keys
             .entry(*task_id)
@@ -282,7 +282,12 @@ impl Runner for LocalRunner {
 
     fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize) {
         let depth = self.get_task_depth(dag_run_id, task_id);
-        self.priority_queue.push(QueuedTask::new(depth, *task_id));
+        self.priority_queue.push(QueuedTask {
+            depth,
+            task_id: *task_id,
+            run_id: *dag_run_id,
+            dag_name: self.get_dag_name(),
+        });
     }
 
     fn print_priority_queue(&mut self) {

@@ -80,24 +80,28 @@ impl PartialOrd for QueuedTask {
 
 // }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct QueuedTask {
     pub depth: usize,
     pub task_id: usize,
+    pub run_id: usize,
+    pub dag_name: String,
 }
 
 impl QueuedTask {
-    pub fn new(depth: usize, task_id: usize) -> Self {
-        Self {
-            depth,
-            task_id
-        }
-    }
+    // pub fn new(depth: usize, task_id: usize) -> Self {
+    //     Self {
+    //         depth,
+    //         task_id
+    //     }
+    // }
 
     pub fn increment(&self) -> Self {
         Self {
             depth: self.depth + 1,
             task_id: self.task_id,
+            run_id: self.run_id,
+            dag_name: self.dag_name.clone(),
         }
     }
 }

@@ -6,7 +6,8 @@ use std::{
         atomic::Ordering,
         mpsc::{self, Sender},
         Arc, Mutex,
-    }, thread,
+    },
+    thread,
 };
 
 use chrono::{DateTime, Utc};
@@ -20,7 +21,7 @@ use task::{
 };
 use utils::{collector, function_name_as_string};
 
-pub mod local;
+pub mod in_memory;
 
 pub trait Runner {
     fn print_priority_queue(&mut self);
@@ -54,13 +55,13 @@ pub trait Runner {
         &self,
         dag_run_id: &usize,
         task_id: &usize,
-    ) -> HashMap<(usize, Option<String>), Option<String>>;
+    ) -> HashMap<(usize, String), String>;
     fn set_dependency_keys(
         &mut self,
         dag_run_id: &usize,
         task_id: &usize,
-        upstream: (usize, Option<String>),
-        v: Option<String>,
+        upstream: (usize, String),
+        v: String,
     );
     fn get_downstream(&self, dag_run_id: &usize, task_id: &usize) -> HashSet<usize>;
     fn get_upstream(&self, dag_run_id: &usize, task_id: &usize) -> HashSet<usize>;
@@ -105,9 +106,12 @@ pub trait DefRunner {
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
     fn is_completed(&mut self, dag_run_id: &usize) -> bool;
-    fn work(&mut self, dag_run_id: &usize,
+    fn work(
+        &mut self,
+        dag_run_id: &usize,
+        queued_task: QueuedTask,
         //  max_threads: usize, thread_count: Arc<Mutex<usize>>
-        );
+    );
 
     fn get_circular_dependencies(
         &self,
@@ -131,7 +135,7 @@ pub trait DefRunner {
         &mut self,
         dag_run_id: &usize,
         template_args: &Value,
-        upstream_deps: &HashMap<(usize, Option<String>), Option<String>>,
+        upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error>;
     // fn run_dag_local(&mut self);
     // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String;
@@ -193,6 +197,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         let dag_run_id = self.create_new_run(dag_name, dag_hash, logical_date);
 
         for task in self.get_default_tasks() {
+            dbg!(&task.id, dag_run_id);
             self.append_new_task_and_set_status_to_pending(
                 &dag_run_id,
                 // task.name,
@@ -412,7 +417,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     self.remove_edge(dag_run_id, &(task.id, *d));
                 }
 
-
                 self.enqueue_task(dag_run_id, &collector_id);
             }
 
@@ -466,7 +470,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         &mut self,
         dag_run_id: &usize,
         template_args: &Value,
-        upstream_deps: &HashMap<(usize, Option<String>), Option<String>>,
+        upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error> {
         let mut results: HashMap<usize, Value> = HashMap::new();
         for ((upstream_task_id, _), key) in upstream_deps {
@@ -490,13 +494,13 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 ));
             }
 
-            if key.is_none() {
+            if key.is_empty() {
                 continue;
             }
 
             if task_result.result.is_object() {
                 let upstream_results_map = task_result.result.as_object().unwrap();
-                let key = key.as_ref().unwrap();
+                // let key = key.as_ref().unwrap();
 
                 if !upstream_results_map.contains_key(key) {
                     return Err(Error::new(
@@ -556,9 +560,9 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             for ((upstream_task_id, original_key), key) in upstream_deps {
                 let result = &results[upstream_task_id];
 
-                if key.is_none() {
-                    if original_key.is_some() {
-                        resolved_args[original_key.clone().unwrap().to_string()] = result.clone();
+                if key.is_empty() {
+                    if !original_key.is_empty() {
+                        resolved_args[original_key] = result.clone();
                     } else {
                         resolved_args = result.clone();
                         break;
@@ -567,11 +571,10 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
 
                 let upstream_results_map = result.as_object().unwrap();
-                let key = key.as_ref().unwrap();
+                // let key = key.as_ref().unwrap();
 
-                if original_key.is_some() {
-                    resolved_args[original_key.clone().unwrap().to_string()] =
-                        upstream_results_map[key].clone();
+                if !original_key.is_empty() {
+                    resolved_args[original_key] = upstream_results_map[key].clone();
                 } else {
                     resolved_args = upstream_results_map[key].clone();
                 }
@@ -580,9 +583,12 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         Ok(resolved_args)
     }
 
-    fn work(&mut self, dag_run_id: &usize,
+    fn work(
+        &mut self,
+        dag_run_id: &usize,
+        queued_task: QueuedTask,
         //  max_threads: usize, thread_count: Arc<Mutex<usize>>
-        ) {
+    ) {
         // let mut thread_count = 0usize;
         // let tasks = ;
         // let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
@@ -606,194 +612,193 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
         // for _ in 0..self.priority_queue_len() {
         // dbg!(1);
-        if let Some(queued_task) = self.pop_priority_queue() {
+        // if let Some(queued_task) = self.pop_priority_queue() {
+        // dbg!(2);
+
+        if self.is_task_completed(dag_run_id, &queued_task.task_id) {
+            // TODO maybe not needed?
             // dbg!(2);
-
-            if self.is_task_completed(dag_run_id, &queued_task.task_id) {
-                // TODO maybe not needed?
-                // dbg!(2);
-                return;
-            }
-
-            // dbg!(3);
-
-            if self.any_upstream_incomplete(dag_run_id, &queued_task.task_id) {
-                // dbg!(3);
-                // return (false, false);
-                self.push_priority_queue(queued_task.increment());
-                return;
-            }
-            // let task = tasks_map[&queued_task.task_id];
-            let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
-            // let (spawned_thread, run_attempted) =
-
-            let resolution_result = self.resolve_args(
-                dag_run_id,
-                &task.template_args,
-                &self.get_dependency_keys(dag_run_id, &task.id),
-            );
-            let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
-            // self.init_log(dag_run_id, &task.id, attempt);
-            // dbg!(4);
-
-            if let Err(resolution_result) = resolution_result {
-                // dbg!(4);
-                self.handle_task_result(
-                    dag_run_id,
-                    TaskResult::premature_error(
-                        task.id,
-                        attempt,
-                        task.options.max_attempts,
-                        task.function_name.clone(),
-                        task.template_args.clone(),
-                        resolution_result.to_string(),
-                        task.is_branch,
-                    ),
-                );
-                return;
-            }
-
-            let result = self.run_task(
-                dag_run_id,
-                &task,
-                // &tx.clone(),
-                attempt,
-                resolution_result.unwrap(),
-            );
-            self.handle_task_result(dag_run_id, result);
-
-            if self.task_needs_running(&dag_run_id, &queued_task.task_id) {
-                self.push_priority_queue(queued_task);
-            }
-
-            // if spawned_thread {
-            //     // *thread_count.lock().unwrap() += 1;
-            //     *thread_count.lock().unwrap() += 1;
-            // }
-
-            // if !run_attempted {
-            //     // task_ids.insert(queued_task.task_id);
-            //     self.push_priority_queue(queued_task.increment());
-            // }
-
-            // if *thread_count.lock().unwrap() >= max_threads {
-            //     break;
-            // }
-            //     } else {
-            //         break;
-            //     }
-            // }
-
-            // if *thread_count.lock().unwrap() == 0 {
-            //     drop(tx);
-            //     return;
-            // }
-
-            // 'outer: for (run_id, received) in &rx {
-            //     if *thread_count.lock().unwrap() >= 1 {
-            //         *thread_count.lock().unwrap() -= 1;
-            //     }
-            //     let task_id: usize = received.task_id;
-            //     self.handle_task_result(&run_id, received);
-
-            //     // retry run if task failed
-            //     if self.task_needs_running(&run_id, &task_id) {
-            //         let task = self.get_task_by_id(dag_run_id, &task_id);
-
-            //         // let (spawned_thread, _run_attempted) =
-            //         //     self.run_task(&run_id, &task, &tx.clone());
-            //         // if spawned_thread {
-            //         //     *thread_count.lock().unwrap() += 1;
-            //         // }
-            //         // if !run_attempted {
-            //         //     task_ids.remove(&task_id);
-            //         // }
-            //         if *thread_count.lock().unwrap() >= max_threads {
-            //             continue 'outer;
-            //         }
-            //     }
-            //     // else if downstream_ids.contains_key(&task_id) {
-            //     //     for downstream_task_id in downstream_ids[&task_id].iter() {
-            //     //         // let (spawned_thread, run_attempted) =
-            //     //         //     self.attempt_run_task(&run_id, &tasks_map[downstream_task_id], &tx.clone());
-            //     //         // if spawned_thread {
-            //     //         //     *thread_count.lock().unwrap() += 1;
-            //     //         // }
-            //     //         // if run_attempted {
-            //     //         //     task_ids.remove(&task_id);
-            //     //         // }
-            //     //         // if *thread_count.lock().unwrap() >= max_threads {
-            //     //         //     continue 'outer;
-            //     //         // }
-
-            //     //         if !self.is_task_completed(dag_run_id, &task_id) {
-            //     //             self.enqueue_task(dag_run_id, &task_id);
-            //     //         }
-
-            //     //     }
-            //     // }
-            //     else {
-            //         for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
-            //             //         let (spawned_thread, run_attempted) = self.attempt_run_task(
-            //             //             &run_id,
-            //             //             &self.get_task_by_id(&run_id, downstream_task_id),
-            //             //             &tx.clone(),
-            //             //         );
-            //             //         if spawned_thread {
-            //             //             *thread_count.lock().unwrap() += 1;
-            //             //         }
-            //             //         if run_attempted {
-            //             //             task_ids.remove(&task_id);
-            //             //         }
-            //             //         if *thread_count.lock().unwrap() >= max_threads {
-            //             //             continue 'outer;
-            //             //         }
-            //             if !self.is_task_completed(dag_run_id, &downstream_task_id) {
-            //                 self.enqueue_task(dag_run_id, &downstream_task_id);
-            //             }
-            //         }
-            //     }
-            //     dbg!(2);
-            //     for _ in 0..self.priority_queue_len() {
-            //         if let Some(queued_task) = self.pop_priority_queue() {
-            //             dbg!(&queued_task);
-            //             // let task = tasks_map[&queued_task.task_id];
-            //             let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
-
-            //             let (spawned_thread, run_attempted) =
-            //                 self.run_task(dag_run_id, &task, &tx.clone());
-
-            //             if spawned_thread {
-            //                 *thread_count.lock().unwrap() += 1;
-            //             }
-            //             if !run_attempted {
-            //                 self.push_priority_queue(queued_task.increment());
-            //             }
-
-            //             if *thread_count.lock().unwrap() >= max_threads {
-            //                 continue 'outer;
-            //             }
-            //         } else {
-            //             break;
-            //         }
-            //     }
-            //     dbg!(3);
-
-            //     // no more running threads so drop sender
-            //     if *thread_count.lock().unwrap() == 0 {
-            //         drop(tx);
-            //         break 'outer;
-            //     }
-            // }
-
-            // if self.is_completed(dag_run_id) {
-            //     self.mark_finished(dag_run_id);
-            // }
+            return;
         }
+
+        // dbg!(3);
+
+        if self.any_upstream_incomplete(dag_run_id, &queued_task.task_id) {
+            // dbg!(3);
+            // return (false, false);
+            self.push_priority_queue(queued_task.increment());
+            return;
+        }
+        // let task = tasks_map[&queued_task.task_id];
+        let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
+        // let (spawned_thread, run_attempted) =
+
+        let resolution_result = self.resolve_args(
+            dag_run_id,
+            &task.template_args,
+            &self.get_dependency_keys(dag_run_id, &task.id),
+        );
+        let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
+        // self.init_log(dag_run_id, &task.id, attempt);
+        // dbg!(4);
+
+        if let Err(resolution_result) = resolution_result {
+            // dbg!(4);
+            self.handle_task_result(
+                dag_run_id,
+                TaskResult::premature_error(
+                    task.id,
+                    attempt,
+                    task.options.max_attempts,
+                    task.function_name.clone(),
+                    task.template_args.clone(),
+                    resolution_result.to_string(),
+                    task.is_branch,
+                ),
+            );
+            return;
+        }
+
+        let result = self.run_task(
+            dag_run_id,
+            &task,
+            // &tx.clone(),
+            attempt,
+            resolution_result.unwrap(),
+        );
+        self.handle_task_result(dag_run_id, result);
+
+        if self.task_needs_running(&dag_run_id, &queued_task.task_id) {
+            self.push_priority_queue(queued_task);
+        }
+
+        // if spawned_thread {
+        //     // *thread_count.lock().unwrap() += 1;
+        //     *thread_count.lock().unwrap() += 1;
+        // }
+
+        // if !run_attempted {
+        //     // task_ids.insert(queued_task.task_id);
+        //     self.push_priority_queue(queued_task.increment());
+        // }
+
+        // if *thread_count.lock().unwrap() >= max_threads {
+        //     break;
+        // }
+        //     } else {
+        //         break;
+        //     }
+        // }
+
+        // if *thread_count.lock().unwrap() == 0 {
+        //     drop(tx);
+        //     return;
+        // }
+
+        // 'outer: for (run_id, received) in &rx {
+        //     if *thread_count.lock().unwrap() >= 1 {
+        //         *thread_count.lock().unwrap() -= 1;
+        //     }
+        //     let task_id: usize = received.task_id;
+        //     self.handle_task_result(&run_id, received);
+
+        //     // retry run if task failed
+        //     if self.task_needs_running(&run_id, &task_id) {
+        //         let task = self.get_task_by_id(dag_run_id, &task_id);
+
+        //         // let (spawned_thread, _run_attempted) =
+        //         //     self.run_task(&run_id, &task, &tx.clone());
+        //         // if spawned_thread {
+        //         //     *thread_count.lock().unwrap() += 1;
+        //         // }
+        //         // if !run_attempted {
+        //         //     task_ids.remove(&task_id);
+        //         // }
+        //         if *thread_count.lock().unwrap() >= max_threads {
+        //             continue 'outer;
+        //         }
+        //     }
+        //     // else if downstream_ids.contains_key(&task_id) {
+        //     //     for downstream_task_id in downstream_ids[&task_id].iter() {
+        //     //         // let (spawned_thread, run_attempted) =
+        //     //         //     self.attempt_run_task(&run_id, &tasks_map[downstream_task_id], &tx.clone());
+        //     //         // if spawned_thread {
+        //     //         //     *thread_count.lock().unwrap() += 1;
+        //     //         // }
+        //     //         // if run_attempted {
+        //     //         //     task_ids.remove(&task_id);
+        //     //         // }
+        //     //         // if *thread_count.lock().unwrap() >= max_threads {
+        //     //         //     continue 'outer;
+        //     //         // }
+
+        //     //         if !self.is_task_completed(dag_run_id, &task_id) {
+        //     //             self.enqueue_task(dag_run_id, &task_id);
+        //     //         }
+
+        //     //     }
+        //     // }
+        //     else {
+        //         for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
+        //             //         let (spawned_thread, run_attempted) = self.attempt_run_task(
+        //             //             &run_id,
+        //             //             &self.get_task_by_id(&run_id, downstream_task_id),
+        //             //             &tx.clone(),
+        //             //         );
+        //             //         if spawned_thread {
+        //             //             *thread_count.lock().unwrap() += 1;
+        //             //         }
+        //             //         if run_attempted {
+        //             //             task_ids.remove(&task_id);
+        //             //         }
+        //             //         if *thread_count.lock().unwrap() >= max_threads {
+        //             //             continue 'outer;
+        //             //         }
+        //             if !self.is_task_completed(dag_run_id, &downstream_task_id) {
+        //                 self.enqueue_task(dag_run_id, &downstream_task_id);
+        //             }
+        //         }
+        //     }
+        //     dbg!(2);
+        //     for _ in 0..self.priority_queue_len() {
+        //         if let Some(queued_task) = self.pop_priority_queue() {
+        //             dbg!(&queued_task);
+        //             // let task = tasks_map[&queued_task.task_id];
+        //             let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
+
+        //             let (spawned_thread, run_attempted) =
+        //                 self.run_task(dag_run_id, &task, &tx.clone());
+
+        //             if spawned_thread {
+        //                 *thread_count.lock().unwrap() += 1;
+        //             }
+        //             if !run_attempted {
+        //                 self.push_priority_queue(queued_task.increment());
+        //             }
+
+        //             if *thread_count.lock().unwrap() >= max_threads {
+        //                 continue 'outer;
+        //             }
+        //         } else {
+        //             break;
+        //         }
+        //     }
+        //     dbg!(3);
+
+        //     // no more running threads so drop sender
+        //     if *thread_count.lock().unwrap() == 0 {
+        //         drop(tx);
+        //         break 'outer;
+        //     }
+        // }
+
+        // if self.is_completed(dag_run_id) {
+        //     self.mark_finished(dag_run_id);
+        // }
+        // }
     }
 
     // fn run_dag_local(&mut self) {
-
 
     //     // println!("{:#?}", self.print_priority_queue());
     //     // // let (tx, rx) = mpsc::channel::<(usize, TaskResult)>();
@@ -806,7 +811,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
     //     // self.work(dag_run_id);
     //     // println!("{:#?}", self.print_priority_queue());
-
 
     //     // return;
 
@@ -848,7 +852,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
     //     //     println!("{} {}",  self.priority_queue_len() == 0, self.is_completed(dag_run_id));
     //     //     return;
     //         // return;
-    //         // for t in 
+    //         // for t in
     //     }
     // }
 
@@ -995,11 +999,11 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     self.set_dependency_keys(
                         dag_run_id,
                         downstream_task_id,
-                        (upstream_task_id, None),
+                        (upstream_task_id, "".into()),
                         if map_value.contains_key("key") {
-                            Some(map_value.get("key").unwrap().as_str().unwrap().to_string())
+                            map_value.get("key").unwrap().as_str().unwrap().to_string()
                         } else {
-                            None
+                            "".into()
                         },
                     );
                     self.insert_edge(dag_run_id, &(upstream_task_id, *downstream_task_id));
@@ -1016,18 +1020,16 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 self.set_dependency_keys(
                     dag_run_id,
                     downstream_task_id,
-                    (upstream_task_id, None),
+                    (upstream_task_id, "".into()),
                     if template_args.contains_key("key") {
-                        Some(
-                            template_args
-                                .get("key")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
-                        )
+                        template_args
+                            .get("key")
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                            .to_string()
                     } else {
-                        None
+                        "".into()
                     },
                 );
 
@@ -1045,11 +1047,11 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     self.set_dependency_keys(
                         dag_run_id,
                         downstream_task_id,
-                        (upstream_task_id, Some(key.to_string())),
+                        (upstream_task_id, key.to_string()),
                         if map.contains_key("key") {
-                            Some(map.get("key").unwrap().as_str().unwrap().to_string())
+                            map.get("key").unwrap().as_str().unwrap().to_string()
                         } else {
-                            None
+                            "".into()
                         },
                     );
 
