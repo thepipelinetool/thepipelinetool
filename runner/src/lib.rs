@@ -122,7 +122,7 @@ pub trait DefRunner {
         tx: &Sender<(usize, TaskResult)>,
         // max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
-    ) -> (bool, bool);
+    ) -> TaskResult;
     fn resolve_args(
         &mut self,
         dag_run_id: &usize,
@@ -280,18 +280,18 @@ impl<U: Runner> DefRunner for U {
         tx: &Sender<(usize, TaskResult)>,
         // max_threads: usize,
         // thread_count: &Arc<Mutex<usize>>,
-    ) -> (bool, bool) {
+    ) -> TaskResult {
         // if *Arc::clone(thread_count).lock().unwrap() >= max_threads {
         //     return false;
         // }
 
-        if self.is_task_completed(dag_run_id, &task.id) {
-            return (false, true);
-        }
+        // if self.is_task_completed(dag_run_id, &task.id) {
+        //     return None;
+        // }
 
-        if self.any_upstream_incomplete(dag_run_id, &task.id) {
-            return (false, false);
-        }
+        // if self.any_upstream_incomplete(dag_run_id, &task.id) {
+        //     return (false, false);
+        // }
 
         // if !self.set_status_to_running_if_possible(dag_run_id, &task.id) {
         //     return (false, true);
@@ -589,6 +589,16 @@ impl<U: Runner> DefRunner for U {
         for _ in 0..self.priority_queue_len() {
             dbg!(1);
             if let Some(queued_task) = self.pop_priority_queue() {
+
+                if self.is_task_completed(dag_run_id, &queued_task.task_id) {
+                    continue;
+                }
+
+                if self.any_upstream_incomplete(dag_run_id, &queued_task.task_id) {
+                    // return (false, false);
+                    self.push_priority_queue(queued_task.increment());
+                    continue;
+                }
                 dbg!(&queued_task);
                 // let task = tasks_map[&queued_task.task_id];
                 let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
