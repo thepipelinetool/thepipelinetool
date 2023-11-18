@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
-    task::{QueuedTask, Task},
+    task::{QueuedTask, Task, OrderedQueuedTask},
     task_options::TaskOptions,
     task_ref::TaskRefInner,
     task_result::TaskResult,
@@ -18,8 +18,8 @@ pub mod in_memory;
 
 pub trait Runner {
     fn print_priority_queue(&mut self);
-    fn pop_priority_queue(&mut self) -> Option<QueuedTask>;
-    fn push_priority_queue(&mut self, queued_task: QueuedTask);
+    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
+    fn push_priority_queue(&mut self, dag_run_id: &usize, queued_task: OrderedQueuedTask);
     fn priority_queue_len(&self) -> usize;
 
     fn get_log(
@@ -42,7 +42,7 @@ pub trait Runner {
         logical_date: DateTime<Utc>,
     ) -> usize;
     fn insert_task_results(&mut self, dag_run_id: &usize, result: &TaskResult);
-    fn mark_finished(&self, dag_run_id: &usize);
+    // fn mark_finished(&self, dag_run_id: &usize);
     fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
     fn get_dependency_keys(
         &self,
@@ -86,6 +86,8 @@ pub trait Runner {
     ) -> Box<dyn Fn(String) + Send>;
     fn get_task_depth(&mut self, dag_run_id: &usize, task_id: &usize) -> usize;
     fn set_task_depth(&mut self, dag_run_id: &usize, task_id: &usize, depth: usize);
+    fn delete_task_depth(&mut self, dag_run_id: &usize, task_id: &usize);
+
     // fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
 
     fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize);
@@ -98,11 +100,11 @@ pub trait DefRunner {
 
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
-    fn is_completed(&mut self, dag_run_id: &usize) -> bool;
+    // fn is_completed(&mut self, dag_run_id: &usize) -> bool;
     fn work(
         &mut self,
         dag_run_id: &usize,
-        queued_task: QueuedTask,
+        queued_task: OrderedQueuedTask,
         //  max_threads: usize, thread_count: Arc<Mutex<usize>>
     );
 
@@ -146,11 +148,11 @@ pub trait DefRunner {
 }
 
 impl<U: Runner + Send + Sync> DefRunner for U {
-    fn is_completed(&mut self, dag_run_id: &usize) -> bool {
-        self.get_all_tasks(dag_run_id)
-            .iter()
-            .all(|task| self.is_task_completed(dag_run_id, &task.id))
-    }
+    // fn is_completed(&mut self, dag_run_id: &usize) -> bool {
+    //     self.get_all_tasks(dag_run_id)
+    //         .iter()
+    //         .all(|task| self.is_task_completed(dag_run_id, &task.id))
+    // }
 
     fn is_task_completed(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
         // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
@@ -407,6 +409,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
                 for d in &downstream {
                     self.remove_edge(dag_run_id, &(task.id, *d));
+                    self.delete_task_depth(dag_run_id, d);
+                    self.enqueue_task(dag_run_id, d);
                 }
 
                 self.enqueue_task(dag_run_id, &collector_id);
@@ -584,7 +588,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
     fn work(
         &mut self,
         dag_run_id: &usize,
-        queued_task: QueuedTask,
+        queued_task: OrderedQueuedTask,
         //  max_threads: usize, thread_count: Arc<Mutex<usize>>
     ) {
         // let mut thread_count = 0usize;
@@ -613,7 +617,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         // if let Some(queued_task) = self.pop_priority_queue() {
         // dbg!(2);
 
-        if self.is_task_completed(dag_run_id, &queued_task.task_id) {
+        if self.is_task_completed(dag_run_id, &queued_task.task.task_id) {
             // TODO maybe not needed?
             // dbg!(2);
             return;
@@ -621,14 +625,15 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
         // dbg!(3);
 
-        if self.any_upstream_incomplete(dag_run_id, &queued_task.task_id) {
-            // dbg!(3);
+        if self.any_upstream_incomplete(dag_run_id, dbg!(&queued_task.task.task_id)) {
+            dbg!(3);
+            panic!("upstream incomplete");
             // return (false, false);
-            self.push_priority_queue(queued_task.increment());
+            // self.push_priority_queue(dag_run_id, queued_task.increment());
             return;
         }
         // let task = tasks_map[&queued_task.task_id];
-        let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
+        let task = self.get_task_by_id(dag_run_id, &queued_task.task.task_id);
         // let (spawned_thread, run_attempted) =
 
         dbg!(
@@ -671,8 +676,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         );
         self.handle_task_result(dag_run_id, result);
 
-        if self.task_needs_running(dag_run_id, &queued_task.task_id) {
-            self.push_priority_queue(queued_task);
+        if self.task_needs_running(dag_run_id, &queued_task.task.task_id) {
+            self.push_priority_queue(dag_run_id, queued_task);
         }
 
         // if spawned_thread {

@@ -279,10 +279,10 @@ pub fn parse_cli() {
 
                                 // dbg!(runner.print_priority_queue());
 
-                                if runner.is_completed(&dag_run_id) {
-                                    runner.mark_finished(&dag_run_id);
-                                    break;
-                                }
+                                // if runner.is_completed(&dag_run_id) {
+                                //     // runner.mark_finished(&dag_run_id);
+                                //     break;
+                                // }
                             }
                             //     dbg!(1);
                             // });

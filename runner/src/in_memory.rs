@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{
-    task::{QueuedTask, Task},
+    task::{OrderedQueuedTask, QueuedTask, Task},
     task_result::TaskResult,
     task_status::TaskStatus,
 };
@@ -22,7 +22,7 @@ pub struct InMemoryRunner {
     edges: HashSet<(usize, usize)>,
     default_nodes: Vec<Task>,
     nodes: Vec<Task>,
-    priority_queue: BinaryHeap<QueuedTask>,
+    priority_queue: BinaryHeap<OrderedQueuedTask>,
     task_depth: HashMap<usize, usize>,
 }
 
@@ -59,6 +59,10 @@ impl Runner for InMemoryRunner {
 
     fn set_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize, depth: usize) {
         self.task_depth.insert(*task_id, depth);
+    }
+
+    fn delete_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize) {
+        self.task_depth.remove(task_id);
     }
 
     fn get_log(
@@ -139,9 +143,9 @@ impl Runner for InMemoryRunner {
         self.task_statuses.insert(*task_id, task_status);
     }
 
-    fn mark_finished(&self, _dag_run_id: &usize) {
-        // todo!()
-    }
+    // fn mark_finished(&self, _dag_run_id: &usize) {
+    //     // todo!()
+    // }
 
     fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
         self.get_upstream(dag_run_id, task_id)
@@ -280,12 +284,17 @@ impl Runner for InMemoryRunner {
 
     fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize) {
         let depth = self.get_task_depth(dag_run_id, task_id);
-        self.priority_queue.push(QueuedTask {
-            depth,
-            task_id: *task_id,
-            run_id: *dag_run_id,
-            dag_name: self.get_dag_name(),
+        self.priority_queue.retain(|x| x.task.task_id != *task_id);
+        self.priority_queue.push(OrderedQueuedTask {
+            score: depth,
+            task: QueuedTask {
+                // depth,
+                task_id: *task_id,
+                run_id: *dag_run_id,
+                dag_name: self.get_dag_name(),
+            },
         });
+        dbg!(&self.priority_queue);
     }
 
     fn print_priority_queue(&mut self) {
@@ -300,10 +309,10 @@ impl Runner for InMemoryRunner {
         // println!("{:?}", &self.task_statuses);
     }
 
-    fn pop_priority_queue(&mut self) -> Option<QueuedTask> {
+    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         self.priority_queue.pop()
     }
-    fn push_priority_queue(&mut self, queued_task: QueuedTask) {
+    fn push_priority_queue(&mut self, _dag_run_id: &usize, queued_task: OrderedQueuedTask) {
         self.priority_queue.push(queued_task);
     }
 
