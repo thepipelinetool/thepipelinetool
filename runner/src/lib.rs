@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
-    task::{QueuedTask, Task, OrderedQueuedTask},
+    task::{Task, OrderedQueuedTask},
     task_options::TaskOptions,
     task_ref::TaskRefInner,
     task_result::TaskResult,
@@ -19,7 +19,7 @@ pub mod in_memory;
 pub trait Runner {
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
-    fn push_priority_queue(&mut self, dag_run_id: &usize, queued_task: OrderedQueuedTask);
+    fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask);
     fn priority_queue_len(&self) -> usize;
 
     fn get_log(
@@ -677,7 +677,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         self.handle_task_result(dag_run_id, result);
 
         if self.task_needs_running(dag_run_id, &queued_task.task.task_id) {
-            self.push_priority_queue(dag_run_id, queued_task);
+            self.push_priority_queue(queued_task);
         }
 
         // if spawned_thread {

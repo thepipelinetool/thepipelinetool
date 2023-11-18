@@ -312,7 +312,7 @@ impl Runner for InMemoryRunner {
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         self.priority_queue.pop()
     }
-    fn push_priority_queue(&mut self, _dag_run_id: &usize, queued_task: OrderedQueuedTask) {
+    fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask) {
         self.priority_queue.push(queued_task);
     }
 
