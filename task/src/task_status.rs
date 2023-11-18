@@ -1,4 +1,5 @@
-use serde::Deserialize;
+use std::str::FromStr;
+
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum TaskStatus {
@@ -35,15 +36,31 @@ impl TaskStatus {
     }
 
     // Convert a &str to a TaskStatus
-    pub fn from_str(s: &str) -> Option<Self> {
+    // pub fn from_str(s: &str) -> Option<Self> {
+    //     match s {
+    //         "Pending" => Some(TaskStatus::Pending),
+    //         "Running" => Some(TaskStatus::Running),
+    //         "Retrying" => Some(TaskStatus::Retrying),
+    //         "Success" => Some(TaskStatus::Success),
+    //         "Failure" => Some(TaskStatus::Failure),
+    //         "Skipped" => Some(TaskStatus::Skipped),
+    //         _ => None,
+    //     }
+    // }
+}
+
+impl FromStr for TaskStatus {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Pending" => Some(TaskStatus::Pending),
-            "Running" => Some(TaskStatus::Running),
-            "Retrying" => Some(TaskStatus::Retrying),
-            "Success" => Some(TaskStatus::Success),
-            "Failure" => Some(TaskStatus::Failure),
-            "Skipped" => Some(TaskStatus::Skipped),
-            _ => None,
+            "Pending" => Ok(TaskStatus::Pending),
+            "Running" => Ok(TaskStatus::Running),
+            "Retrying" => Ok(TaskStatus::Retrying),
+            "Success" => Ok(TaskStatus::Success),
+            "Failure" => Ok(TaskStatus::Failure),
+            "Skipped" => Ok(TaskStatus::Skipped),
+            _ => Err(()),
         }
     }
 }

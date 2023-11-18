@@ -1,13 +1,10 @@
 use std::{
-    cmp::max,
     collections::{hash_map::DefaultHasher, HashSet},
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
-    thread,
 };
 
 use chrono::Utc;
-use clap::{arg, command, value_parser, Command};
+use clap::{arg, command, Command};
 // use graph::dag::get_dag;
 use runner::{in_memory::InMemoryRunner, DefRunner, Runner};
 use saffron::{
@@ -45,15 +42,15 @@ pub fn parse_cli() {
             Command::new("run")
                 .arg_required_else_help(true)
                 .subcommand(
-                    Command::new("local").about("Runs dag locally").arg(
-                        arg!(
-                            [mode] "Mode for running locally"
-                        )
-                        .required(false)
-                        .value_parser(value_parser!(String))
-                        .default_values(["max", "--blocking"])
-                        .default_missing_value("max"),
-                    ),
+                    Command::new("in_memory").about("Runs dag locally"), // .arg(
+                                                                         //     arg!(
+                                                                         //         [mode] "Mode for running locally"
+                                                                         //     )
+                                                                         //     .required(false)
+                                                                         //     .value_parser(value_parser!(String))
+                                                                         //     .default_values(["max", "--blocking"])
+                                                                         //     .default_missing_value("max"),
+                                                                         // ),
                 )
                 .subcommand(
                     Command::new("function")
@@ -176,7 +173,7 @@ pub fn parse_cli() {
                 let edges = get_edges().read().unwrap();
 
                 let mut runner = InMemoryRunner::new("", &tasks, &edges);
-                runner.enqueue_run("local", "", Utc::now());
+                runner.enqueue_run("in_memory", "", Utc::now());
 
                 let graph = runner.get_graphite_graph(&0);
                 print!("{}", serde_json::to_string_pretty(&graph).unwrap());
@@ -196,7 +193,7 @@ pub fn parse_cli() {
                 let edges = get_edges().read().unwrap();
 
                 let mut runner = InMemoryRunner::new("", &tasks, &edges);
-                let dag_run_id = runner.enqueue_run("local", "", Utc::now());
+                let dag_run_id = runner.enqueue_run("in_memory", "", Utc::now());
                 let tasks = runner
                     .get_default_tasks()
                     .iter()
@@ -228,23 +225,23 @@ pub fn parse_cli() {
                 let matches = matches.subcommand_matches("run").unwrap();
                 if let Some(subcommand) = matches.subcommand_name() {
                     match subcommand {
-                        "local" => {
+                        "in_memory" => {
                             let tasks = get_tasks().read().unwrap();
                             let edges = get_edges().read().unwrap();
-                            let sub_matches = matches.subcommand_matches("local").unwrap();
-                            let mode = sub_matches.get_one::<String>("mode").unwrap();
+                            // let sub_matches = matches.subcommand_matches("in_memory").unwrap();
+                            // let mode = sub_matches.get_one::<String>("mode").unwrap();
 
-                            let max_threads = max(
-                                usize::from(std::thread::available_parallelism().unwrap()) - 1,
-                                1,
-                            );
-                            let thread_count = match mode.as_str() {
-                                "--blocking" => 1,
-                                "max" => max_threads,
-                                _ => mode.parse::<usize>().unwrap(),
-                            };
+                            // let max_threads = max(
+                            //     usize::from(std::thread::available_parallelism().unwrap()) - 1,
+                            //     1,
+                            // );
+                            // let thread_count = match mode.as_str() {
+                            //     "--blocking" => 1,
+                            //     "max" => max_threads,
+                            //     _ => mode.parse::<usize>().unwrap(),
+                            // };
                             let mut runner = InMemoryRunner::new("", &tasks, &edges);
-                            let dag_run_id = runner.enqueue_run(&"", &"", Utc::now());
+                            let dag_run_id = runner.enqueue_run("", "", Utc::now());
                             let default_tasks = runner.get_default_tasks();
 
                             for task in &default_tasks {
@@ -277,19 +274,9 @@ pub fn parse_cli() {
                             //     thread::spawn(move || {
                             //         let runner = runner.clone();
 
-                            loop {
-                                // dbg!(2);
-                                // let runner = runner.clone();
+                            while let Some(queued_task) = runner.pop_priority_queue() {
+                                runner.work(&dag_run_id, queued_task);
 
-                                // let mut runner = runner.lock().unwrap();
-                                // dbg!(2);
-
-                                // runner.lock().unwrap().run_dag_local();
-                                if let Some(queued_task) = runner.pop_priority_queue() {
-                                    runner.work(&dag_run_id, queued_task);
-                                } else {
-                                    break;
-                                }
                                 // dbg!(runner.print_priority_queue());
 
                                 if runner.is_completed(&dag_run_id) {

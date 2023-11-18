@@ -34,12 +34,10 @@ impl TaskResult {
         attempt: usize,
         max_attempts: isize,
         function_name: String,
-        template_args: Value,
         premature_failure_error_str: String,
         is_branch: bool,
     ) -> Self {
         let start = Utc::now();
-        let template_args_str = serde_json::to_string_pretty(&template_args).unwrap();
 
         Self {
             task_id,

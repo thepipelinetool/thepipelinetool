@@ -2,8 +2,7 @@ use std::{
     env,
     panic::RefUnwindSafe,
     process::{Command, Stdio},
-    sync::{mpsc::Sender, Arc, Mutex},
-    thread::{self, JoinHandle},
+    thread,
     time::Duration, io::{BufReader, BufRead},
 };
 
@@ -111,7 +110,7 @@ pub const DAGS_DIR: &str = "./bin";
 impl Task {
     pub fn execute(
         &self,
-        dag_run_id: usize,
+        // dag_run_id: usize,
         dag_name: String,
         resolved_args: Value,
         attempt: usize,
@@ -121,7 +120,7 @@ impl Task {
     ) -> TaskResult {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
-        let template_args_str = serde_json::to_string_pretty(&self.template_args).unwrap();
+        // let template_args_str = serde_json::to_string_pretty(&self.template_args).unwrap();
         let resolved_args_str = serde_json::to_string_pretty(&resolved_args).unwrap();
         let retry_delay = self.options.retry_delay;
         let max_attempts = self.options.max_attempts;
@@ -193,7 +192,7 @@ impl Task {
 
 
             // Shared string for accumulating stdout
-            let stdout_accum = Arc::new(Mutex::new(String::new()));
+            // let stdout_accum = Arc::new(Mutex::new(String::new()));
 
             // Clone the Arc to move into the stdout thread
             // let stdout_accum_clone = Arc::clone(&stdout_accum);

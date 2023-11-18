@@ -1,13 +1,6 @@
 use std::{
-    cmp::max,
-    collections::{BinaryHeap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     io::{Error, ErrorKind},
-    sync::{
-        atomic::Ordering,
-        mpsc::{self, Sender},
-        Arc, Mutex,
-    },
-    thread,
 };
 
 use chrono::{DateTime, Utc};
@@ -419,7 +412,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 self.enqueue_task(dag_run_id, &collector_id);
             }
             for lazy_id in &lazy_ids {
-                self.enqueue_task(dag_run_id, &lazy_id);
+                self.enqueue_task(dag_run_id, lazy_id);
             }
 
             let start = Utc::now();
@@ -453,7 +446,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         // *thread_count.lock().unwrap() += 1;
 
         task.execute(
-            *dag_run_id,
+            // *dag_run_id,
             self.get_dag_name(),
             resolution_result,
             attempt,
@@ -662,7 +655,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     attempt,
                     task.options.max_attempts,
                     task.function_name.clone(),
-                    task.template_args.clone(),
                     resolution_result.to_string(),
                     task.is_branch,
                 ),
@@ -679,7 +671,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         );
         self.handle_task_result(dag_run_id, result);
 
-        if self.task_needs_running(&dag_run_id, &queued_task.task_id) {
+        if self.task_needs_running(dag_run_id, &queued_task.task_id) {
             self.push_priority_queue(queued_task);
         }
 
@@ -976,7 +968,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 //     // out += &format!("  id{edge_id}-->id{task_id}\n");
                 // }
                 let name = format!("{function_name}_{task_id}");
-                let mut downstream = Vec::from_iter(self.get_downstream(dag_run_id, &task_id));
+                let mut downstream = Vec::from_iter(self.get_downstream(dag_run_id, task_id));
                 downstream.sort();
 
                 let next = downstream

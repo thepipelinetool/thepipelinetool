@@ -1,7 +1,6 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BinaryHeap, HashMap, HashSet},
-    hash::{Hash, Hasher},
-    sync::{Arc, Mutex, RwLock},
+    collections::{BinaryHeap, HashMap, HashSet},
+    sync::{Arc, Mutex},
 };
 
 use chrono::{DateTime, Utc};
@@ -95,10 +94,9 @@ impl Runner for InMemoryRunner {
 
         Box::new(move |s| {
             let mut task_logs = task_logs.lock().unwrap();
-            if !task_logs.contains_key(&task_id) {
-                task_logs.insert(task_id, "".into());
-            }
-            *task_logs.get_mut(&task_id).unwrap() += &s;
+            let log = task_logs.entry(task_id).or_insert_with(|| "".into());
+            *log += &s;
+            // *task_logs.get_mut(&task_id).unwrap() += &s;
         })
     }
 
