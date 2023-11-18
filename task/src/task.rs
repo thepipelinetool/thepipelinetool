@@ -1,9 +1,10 @@
 use std::{
     env,
+    io::{BufRead, BufReader},
     panic::RefUnwindSafe,
     process::{Command, Stdio},
     thread,
-    time::Duration, io::{BufReader, BufRead},
+    time::Duration,
 };
 
 use chrono::Utc;
@@ -27,13 +28,15 @@ pub struct Task {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct OrderedQueuedTask {
-    pub score: usize, 
+    pub score: usize,
     pub task: QueuedTask,
 }
 
 impl Ord for OrderedQueuedTask {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.score.cmp(&self.score)
+        other
+            .score
+            .cmp(&self.score)
             .then_with(|| other.task.task_id.cmp(&self.task.task_id))
     }
 
@@ -122,7 +125,7 @@ impl Task {
         attempt: usize,
         // tx: &Sender<(usize, TaskResult)>,
         handle_stdout: Box<dyn Fn(String) + Send>,
-        handle_stderr: Box<dyn Fn(String) + Send>
+        handle_stderr: Box<dyn Fn(String) + Send>,
     ) -> TaskResult {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
@@ -140,155 +143,150 @@ impl Task {
         // let tx1 = tx.clone();
 
         // thread::spawn(move || {
-            if attempt > 1 {
-                thread::sleep(retry_delay);
+        if attempt > 1 {
+            thread::sleep(retry_delay);
+        }
+
+        let start = Utc::now();
+        let out_path = format!("./{function_name}_{task_id}.json");
+
+        let binding = env::current_exe().unwrap().display().to_string();
+        let mut ex = binding.as_str();
+
+        let t: String = format!("{DAGS_DIR}/{dag_name}");
+        if ex.ends_with("server") || ex.ends_with("worker") {
+            ex = &t;
+        }
+
+        let use_timeout = timeout.is_some();
+        let f = if use_timeout { "timeout" } else { ex };
+        let a = if use_timeout {
+            vec![
+                "-k",
+                &timeout_as_secs,
+                &timeout_as_secs,
+                ex,
+                "run",
+                "function",
+                &function_name,
+                &out_path,
+                &in_path,
+            ]
+        } else {
+            vec![
+                "run",
+                "function",
+                function_name.as_str(),
+                &out_path,
+                &in_path,
+            ]
+        };
+        let mut command = Command::new(f);
+        command
+            .args(a)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        // .output()
+        // .unwrap_or_else(|_| panic!("failed to run function: {}", function_name));
+
+        let mut child = command.spawn().expect("failed to start command");
+
+        let stdout = child.stdout.take().expect("failed to take stdout");
+        let stderr = child.stderr.take().expect("failed to take stderr");
+
+        let end = Utc::now();
+
+        // let result_raw = String::from_utf8_lossy(&output.stdout);
+        // let err_raw = String::from_utf8_lossy(&output.stderr);
+
+        // Shared string for accumulating stdout
+        // let stdout_accum = Arc::new(Mutex::new(String::new()));
+
+        // Clone the Arc to move into the stdout thread
+        // let stdout_accum_clone = Arc::clone(&stdout_accum);
+
+        // let handle = move |value: String| {
+        //     // Deserialize the Value into T
+        //     // let input: T = serde_json::from_value(value).unwrap();
+        //     // // Call the original function
+        //     // let output: G = function(input);
+        //     // // Serialize the G type back into Value
+        //     // serde_json::to_value(output).unwrap()
+        //     handle_log(value);
+        // };
+
+        // Spawn a thread to handle stdout
+        let stdout_handle = thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                let line = format!("{}\n", line.expect("failed to read line from stdout"));
+                // println!("stdout: {}", &line);
+                // let mut accum = stdout_accum_clone.lock().unwrap();
+                // accum.push_str(&line);
+                // accum.push('\n');
+
+                handle_stdout(line);
             }
+        });
 
-            let start = Utc::now();
-            let out_path = format!("./{function_name}_{task_id}.json");
+        // let stderr_accum = Arc::new(Mutex::new(String::new()));
 
-            let binding = env::current_exe().unwrap().display().to_string();
-            let mut ex = binding.as_str();
+        // Clone the Arc to move into the stdout thread
+        // let stderr_accum_clone = Arc::clone(&stderr_accum);
 
-            let t: String = format!("{DAGS_DIR}/{dag_name}");
-            if ex.ends_with("server") || ex.ends_with("worker") {
-                ex = &t;
+        // Spawn a thread to handle stderr
+        let stderr_handle = thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                let line = format!("{}\n", line.expect("failed to read line from stdout"));
+                // println!("stderr: {}", &line);
+                // let mut accum = stderr_accum_clone.lock().unwrap();
+                // accum.push_str(&line);
+
+                handle_stderr(line);
             }
+        });
 
-            let use_timeout = timeout.is_some();
-            let f = if use_timeout { "timeout" } else { ex };
-            let a = if use_timeout {
-                vec![
-                    "-k",
-                    &timeout_as_secs,
-                    &timeout_as_secs,
-                    ex,
-                    "run",
-                    "function",
-                    &function_name,
-                    &out_path,
-                    &in_path,
-                ]
+        let status = child.wait().expect("failed to wait on child");
+        let timed_out = matches!(status.code(), Some(124));
+
+        // Join the stdout and stderr threads
+        stdout_handle.join().expect("stdout thread panicked");
+        stderr_handle.join().expect("stderr thread panicked");
+
+        // let result_raw = stdout_accum.lock().unwrap().clone();
+        // let err_raw = stderr_accum.lock().unwrap().clone();
+
+        // tx1.send((
+        //     dag_run_id,
+        TaskResult {
+            task_id,
+            result: if status.success() {
+                value_from_file(&out_path)
             } else {
-                vec![
-                    "run",
-                    "function",
-                    function_name.as_str(),
-                    &out_path,
-                    &in_path,
-                ]
-            };
-            let mut command = Command::new(f);
-            command
-                .args(a)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-            // .output()
-            // .unwrap_or_else(|_| panic!("failed to run function: {}", function_name));
-
-            let mut child = command.spawn().expect("failed to start command");
-
-            let stdout = child.stdout.take().expect("failed to take stdout");
-            let stderr = child.stderr.take().expect("failed to take stderr");
-
-            let end = Utc::now();
-
-            // let result_raw = String::from_utf8_lossy(&output.stdout);
-            // let err_raw = String::from_utf8_lossy(&output.stderr);
-
-
-            // Shared string for accumulating stdout
-            // let stdout_accum = Arc::new(Mutex::new(String::new()));
-
-            // Clone the Arc to move into the stdout thread
-            // let stdout_accum_clone = Arc::clone(&stdout_accum);
-
-
-            // let handle = move |value: String| {
-            //     // Deserialize the Value into T
-            //     // let input: T = serde_json::from_value(value).unwrap();
-            //     // // Call the original function
-            //     // let output: G = function(input);
-            //     // // Serialize the G type back into Value
-            //     // serde_json::to_value(output).unwrap()
-            //     handle_log(value);
-            // };
-
-            // Spawn a thread to handle stdout
-            let stdout_handle = thread::spawn(move || {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines() {
-                    let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                    // println!("stdout: {}", &line);
-                    // let mut accum = stdout_accum_clone.lock().unwrap();
-                    // accum.push_str(&line);
-                    // accum.push('\n'); 
-
-                    handle_stdout(line);
-                }
-            });
-
-            // let stderr_accum = Arc::new(Mutex::new(String::new()));
-
-            // Clone the Arc to move into the stdout thread
-            // let stderr_accum_clone = Arc::clone(&stderr_accum);
-
-
-            // Spawn a thread to handle stderr
-            let stderr_handle = thread::spawn(move || {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines() {
-                    let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                    // println!("stderr: {}", &line);
-                    // let mut accum = stderr_accum_clone.lock().unwrap();
-                    // accum.push_str(&line);
-
-                    handle_stderr(line);
-                }
-            });
-
-
-            let status = child.wait().expect("failed to wait on child");
-            let timed_out = matches!(status.code(), Some(124));
-
-            // Join the stdout and stderr threads
-            stdout_handle.join().expect("stdout thread panicked");
-            stderr_handle.join().expect("stderr thread panicked");
-
-            // let result_raw = stdout_accum.lock().unwrap().clone();
-            // let err_raw = stderr_accum.lock().unwrap().clone();
-
-            // tx1.send((
-            //     dag_run_id,
-                TaskResult {
-                    task_id,
-                    result: if status.success() {
-                        value_from_file(&out_path)
-                    } else {
-                        Value::Null
-                    },
-                    attempt,
-                    max_attempts,
-                    function_name,
-                    // template_args_str,
-                    resolved_args_str,
-                    success: status.success(),
-                    // stdout: result_raw.into(),
-                    // stderr: err_raw.into(),
-                    started: start.to_rfc3339(),
-                    ended: end.to_rfc3339(),
-                    elapsed: end.timestamp() - start.timestamp(),
-                    premature_failure: false,
-                    premature_failure_error_str: if timed_out {
-                        "timed out".into()
-                    } else {
-                        "".into()
-                    }
-                    ,
-                    is_branch,
-                }
-            // ))
-            // .unwrap();
+                Value::Null
+            },
+            attempt,
+            max_attempts,
+            function_name,
+            // template_args_str,
+            resolved_args_str,
+            success: status.success(),
+            // stdout: result_raw.into(),
+            // stderr: err_raw.into(),
+            started: start.to_rfc3339(),
+            ended: end.to_rfc3339(),
+            elapsed: end.timestamp() - start.timestamp(),
+            premature_failure: false,
+            premature_failure_error_str: if timed_out {
+                "timed out".into()
+            } else {
+                "".into()
+            },
+            is_branch,
+        }
+        // ))
+        // .unwrap();
         // })
     }
 }

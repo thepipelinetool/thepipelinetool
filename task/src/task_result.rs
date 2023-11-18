@@ -65,7 +65,10 @@ impl TaskResult {
         println!("id:\t\t{}", self.task_id);
         println!("attempt:\t{}/{}", self.attempt, self.max_attempts);
         println!("function_name:\t{}", self.function_name);
-        println!("template_args:\t{}", serde_json::to_string_pretty(&template_args).unwrap());
+        println!(
+            "template_args:\t{}",
+            serde_json::to_string_pretty(&template_args).unwrap()
+        );
         println!("rendered_args:\t{}", self.resolved_args_str);
         println!(
             "result: {}",

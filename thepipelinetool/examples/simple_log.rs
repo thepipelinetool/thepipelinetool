@@ -8,7 +8,6 @@ fn hi(args: Value) -> Value {
     for i in 0..10 {
         sleep(Duration::from_secs(3));
         println!("hello {i}");
-
     }
 
     json!({ "hello": "world" })

@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
-    task::{Task, OrderedQueuedTask},
+    task::{OrderedQueuedTask, Task},
     task_options::TaskOptions,
     task_ref::TaskRefInner,
     task_result::TaskResult,

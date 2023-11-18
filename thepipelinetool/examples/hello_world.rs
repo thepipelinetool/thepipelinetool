@@ -90,7 +90,7 @@ fn main() {
             "hi": task0.get("data"),
             "hello": task2.get("data"),
         }),
-        &TaskOptions{
+        &TaskOptions {
             max_attempts: 3,
             ..Default::default()
         },
@@ -105,7 +105,7 @@ fn main() {
             "whatup": task0.value(),
             "howdy": "hello",
         }),
-        &TaskOptions{
+        &TaskOptions {
             max_attempts: 3,
             ..Default::default()
         },

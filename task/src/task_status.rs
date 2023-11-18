@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-
 #[derive(PartialEq, Clone, Debug)]
 pub enum TaskStatus {
     Pending,
