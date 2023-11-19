@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use task::{
     task::{OrderedQueuedTask, Task},
     task_options::TaskOptions,
-    task_ref::TaskRefInner,
+    task_ref_inner::TaskRefInner,
     task_result::TaskResult,
     task_status::TaskStatus,
 };
@@ -20,55 +20,43 @@ pub trait Runner {
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
     fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask);
-    fn priority_queue_len(&self) -> usize;
-
-    fn get_log(
-        &mut self,
-        dag_run_id: &usize,
-        task_id: &usize,
-        attempt: usize,
-        // pool: Pool<Postgres>,
-    ) -> String;
+    fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String;
     fn get_dag_name(&self) -> String;
-    // fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn get_task_result(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskResult;
-    fn get_attempt_by_task_id(&self, dag_run_id: &usize, task_id: &usize) -> usize;
-    fn get_task_status(&mut self, dag_run_id: &usize, task_id: &usize) -> TaskStatus;
-    fn set_task_status(&mut self, dag_run_id: &usize, task_id: &usize, task_status: TaskStatus);
+    fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult;
+    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize) -> usize;
+    fn get_task_status(&mut self, run_id: usize, task_id: usize) -> TaskStatus;
+    fn set_task_status(&mut self, run_id: usize, task_id: usize, task_status: TaskStatus);
     fn create_new_run(
         &mut self,
         dag_name: &str,
         dag_hash: &str,
         logical_date: DateTime<Utc>,
     ) -> usize;
-    fn insert_task_results(&mut self, dag_run_id: &usize, result: &TaskResult);
-    // fn mark_finished(&self, dag_run_id: &usize);
-    fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
+    fn insert_task_results(&mut self, run_id: usize, result: &TaskResult);
+    fn any_upstream_incomplete(&mut self, run_id: usize, task_id: usize) -> bool;
     fn get_dependency_keys(
-        &self,
-        dag_run_id: &usize,
-        task_id: &usize,
+        &mut self,
+        run_id: usize,
+        task_id: usize,
     ) -> HashMap<(usize, String), String>;
     fn set_dependency_keys(
         &mut self,
-        dag_run_id: &usize,
-        task_id: &usize,
+        run_id: usize,
+        task_id: usize,
         upstream: (usize, String),
         v: String,
     );
-    fn get_downstream(&self, dag_run_id: &usize, task_id: &usize) -> HashSet<usize>;
-    fn get_upstream(&self, dag_run_id: &usize, task_id: &usize) -> HashSet<usize>;
-    fn remove_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
-    fn insert_edge(&mut self, dag_run_id: &usize, edge: &(usize, usize));
+    fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize>;
+    fn get_upstream(&self, run_id: usize, task_id: usize) -> Vec<usize>;
+    fn remove_edge(&mut self, run_id: usize, edge: (usize, usize));
+    fn insert_edge(&mut self, run_id: usize, edge: (usize, usize));
     fn get_default_tasks(&self) -> Vec<Task>;
-    fn get_all_tasks_incomplete(&mut self, dag_run_id: &usize) -> Vec<Task>;
-    fn get_all_tasks(&self, dag_run_id: &usize) -> Vec<Task>;
-
+    fn get_all_tasks(&self, run_id: usize) -> Vec<Task>;
     fn get_default_edges(&self) -> HashSet<(usize, usize)>;
-    fn get_task_by_id(&self, dag_run_id: &usize, task_id: &usize) -> Task;
+    fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Task;
     fn append_new_task_and_set_status_to_pending(
         &mut self,
-        dag_run_id: &usize,
+        run_id: usize,
         function_name: String,
         template_args: Value,
         options: TaskOptions,
@@ -76,111 +64,74 @@ pub trait Runner {
         is_dynamic: bool,
         is_branch: bool,
     ) -> usize;
-    fn get_template_args(&self, dag_run_id: &usize, task_id: &usize) -> Value;
-    fn set_template_args(&mut self, dag_run_id: &usize, task_id: &usize, template_args_str: &str);
+    fn get_template_args(&self, run_id: usize, task_id: usize) -> Value;
+    fn set_template_args(&mut self, run_id: usize, task_id: usize, template_args_str: &str);
     fn handle_log(
         &mut self,
-        dag_run_id: &usize,
-        task_id: &usize,
+        run_id: usize,
+        task_id: usize,
         attempt: usize,
     ) -> Box<dyn Fn(String) + Send>;
-    fn get_task_depth(&mut self, dag_run_id: &usize, task_id: &usize) -> usize;
-    fn set_task_depth(&mut self, dag_run_id: &usize, task_id: &usize, depth: usize);
-    fn delete_task_depth(&mut self, dag_run_id: &usize, task_id: &usize);
-
-    // fn init_log(&mut self, dag_run_id: &usize, task_id: &usize, attempt: usize);
-
-    fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize);
+    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize;
+    fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize);
+    fn delete_task_depth(&mut self, run_id: usize, task_id: usize);
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize);
 }
 
 pub trait DefRunner {
-    fn is_task_completed(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn task_needs_running(&mut self, dag_run_id: &usize, task_id: &usize) -> bool;
-    fn get_all_tasks_needs_running(&mut self, dag_run_id: &usize) -> Vec<Task>;
-
+    fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool;
+    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
-    // fn is_completed(&mut self, dag_run_id: &usize) -> bool;
-    fn work(
-        &mut self,
-        dag_run_id: &usize,
-        queued_task: OrderedQueuedTask,
-        //  max_threads: usize, thread_count: Arc<Mutex<usize>>
-    );
+    fn work(&mut self, run_id: usize, queued_task: OrderedQueuedTask);
 
     fn get_circular_dependencies(
         &self,
-        dag_run_id: &usize,
+        run_id: usize,
         start_node: usize,
         visited: &mut HashSet<usize>,
         path: &mut Vec<usize>,
     ) -> Option<Vec<usize>>;
-    fn update_referenced_dependencies(&mut self, dag_run_id: &usize, downstream_task_id: &usize);
+    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_task_id: usize);
     fn run_task(
         &mut self,
-        dag_run_id: &usize,
+        run_id: usize,
         task: &Task,
-        // tx: &Sender<(usize, TaskResult)>,
         attempt: usize,
         resolution_result: Value,
-        // max_threads: usize,
-        // thread_count: &Arc<Mutex<usize>>,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
-        dag_run_id: &usize,
+        run_id: usize,
         template_args: &Value,
         upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error>;
-    // fn run_dag_local(&mut self);
-    // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String;
-    fn get_graphite_graph(&mut self, dag_run_id: &usize) -> Vec<Value>;
+    fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value>;
     fn get_tree(
         &self,
-        dag_run_id: &usize,
-        task_id: &usize,
+        run_id: usize,
+        task_id: usize,
         depth: usize,
         prefix: &str,
         prev_is_last: Vec<bool>,
         ts: &mut Vec<usize>,
     ) -> String;
-    fn handle_task_result(&mut self, dag_run_id: &usize, result: TaskResult);
+    fn handle_task_result(&mut self, run_id: usize, result: TaskResult);
 }
 
 impl<U: Runner + Send + Sync> DefRunner for U {
-    // fn is_completed(&mut self, dag_run_id: &usize) -> bool {
-    //     self.get_all_tasks(dag_run_id)
-    //         .iter()
-    //         .all(|task| self.is_task_completed(dag_run_id, &task.id))
-    // }
-
-    fn is_task_completed(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
-        // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
-        //     || (self.task_statuses.contains_key(task_id)
-        //         && self.task_statuses[task_id] == TaskStatus::Skipped)
-        match self.get_task_status(dag_run_id, task_id) {
+    fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool {
+        match self.get_task_status(run_id, task_id) {
             TaskStatus::Pending | TaskStatus::Running | TaskStatus::Retrying => false,
             TaskStatus::Success | TaskStatus::Failure | TaskStatus::Skipped => true,
         }
     }
 
-    fn task_needs_running(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
-        // (self.task_results.contains_key(task_id) && !self.task_results[task_id].needs_retry())
-        //     || (self.task_statuses.contains_key(task_id)
-        //         && self.task_statuses[task_id] == TaskStatus::Skipped)
-        // dbg!(&self.get_task_status(dag_run_id, task_id).as_str());
+    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool {
         matches!(
-            self.get_task_status(dag_run_id, task_id),
+            self.get_task_status(run_id, task_id),
             TaskStatus::Pending | TaskStatus::Retrying
         )
-    }
-
-    fn get_all_tasks_needs_running(&mut self, dag_run_id: &usize) -> Vec<Task> {
-        self.get_all_tasks_incomplete(dag_run_id)
-            .iter()
-            .filter(|n| self.task_needs_running(dag_run_id, &n.id))
-            .cloned()
-            .collect()
     }
 
     fn enqueue_run(
@@ -189,13 +140,11 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         dag_hash: &str,
         logical_date: DateTime<Utc>,
     ) -> usize {
-        let dag_run_id = self.create_new_run(dag_name, dag_hash, logical_date);
+        let run_id = self.create_new_run(dag_name, dag_hash, logical_date);
 
         for task in self.get_default_tasks() {
-            dbg!(&task.id, dag_run_id);
             self.append_new_task_and_set_status_to_pending(
-                &dag_run_id,
-                // task.name,
+                run_id,
                 task.function_name,
                 task.template_args,
                 task.options,
@@ -203,18 +152,18 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 task.is_dynamic,
                 task.is_branch,
             );
-            self.update_referenced_dependencies(&dag_run_id, &task.id);
-            self.enqueue_task(&dag_run_id, &task.id);
+            self.update_referenced_dependencies(run_id, task.id);
+            self.enqueue_task(run_id, task.id);
         }
 
         for (upstream_task_id, downstream_task_id) in self.get_default_edges() {
-            self.insert_edge(&dag_run_id, &(upstream_task_id, downstream_task_id));
+            self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
         }
 
-        dag_run_id
+        run_id
     }
 
-    fn handle_task_result(&mut self, dag_run_id: &usize, result: TaskResult) {
+    fn handle_task_result(&mut self, run_id: usize, result: TaskResult) {
         let mut result = result;
         let mut branch_left = false;
 
@@ -223,11 +172,11 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             result.result = result.result["val"].take();
         }
 
-        self.insert_task_results(dag_run_id, &result);
+        self.insert_task_results(run_id, &result);
 
         result.print_task_result(
-            self.get_template_args(dag_run_id, &result.task_id),
-            self.get_log(dag_run_id, &result.task_id, result.attempt),
+            self.get_template_args(run_id, result.task_id),
+            self.get_log(run_id, result.task_id, result.attempt),
         );
 
         if result.needs_retry() {
@@ -236,7 +185,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 result.attempt + 1,
                 result.max_attempts
             );
-            self.set_task_status(dag_run_id, &result.task_id, TaskStatus::Retrying);
+            self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
             return;
         }
 
@@ -247,30 +196,17 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 result.task_id + 1
             };
             let mut arr = vec![to_skip];
-            arr.append(
-                &mut self
-                    .get_downstream(dag_run_id, &to_skip)
-                    .iter()
-                    .copied()
-                    .collect(),
-            );
+            arr.append(&mut self.get_downstream(run_id, to_skip));
 
             while let Some(curr) = arr.pop() {
-                arr.append(
-                    &mut self
-                        .get_downstream(dag_run_id, &curr)
-                        .iter()
-                        .copied()
-                        .collect(),
-                );
-                // dbg!(curr);
-                self.set_task_status(dag_run_id, &curr, TaskStatus::Skipped);
+                arr.append(&mut self.get_downstream(run_id, curr));
+                self.set_task_status(run_id, curr, TaskStatus::Skipped);
             }
         }
 
         self.set_task_status(
-            dag_run_id,
-            &result.task_id,
+            run_id,
+            result.task_id,
             if result.success {
                 TaskStatus::Success
             } else {
@@ -281,67 +217,18 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
     fn run_task(
         &mut self,
-        dag_run_id: &usize,
+        run_id: usize,
         task: &Task,
-        // tx: &Sender<(usize, TaskResult)>,
         attempt: usize,
         resolution_result: Value,
-        // max_threads: usize,
-        // thread_count: &Arc<Mutex<usize>>,
     ) -> TaskResult {
-        // if *Arc::clone(thread_count).lock().unwrap() >= max_threads {
-        //     return false;
-        // }
-
-        // if self.is_task_completed(dag_run_id, &task.id) {
-        //     return None;
-        // }
-
-        // if self.any_upstream_incomplete(dag_run_id, &task.id) {
-        //     return (false, false);
-        // }
-
-        // if !self.set_status_to_running_if_possible(dag_run_id, &task.id) {
-        //     return (false, true);
-        // }
-
-        // let resolution_result = self.resolve_args(
-        //     dag_run_id,
-        //     &task.template_args,
-        //     &self.get_dependency_keys(dag_run_id, &task.id),
-        // );
-        // let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
-        // // self.init_log(dag_run_id, &task.id, attempt);
-
-        // if let Err(resolution_result) = resolution_result {
-        //     return self.handle_task_result(
-        //         dag_run_id,
-        //         TaskResult::premature_error(
-        //             task.id,
-        //             attempt,
-        //             task.options.max_attempts,
-        //             task.function_name.clone(),
-        //             task.template_args.clone(),
-        //             resolution_result.to_string(),
-        //             task.is_branch,
-        //         ),
-        //     );
-
-        //     // return (false, true);
-        // }
-
-        // let resolution_result: Value = json!({});
-
         if task.lazy_expand {
-            let downstream = self.get_downstream(dag_run_id, &task.id);
+            let downstream = self.get_downstream(run_id, task.id);
 
-            let mut lazy_ids: Vec<usize> = vec![];
-            dbg!(&resolution_result);
-            dbg!(task.id);
-            // only expands json arrays, (expand over maps?)
+            let mut lazy_ids = vec![];
             for res in resolution_result.as_array().unwrap() {
                 let new_id = self.append_new_task_and_set_status_to_pending(
-                    dag_run_id,
+                    run_id,
                     task.function_name.clone(),
                     res.clone(),
                     task.options,
@@ -351,21 +238,20 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 );
 
                 lazy_ids.push(new_id);
-                self.insert_edge(dag_run_id, &(task.id, new_id));
+                self.insert_edge(run_id, (task.id, new_id));
             }
 
             if !downstream.is_empty() {
                 let function_name = function_name_as_string(&collector).to_string();
 
                 let collector_id = self.append_new_task_and_set_status_to_pending(
-                    dag_run_id,
+                    run_id,
                     function_name,
                     json!(lazy_ids
                         .iter()
                         .map(|id| TaskRefInner::<Value> {
                             _marker: std::marker::PhantomData,
                             key: None,
-
                             task_ids: HashSet::from([*id])
                         })
                         .collect::<Vec<TaskRefInner<Value>>>()),
@@ -374,55 +260,51 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     true,
                     false,
                 );
-                self.update_referenced_dependencies(dag_run_id, &collector_id);
+                self.update_referenced_dependencies(run_id, collector_id);
 
                 for lazy_id in &lazy_ids {
-                    self.insert_edge(dag_run_id, &(*lazy_id, collector_id));
+                    self.insert_edge(run_id, (*lazy_id, collector_id));
                 }
 
                 for d in &downstream {
-                    self.insert_edge(dag_run_id, &(collector_id, *d));
+                    self.insert_edge(run_id, (collector_id, *d));
 
                     self.set_template_args(
-                        dag_run_id,
-                        d,
-                        &serde_json::to_string(&self.get_template_args(dag_run_id, d))
+                        run_id,
+                        *d,
+                        &serde_json::to_string(&self.get_template_args(run_id, *d))
                             .unwrap()
                             .replace(
                                 &serde_json::to_string(&TaskRefInner::<Value> {
                                     _marker: std::marker::PhantomData,
                                     key: None,
-
                                     task_ids: HashSet::from([task.id]),
                                 })
                                 .unwrap(),
                                 &serde_json::to_string(&TaskRefInner::<Value> {
                                     _marker: std::marker::PhantomData,
                                     key: None,
-
                                     task_ids: HashSet::from([collector_id]),
                                 })
                                 .unwrap(),
                             ),
                     );
-                    self.update_referenced_dependencies(dag_run_id, d);
+                    self.update_referenced_dependencies(run_id, *d);
                 }
                 for d in &downstream {
-                    self.remove_edge(dag_run_id, &(task.id, *d));
-                    self.delete_task_depth(dag_run_id, d);
-                    self.enqueue_task(dag_run_id, d);
+                    self.remove_edge(run_id, (task.id, *d));
+                    self.delete_task_depth(run_id, *d);
+                    self.enqueue_task(run_id, *d);
                 }
 
-                self.enqueue_task(dag_run_id, &collector_id);
+                self.enqueue_task(run_id, collector_id);
             }
             for lazy_id in &lazy_ids {
-                self.enqueue_task(dag_run_id, lazy_id);
+                self.enqueue_task(run_id, *lazy_id);
             }
 
             let start = Utc::now();
 
-            // tx.send((
-            //     *dag_run_id,
             return TaskResult {
                 task_id: task.id,
                 result: Value::Null,
@@ -430,9 +312,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 max_attempts: task.options.max_attempts,
                 function_name: task.function_name.clone(),
                 success: true,
-                // stdout: "".into(),
-                // stderr: "".into(),
-                // template_args_str: "".into(),
                 resolved_args_str: "".into(),
                 started: start.to_rfc3339(),
                 ended: start.to_rfc3339(),
@@ -441,33 +320,20 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
             };
-            //     ,
-            // ))
-            // .unwrap();
-            // return (true, true);
         }
 
-        // *thread_count.lock().unwrap() += 1;
-
         task.execute(
-            // *dag_run_id,
             self.get_dag_name(),
             resolution_result,
             attempt,
-            // tx,
-            self.handle_log(dag_run_id, &task.id, attempt),
-            self.handle_log(dag_run_id, &task.id, attempt),
+            self.handle_log(run_id, task.id, attempt),
+            self.handle_log(run_id, task.id, attempt),
         )
-
-        // if max_threads == 1 {
-        //     task_handle.join().unwrap();
-        // }
-        // (true, true)
     }
 
     fn resolve_args(
         &mut self,
-        dag_run_id: &usize,
+        run_id: usize,
         template_args: &Value,
         upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error> {
@@ -477,17 +343,14 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 continue;
             }
 
-            if !self.is_task_completed(dag_run_id, upstream_task_id) {
+            if !self.is_task_completed(run_id, *upstream_task_id) {
                 return Err(Error::new(
                     ErrorKind::NotFound,
                     format!("upstream task_id {} does not exist!", upstream_task_id),
                 ));
             }
-            let task_result = self.get_task_result(dag_run_id, upstream_task_id);
-            dbg!(&task_result);
+            let task_result = self.get_task_result(run_id, *upstream_task_id);
             results.insert(*upstream_task_id, task_result.result.clone());
-            dbg!(&results);
-
             if !task_result.success {
                 return Err(Error::new(
                     ErrorKind::NotFound,
@@ -501,7 +364,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
             if task_result.result.is_object() {
                 let upstream_results_map = task_result.result.as_object().unwrap();
-                // let key = key.as_ref().unwrap();
 
                 if !upstream_results_map.contains_key(key) {
                     return Err(Error::new(
@@ -572,7 +434,6 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
 
                 let upstream_results_map = result.as_object().unwrap();
-                // let key = key.as_ref().unwrap();
 
                 if !original_key.is_empty() {
                     resolved_args[original_key] = upstream_results_map[key].clone();
@@ -581,80 +442,27 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                 }
             }
         }
-        // dbg!()
-        Ok(dbg!(resolved_args))
+        Ok(resolved_args)
     }
 
-    fn work(
-        &mut self,
-        dag_run_id: &usize,
-        queued_task: OrderedQueuedTask,
-        //  max_threads: usize, thread_count: Arc<Mutex<usize>>
-    ) {
-        // let mut thread_count = 0usize;
-        // let tasks = ;
-        // let mut tasks_map: HashMap<usize, &Task> = HashMap::new();
-        // let mut task_ids: HashSet<usize> = HashSet::new();
-        // let mut downstream_ids: HashMap<usize, HashSet<usize>> = HashMap::new();
-
-        // let binding = self.get_all_tasks_needs_running(dag_run_id);
-        // for task in &binding {
-        //     tasks_map.insert(task.id, task);
-        //     // task_ids.insert(task.id);
-
-        //     if !task.lazy_expand && !task.is_dynamic {
-        //         downstream_ids.insert(task.id, self.get_downstream(dag_run_id, &task.id));
-        //     }
-        // }
-
-        // let tasks_map = tasks_map;
-        // let downstream_ids = downstream_ids;
-
-        // let (tx, rx) = mpsc::channel::<(usize, TaskResult)>();
-
-        // for _ in 0..self.priority_queue_len() {
-        // dbg!(1);
-        // if let Some(queued_task) = self.pop_priority_queue() {
-        // dbg!(2);
-
-        if self.is_task_completed(dag_run_id, &queued_task.task.task_id) {
-            // TODO maybe not needed?
-            // dbg!(2);
+    fn work(&mut self, run_id: usize, ordered_queued_task: OrderedQueuedTask) {
+        if self.get_task_status(run_id, ordered_queued_task.queued_task.task_id)
+            == TaskStatus::Skipped
+        {
             return;
         }
-
-        // dbg!(3);
-
-        if self.any_upstream_incomplete(dag_run_id, dbg!(&queued_task.task.task_id)) {
-            dbg!(3);
-            panic!("upstream incomplete");
-            // return (false, false);
-            // self.push_priority_queue(dag_run_id, queued_task.increment());
+        if self.any_upstream_incomplete(run_id, ordered_queued_task.queued_task.task_id) {
+            self.push_priority_queue(ordered_queued_task);
             return;
         }
-        // let task = tasks_map[&queued_task.task_id];
-        let task = self.get_task_by_id(dag_run_id, &queued_task.task.task_id);
-        // let (spawned_thread, run_attempted) =
-
-        dbg!(
-            dag_run_id,
-            &task.template_args,
-            &self.get_dependency_keys(dag_run_id, &task.id),
-        );
-
-        let resolution_result = self.resolve_args(
-            dag_run_id,
-            &task.template_args,
-            &self.get_dependency_keys(dag_run_id, &task.id),
-        );
-        let attempt: usize = self.get_attempt_by_task_id(dag_run_id, &task.id);
-        // self.init_log(dag_run_id, &task.id, attempt);
-        // dbg!(4);
+        let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
+        let deps = self.get_dependency_keys(run_id, task.id);
+        let resolution_result = self.resolve_args(run_id, &task.template_args, &deps);
+        let attempt: usize = self.get_attempt_by_task_id(run_id, task.id);
 
         if let Err(resolution_result) = resolution_result {
-            // dbg!(4);
             self.handle_task_result(
-                dag_run_id,
+                run_id,
                 TaskResult::premature_error(
                     task.id,
                     attempt,
@@ -667,206 +475,17 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             return;
         }
 
-        let result = self.run_task(
-            dag_run_id,
-            &task,
-            // &tx.clone(),
-            attempt,
-            dbg!(resolution_result.unwrap()),
-        );
-        self.handle_task_result(dag_run_id, result);
+        let result = self.run_task(run_id, &task, attempt, resolution_result.unwrap());
+        self.handle_task_result(run_id, result);
 
-        if self.task_needs_running(dag_run_id, &queued_task.task.task_id) {
-            self.push_priority_queue(queued_task);
+        if self.task_needs_running(run_id, ordered_queued_task.queued_task.task_id) {
+            self.push_priority_queue(ordered_queued_task);
         }
-
-        // if spawned_thread {
-        //     // *thread_count.lock().unwrap() += 1;
-        //     *thread_count.lock().unwrap() += 1;
-        // }
-
-        // if !run_attempted {
-        //     // task_ids.insert(queued_task.task_id);
-        //     self.push_priority_queue(queued_task.increment());
-        // }
-
-        // if *thread_count.lock().unwrap() >= max_threads {
-        //     break;
-        // }
-        //     } else {
-        //         break;
-        //     }
-        // }
-
-        // if *thread_count.lock().unwrap() == 0 {
-        //     drop(tx);
-        //     return;
-        // }
-
-        // 'outer: for (run_id, received) in &rx {
-        //     if *thread_count.lock().unwrap() >= 1 {
-        //         *thread_count.lock().unwrap() -= 1;
-        //     }
-        //     let task_id: usize = received.task_id;
-        //     self.handle_task_result(&run_id, received);
-
-        //     // retry run if task failed
-        //     if self.task_needs_running(&run_id, &task_id) {
-        //         let task = self.get_task_by_id(dag_run_id, &task_id);
-
-        //         // let (spawned_thread, _run_attempted) =
-        //         //     self.run_task(&run_id, &task, &tx.clone());
-        //         // if spawned_thread {
-        //         //     *thread_count.lock().unwrap() += 1;
-        //         // }
-        //         // if !run_attempted {
-        //         //     task_ids.remove(&task_id);
-        //         // }
-        //         if *thread_count.lock().unwrap() >= max_threads {
-        //             continue 'outer;
-        //         }
-        //     }
-        //     // else if downstream_ids.contains_key(&task_id) {
-        //     //     for downstream_task_id in downstream_ids[&task_id].iter() {
-        //     //         // let (spawned_thread, run_attempted) =
-        //     //         //     self.attempt_run_task(&run_id, &tasks_map[downstream_task_id], &tx.clone());
-        //     //         // if spawned_thread {
-        //     //         //     *thread_count.lock().unwrap() += 1;
-        //     //         // }
-        //     //         // if run_attempted {
-        //     //         //     task_ids.remove(&task_id);
-        //     //         // }
-        //     //         // if *thread_count.lock().unwrap() >= max_threads {
-        //     //         //     continue 'outer;
-        //     //         // }
-
-        //     //         if !self.is_task_completed(dag_run_id, &task_id) {
-        //     //             self.enqueue_task(dag_run_id, &task_id);
-        //     //         }
-
-        //     //     }
-        //     // }
-        //     else {
-        //         for downstream_task_id in self.get_downstream(&run_id, &task_id).iter() {
-        //             //         let (spawned_thread, run_attempted) = self.attempt_run_task(
-        //             //             &run_id,
-        //             //             &self.get_task_by_id(&run_id, downstream_task_id),
-        //             //             &tx.clone(),
-        //             //         );
-        //             //         if spawned_thread {
-        //             //             *thread_count.lock().unwrap() += 1;
-        //             //         }
-        //             //         if run_attempted {
-        //             //             task_ids.remove(&task_id);
-        //             //         }
-        //             //         if *thread_count.lock().unwrap() >= max_threads {
-        //             //             continue 'outer;
-        //             //         }
-        //             if !self.is_task_completed(dag_run_id, &downstream_task_id) {
-        //                 self.enqueue_task(dag_run_id, &downstream_task_id);
-        //             }
-        //         }
-        //     }
-        //     dbg!(2);
-        //     for _ in 0..self.priority_queue_len() {
-        //         if let Some(queued_task) = self.pop_priority_queue() {
-        //             dbg!(&queued_task);
-        //             // let task = tasks_map[&queued_task.task_id];
-        //             let task = self.get_task_by_id(dag_run_id, &queued_task.task_id);
-
-        //             let (spawned_thread, run_attempted) =
-        //                 self.run_task(dag_run_id, &task, &tx.clone());
-
-        //             if spawned_thread {
-        //                 *thread_count.lock().unwrap() += 1;
-        //             }
-        //             if !run_attempted {
-        //                 self.push_priority_queue(queued_task.increment());
-        //             }
-
-        //             if *thread_count.lock().unwrap() >= max_threads {
-        //                 continue 'outer;
-        //             }
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        //     dbg!(3);
-
-        //     // no more running threads so drop sender
-        //     if *thread_count.lock().unwrap() == 0 {
-        //         drop(tx);
-        //         break 'outer;
-        //     }
-        // }
-
-        // if self.is_completed(dag_run_id) {
-        //     self.mark_finished(dag_run_id);
-        // }
-        // }
     }
-
-    // fn run_dag_local(&mut self) {
-
-    //     // println!("{:#?}", self.print_priority_queue());
-    //     // // let (tx, rx) = mpsc::channel::<(usize, TaskResult)>();
-    //     // // let k = Box::new(|| {
-    //     // //     self.work(dag_run_id);
-    //     // // });
-
-    //     // self.work(dag_run_id);
-    //     // println!("{:#?}", self.print_priority_queue());
-
-    //     // self.work(dag_run_id);
-    //     // println!("{:#?}", self.print_priority_queue());
-
-    //     // return;
-
-    //     // thread::spawn(|| {
-    //     //     k();
-    //     // });
-    //     // let mut c = 0;
-    //     loop {
-    //         // c += 1;
-    //         // if c == 5 {
-    //         //     return;
-    //         // }
-    //         self.work(dag_run_id);
-    //     // println!("{:#?}", self.print_priority_queue());
-
-    //         if self.is_completed(dag_run_id) {
-    //             self.mark_finished(dag_run_id);
-    //             return;
-    //         }
-    //         // println!("{:#?}", self.print_priority_queue());
-    //     //     self.work(dag_run_id);
-    //     // println!("{:#?}", self.print_priority_queue());
-
-    //     //     if self.priority_queue_len() == 0 && self.is_completed(dag_run_id) {
-    //     //         self.mark_finished(dag_run_id);
-    //     //         return;
-    //     //     }
-    //     //     println!("{:#?}", self.print_priority_queue());
-    //     //     println!("{} {}",  self.priority_queue_len() == 0, self.is_completed(dag_run_id));
-
-    //     //     self.work(dag_run_id);
-    //     // println!("{:#?}", self.print_priority_queue());
-
-    //     //     if self.priority_queue_len() == 0 && self.is_completed(dag_run_id) {
-    //     //         self.mark_finished(dag_run_id);
-    //     //         return;
-    //     //     }
-    //     //     println!("{:#?}", self.print_priority_queue());
-    //     //     println!("{} {}",  self.priority_queue_len() == 0, self.is_completed(dag_run_id));
-    //     //     return;
-    //         // return;
-    //         // for t in
-    //     }
-    // }
 
     fn get_circular_dependencies(
         &self,
-        dag_run_id: &usize,
+        run_id: usize,
         start_node: usize,
         visited: &mut HashSet<usize>,
         path: &mut Vec<usize>,
@@ -874,10 +493,9 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         visited.insert(start_node);
         path.push(start_node);
 
-        for neighbor in self.get_upstream(dag_run_id, &start_node) {
+        for neighbor in self.get_upstream(run_id, start_node) {
             if !visited.contains(&neighbor) {
-                if let Some(cycle) =
-                    self.get_circular_dependencies(dag_run_id, neighbor, visited, path)
+                if let Some(cycle) = self.get_circular_dependencies(run_id, neighbor, visited, path)
                 {
                     return Some(cycle);
                 }
@@ -894,91 +512,27 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         None
     }
 
-    // fn get_mermaid_graph(&self, dag_run_id: &usize) -> String {
-    //     let task_statuses: Vec<(String, TaskStatus)> = self
-    //         .get_all_tasks(dag_run_id)
-    //         .iter()
-    //         .map(|t| {
-    //             (
-    //                 t.function_name.clone(),
-    //                 self.get_task_status(dag_run_id, &t.id),
-    //             )
-    //         })
-    //         .collect();
-
-    //     let mut out = "".to_string();
-    //     out += "flowchart TD\n";
-
-    //     for (task_id, (function_name, task_status)) in task_statuses.iter().enumerate() {
-    //         let styling = get_styling_for_status(task_status);
-    //         out += &format!("  id{task_id}({function_name}_{task_id})\n");
-    //         out += &format!("  style id{task_id} {styling}\n");
-
-    //         for edge_id in self.get_upstream(dag_run_id, &task_id) {
-    //             out += &format!("  id{edge_id}-->id{task_id}\n");
-    //         }
-    //     }
-
-    //     out
-    // }
-
-    fn get_graphite_graph(&mut self, dag_run_id: &usize) -> Vec<Value> {
+    fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value> {
         let task_statuses: Vec<(usize, String, TaskStatus)> = self
-            .get_all_tasks(dag_run_id)
+            .get_all_tasks(run_id)
             .iter()
-            .map(|t| {
+            .map(|task| {
                 (
-                    t.id,
-                    t.function_name.clone(),
-                    self.get_task_status(dag_run_id, &t.id),
+                    task.id,
+                    task.function_name.clone(),
+                    self.get_task_status(run_id, task.id),
                 )
             })
             .collect();
 
-        // let mut out = "".to_string();
-        // out += "flowchart TD\n";
-
-        // const presetComplex = '['
-        // '{"id":"A","next":[{"outcome":"B","type":"one"}]},'
-        // '{"id":"U","next":[{"outcome":"G","type":"one"}]},'
-        // '{"id":"B","next":[{"outcome":"C","type":"one"},{"outcome":"D","type":"one"},{"outcome":"E","type":"one"},{"outcome":"F","type":"one"},{"outcome":"M","type":"one"}]},'
-        // '{"id":"C","next":[{"outcome":"G","type":"one"}]},'
-        // '{"id":"D","next":[{"outcome":"H","type":"one"}]},'
-        // '{"id":"E","next":[{"outcome":"H","type":"one"}]},'
-        // '{"id":"F","next":[{"outcome":"W","type":"one"},{"outcome":"N","type":"one"},{"outcome":"O","type":"one"}]},'
-        // '{"id":"W","next":[]},'
-        // '{"id":"N","next":[{"outcome":"I","type":"one"}]},'
-        // '{"id":"O","next":[{"outcome":"P","type":"one"}]},'
-        // '{"id":"P","next":[{"outcome":"I","type":"one"}]},'
-        // '{"id":"M","next":[{"outcome":"L","type":"one"}]},'
-        // '{"id":"G","next":[{"outcome":"I","type":"one"}]},'
-        // '{"id":"H","next":[{"outcome":"J","type":"one"}]},'
-        // '{"id":"I","next":[]},'
-        // '{"id":"J","next":[{"outcome":"K","type":"one"}]},'
-        // '{"id":"K","next":[{"outcome":"L","type":"one"}]},'
-        // '{"id":"L","next":[]}'
-        // ']';
-
         task_statuses
             .iter()
-            // .enumerate()
             .map(|(task_id, function_name, task_status)| {
-                // let styling = get_styling_for_status(task_status);
-                // out += &format!("  id{task_id}({function_name}_{task_id})\n");
-                // out += &format!("  style id{task_id} {styling}\n");
-
-                // let node_input =
-
-                // for edge_id in self.get_upstream(dag_run_id, &task_id) {
-                //     // out += &format!("  id{edge_id}-->id{task_id}\n");
-                // }
                 let name = format!("{function_name}_{task_id}");
-                let mut downstream = Vec::from_iter(self.get_downstream(dag_run_id, task_id));
-                downstream.sort();
-
-                let next = downstream
+                let next = self
+                    .get_downstream(run_id, *task_id)
                     .iter()
-                    .map(|f| json!({"outcome": f.to_string()}))
+                    .map(|downstream_id| json!({"outcome": downstream_id.to_string()}))
                     .collect::<Vec<Value>>();
                 json!({
                     "id": task_id.to_string(),
@@ -990,8 +544,8 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             .collect()
     }
 
-    fn update_referenced_dependencies(&mut self, dag_run_id: &usize, downstream_task_id: &usize) {
-        let template_args = self.get_template_args(dag_run_id, downstream_task_id);
+    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_task_id: usize) {
+        let template_args = self.get_template_args(run_id, downstream_task_id);
 
         if template_args.is_array() {
             for value in template_args
@@ -1006,7 +560,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                         map_value.get("upstream_task_id").unwrap().as_u64().unwrap() as usize;
 
                     self.set_dependency_keys(
-                        dag_run_id,
+                        run_id,
                         downstream_task_id,
                         (upstream_task_id, "".into()),
                         if map_value.contains_key("key") {
@@ -1015,7 +569,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                             "".into()
                         },
                     );
-                    self.insert_edge(dag_run_id, &(upstream_task_id, *downstream_task_id));
+                    self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
                 }
             }
         } else if template_args.is_object() {
@@ -1027,7 +581,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     .as_u64()
                     .unwrap() as usize;
                 self.set_dependency_keys(
-                    dag_run_id,
+                    run_id,
                     downstream_task_id,
                     (upstream_task_id, "".into()),
                     if template_args.contains_key("key") {
@@ -1042,7 +596,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                     },
                 );
 
-                self.insert_edge(dag_run_id, &(upstream_task_id, *downstream_task_id));
+                self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
 
                 return;
             }
@@ -1054,7 +608,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                         map.get("upstream_task_id").unwrap().as_u64().unwrap() as usize;
 
                     self.set_dependency_keys(
-                        dag_run_id,
+                        run_id,
                         downstream_task_id,
                         (upstream_task_id, key.to_string()),
                         if map.contains_key("key") {
@@ -1064,7 +618,7 @@ impl<U: Runner + Send + Sync> DefRunner for U {
                         },
                     );
 
-                    self.insert_edge(dag_run_id, &(upstream_task_id, *downstream_task_id));
+                    self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
                 }
             }
         }
@@ -1072,20 +626,18 @@ impl<U: Runner + Send + Sync> DefRunner for U {
 
     fn get_tree(
         &self,
-        dag_run_id: &usize,
-        task_id: &usize,
+        run_id: usize,
+        task_id: usize,
         _depth: usize,
         prefix: &str,
         prev_is_last: Vec<bool>,
         ts: &mut Vec<usize>,
     ) -> String {
-        let binding = self.get_downstream(dag_run_id, task_id);
-        let mut children: Vec<&usize> = binding.iter().collect();
-        children.sort();
+        let children: Vec<usize> = self.get_downstream(run_id, task_id);
         let mut output = format!(
             "{}{}_{}\n",
             prefix,
-            self.get_task_by_id(dag_run_id, task_id).function_name,
+            self.get_task_by_id(run_id, task_id).function_name,
             task_id,
         );
 
@@ -1102,10 +654,10 @@ impl<U: Runner + Send + Sync> DefRunner for U {
             let connector = if is_last { "└── " } else { "├── " };
             let mut new_prev_is_last = prev_is_last.clone();
             new_prev_is_last.push(is_last);
-            ts.push(**child);
+            ts.push(*child);
             output.push_str(&self.get_tree(
-                dag_run_id,
-                child,
+                run_id,
+                *child,
                 _depth + 1,
                 &format!("{}{}", child_prefix, connector),
                 new_prev_is_last,
@@ -1116,14 +668,3 @@ impl<U: Runner + Send + Sync> DefRunner for U {
         output
     }
 }
-
-// fn get_styling_for_status(task_status: &TaskStatus) -> String {
-//     match task_status {
-//         TaskStatus::Pending => "color:black,stroke:grey,fill:white,stroke-width:4px".into(),
-//         TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
-//         TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
-//         TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
-//         TaskStatus::Retrying => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
-//         TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
-//     }
-// }

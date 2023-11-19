@@ -11,7 +11,7 @@ use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
-use utils::execute_function;
+use utils::{execute_function, to_base62};
 
 use crate::{get_edges, get_functions, get_options, get_tasks};
 
@@ -92,7 +92,6 @@ pub fn parse_cli() {
             }
             "describe" => {
                 let tasks = get_tasks().read().unwrap();
-                // let edges = get_edges().lock().unwrap();
                 let options = get_options().read().unwrap();
                 let functions = get_functions().read().unwrap();
 
@@ -175,7 +174,7 @@ pub fn parse_cli() {
                 let mut runner = InMemoryRunner::new("", &tasks, &edges);
                 runner.enqueue_run("in_memory", "", Utc::now());
 
-                let graph = runner.get_graphite_graph(&0);
+                let graph = runner.get_graphite_graph(0);
                 print!("{}", serde_json::to_string_pretty(&graph).unwrap());
             }
             "hash" => {
@@ -184,7 +183,7 @@ pub fn parse_cli() {
 
                 let hash = hash_dag(
                     &serde_json::to_string(&*tasks).unwrap(),
-                    &edges.iter().collect::<Vec<&(usize, usize)>>(),
+                    &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
                 );
                 print!("{hash}");
             }
@@ -193,33 +192,33 @@ pub fn parse_cli() {
                 let edges = get_edges().read().unwrap();
 
                 let mut runner = InMemoryRunner::new("", &tasks, &edges);
-                let dag_run_id = runner.enqueue_run("in_memory", "", Utc::now());
+                let run_id = runner.enqueue_run("in_memory", "", Utc::now());
                 let tasks = runner
                     .get_default_tasks()
                     .iter()
-                    .filter(|t| runner.get_upstream(&dag_run_id, &t.id).is_empty())
+                    .filter(|t| runner.get_upstream(run_id, t.id).is_empty())
                     .map(|t| t.id)
                     .collect::<Vec<usize>>();
 
                 let mut output = "DAG\n".to_string();
-                let mut ts: Vec<usize> = vec![];
+                let mut task_ids_in_order: Vec<usize> = vec![];
 
                 for (index, child) in tasks.iter().enumerate() {
                     let is_last = index == tasks.len() - 1;
 
                     let connector = if is_last { "└── " } else { "├── " };
-                    ts.push(*child);
+                    task_ids_in_order.push(*child);
                     output.push_str(&runner.get_tree(
-                        &dag_run_id,
-                        child,
+                        run_id,
+                        *child,
                         1,
                         connector,
                         vec![is_last],
-                        &mut ts,
+                        &mut task_ids_in_order,
                     ));
                 }
                 println!("{}", output);
-                println!("{:?}", ts);
+                println!("{:?}", task_ids_in_order);
             }
             "run" => {
                 let matches = matches.subcommand_matches("run").unwrap();
@@ -228,27 +227,15 @@ pub fn parse_cli() {
                         "in_memory" => {
                             let tasks = get_tasks().read().unwrap();
                             let edges = get_edges().read().unwrap();
-                            // let sub_matches = matches.subcommand_matches("in_memory").unwrap();
-                            // let mode = sub_matches.get_one::<String>("mode").unwrap();
-
-                            // let max_threads = max(
-                            //     usize::from(std::thread::available_parallelism().unwrap()) - 1,
-                            //     1,
-                            // );
-                            // let thread_count = match mode.as_str() {
-                            //     "--blocking" => 1,
-                            //     "max" => max_threads,
-                            //     _ => mode.parse::<usize>().unwrap(),
-                            // };
                             let mut runner = InMemoryRunner::new("", &tasks, &edges);
-                            let dag_run_id = runner.enqueue_run("", "", Utc::now());
+                            let run_id = runner.enqueue_run("", "", Utc::now());
                             let default_tasks = runner.get_default_tasks();
 
                             for task in &default_tasks {
                                 let mut visited = HashSet::new();
-                                let mut path = Vec::new();
+                                let mut path = vec![];
                                 let deps = runner.get_circular_dependencies(
-                                    &dag_run_id,
+                                    run_id,
                                     task.id,
                                     &mut visited,
                                     &mut path,
@@ -259,36 +246,9 @@ pub fn parse_cli() {
                                 }
                             }
 
-                            // for task in default_tasks {
-                            //     // let depth = self.get_task_depth(dag_run_id, &task.id);
-                            //     // if depth == 0 {
-                            //     runner.enqueue_task(&dag_run_id, &task.id);
-                            //     // }
-                            // }
-                            // dbg!(2);
-                            // let runner = Arc::new(Mutex::new(runner));
-                            // // for _ in 0..thread_count {
-                            //     dbg!(2);
-
-                            //     let runner = runner.clone();
-                            //     thread::spawn(move || {
-                            //         let runner = runner.clone();
-
                             while let Some(queued_task) = runner.pop_priority_queue() {
-                                runner.work(&dag_run_id, queued_task);
-
-                                // dbg!(runner.print_priority_queue());
-
-                                // if runner.is_completed(&dag_run_id) {
-                                //     // runner.mark_finished(&dag_run_id);
-                                //     break;
-                                // }
+                                runner.work(run_id, queued_task);
                             }
-                            //     dbg!(1);
-                            // });
-                            // }
-
-                            // .run_dag_local();
                         }
                         "function" => {
                             let functions = get_functions().read().unwrap();
@@ -317,37 +277,12 @@ pub fn parse_cli() {
     }
 }
 
-fn hash_dag(nodes: &str, edges: &[&(usize, usize)]) -> String {
-    let mut s = DefaultHasher::new();
-    let mut edges: Vec<&&(usize, usize)> = edges.iter().collect();
+fn hash_dag(nodes: &str, edges: &[(usize, usize)]) -> String {
+    let mut hasher = DefaultHasher::new();
+    let mut edges: Vec<&(usize, usize)> = edges.iter().collect();
     edges.sort();
 
     let to_hash = serde_json::to_string(&nodes).unwrap() + &serde_json::to_string(&edges).unwrap();
-    to_hash.hash(&mut s);
-    to_base62(s.finish())
-}
-
-const BASE62: &[char] = &[
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
-    'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
-    'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-    'V', 'W', 'X', 'Y', 'Z',
-];
-
-fn to_base62(mut num: u64) -> String {
-    let mut chars = Vec::new();
-
-    while num > 0 {
-        chars.push(BASE62[(num % 62) as usize]);
-        num /= 62;
-    }
-
-    chars.reverse();
-
-    while chars.len() < 7 {
-        chars.push('0');
-    }
-
-    chars.truncate(7); // Ensure length is 7
-    chars.iter().collect()
+    to_hash.hash(&mut hasher);
+    to_base62(hasher.finish())
 }

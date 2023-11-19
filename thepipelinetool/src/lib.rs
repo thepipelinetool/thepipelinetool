@@ -32,7 +32,7 @@ use std::{
     ops::{BitOr, Shr},
     process::Command,
 };
-use task::{task::Task, task_options::TaskOptions, task_ref::TaskRefInner, Branch};
+use task::{task::Task, task_options::TaskOptions, task_ref_inner::TaskRefInner, Branch};
 use utils::{collector, function_name_as_string};
 
 static TASKS: OnceLock<RwLock<Vec<Task>>> = OnceLock::new();
@@ -42,7 +42,7 @@ static EDGES: OnceLock<RwLock<HashSet<(usize, usize)>>> = OnceLock::new();
 static OPTIONS: OnceLock<RwLock<DagOptions>> = OnceLock::new();
 
 pub fn get_tasks() -> &'static RwLock<Vec<Task>> {
-    TASKS.get_or_init(|| RwLock::new(Vec::new()))
+    TASKS.get_or_init(|| RwLock::new(vec![]))
 }
 
 pub fn get_functions() -> &'static RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>
@@ -171,7 +171,6 @@ where
         TaskRef(TaskRefInner {
             task_ids: HashSet::from([id]),
             key: None,
-
             _marker: std::marker::PhantomData,
         })
     })
@@ -233,8 +232,6 @@ where
     G: Serialize,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
-    // let mut tasks = ;
-
     let id = get_tasks().read().unwrap().len();
 
     let function_name = function_name_as_string(&function).to_string();
@@ -326,7 +323,6 @@ where
     let b = TaskRef::<T>(TaskRefInner::<T> {
         task_ids: HashSet::from([id]),
         key: None,
-
         _marker: std::marker::PhantomData,
     });
 
@@ -382,7 +378,6 @@ where
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
         key: None,
-
         _marker: std::marker::PhantomData,
     })
 }
@@ -419,7 +414,6 @@ fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G>
 
 pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
     assert!(args.is_array());
-
     add_task(run_command, args, options)
 }
 

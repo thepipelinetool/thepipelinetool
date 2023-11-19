@@ -1,7 +1,6 @@
 use std::{
     env,
     io::{BufRead, BufReader},
-    panic::RefUnwindSafe,
     process::{Command, Stdio},
     thread,
     time::Duration,
@@ -14,10 +13,12 @@ use utils::{value_from_file, value_to_file};
 
 use crate::{task_options::TaskOptions, task_result::TaskResult};
 
+pub const DAGS_DIR: &str = "./bin";
+
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: usize,
-    // pub dag_name: String,
     pub function_name: String,
     pub template_args: Value,
     pub options: TaskOptions,
@@ -29,7 +30,7 @@ pub struct Task {
 #[derive(Debug, Eq, PartialEq)]
 pub struct OrderedQueuedTask {
     pub score: usize,
-    pub task: QueuedTask,
+    pub queued_task: QueuedTask,
 }
 
 impl Ord for OrderedQueuedTask {
@@ -37,7 +38,7 @@ impl Ord for OrderedQueuedTask {
         other
             .score
             .cmp(&self.score)
-            .then_with(|| other.task.task_id.cmp(&self.task.task_id))
+            .then_with(|| other.queued_task.task_id.cmp(&self.queued_task.task_id))
     }
 
     fn max(self, other: Self) -> Self
@@ -53,23 +54,6 @@ impl Ord for OrderedQueuedTask {
     {
         std::cmp::min_by(self, other, Ord::cmp)
     }
-
-    // fn clamp(self, min: Self, max: Self) -> Self
-    // where
-    //     Self: Sized,
-    //     Self: PartialOrd,
-    // {
-    //     assert!(min <= max);
-    //     if self < std::cmp::min {
-    //         std::cmp::min
-    //     } else if self > std::cmp::max {
-    //         std::cmp::max
-    //     } else {
-    //         self
-    //     }
-
-    //     // todo!()
-    // }
 }
 
 impl PartialOrd for OrderedQueuedTask {
@@ -78,58 +62,25 @@ impl PartialOrd for OrderedQueuedTask {
     }
 }
 
-// impl PartialEq for QueuedTask {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.depth == other.depth
-//     }
-// }
-
-// impl Eq for QueuedTask {
-
-// }
-
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct QueuedTask {
-    // pub depth: usize,
     pub task_id: usize,
     pub run_id: usize,
     pub dag_name: String,
 }
 
-// impl QueuedTask {
-//     // pub fn new(depth: usize, task_id: usize) -> Self {
-//     //     Self {
-//     //         depth,
-//     //         task_id
-//     //     }
-//     // }
 
-//     pub fn increment(&self) -> Self {
-//         Self {
-//             depth: self.depth + 1,
-//             task_id: self.task_id,
-//             run_id: self.run_id,
-//             dag_name: self.dag_name.clone(),
-//         }
-//     }
-// }
-
-impl RefUnwindSafe for Task {}
-pub const DAGS_DIR: &str = "./bin";
 impl Task {
     pub fn execute(
         &self,
-        // dag_run_id: usize,
         dag_name: String,
         resolved_args: Value,
         attempt: usize,
-        // tx: &Sender<(usize, TaskResult)>,
         handle_stdout: Box<dyn Fn(String) + Send>,
         handle_stderr: Box<dyn Fn(String) + Send>,
     ) -> TaskResult {
         let task_id: usize = self.id;
         let function_name = self.function_name.clone();
-        // let template_args_str = serde_json::to_string_pretty(&self.template_args).unwrap();
         let resolved_args_str = serde_json::to_string_pretty(&resolved_args).unwrap();
         let retry_delay = self.options.retry_delay;
         let max_attempts = self.options.max_attempts;
@@ -140,9 +91,6 @@ impl Task {
         let in_path = format!("./in_{function_name}_{task_id}.json");
         value_to_file(&resolved_args, &in_path);
 
-        // let tx1 = tx.clone();
-
-        // thread::spawn(move || {
         if attempt > 1 {
             thread::sleep(retry_delay);
         }
@@ -186,8 +134,6 @@ impl Task {
             .args(a)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        // .output()
-        // .unwrap_or_else(|_| panic!("failed to run function: {}", function_name));
 
         let mut child = command.spawn().expect("failed to start command");
 
@@ -195,25 +141,6 @@ impl Task {
         let stderr = child.stderr.take().expect("failed to take stderr");
 
         let end = Utc::now();
-
-        // let result_raw = String::from_utf8_lossy(&output.stdout);
-        // let err_raw = String::from_utf8_lossy(&output.stderr);
-
-        // Shared string for accumulating stdout
-        // let stdout_accum = Arc::new(Mutex::new(String::new()));
-
-        // Clone the Arc to move into the stdout thread
-        // let stdout_accum_clone = Arc::clone(&stdout_accum);
-
-        // let handle = move |value: String| {
-        //     // Deserialize the Value into T
-        //     // let input: T = serde_json::from_value(value).unwrap();
-        //     // // Call the original function
-        //     // let output: G = function(input);
-        //     // // Serialize the G type back into Value
-        //     // serde_json::to_value(output).unwrap()
-        //     handle_log(value);
-        // };
 
         // Spawn a thread to handle stdout
         let stdout_handle = thread::spawn(move || {
@@ -229,20 +156,11 @@ impl Task {
             }
         });
 
-        // let stderr_accum = Arc::new(Mutex::new(String::new()));
-
-        // Clone the Arc to move into the stdout thread
-        // let stderr_accum_clone = Arc::clone(&stderr_accum);
-
         // Spawn a thread to handle stderr
         let stderr_handle = thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines() {
                 let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                // println!("stderr: {}", &line);
-                // let mut accum = stderr_accum_clone.lock().unwrap();
-                // accum.push_str(&line);
-
                 handle_stderr(line);
             }
         });
@@ -254,11 +172,6 @@ impl Task {
         stdout_handle.join().expect("stdout thread panicked");
         stderr_handle.join().expect("stderr thread panicked");
 
-        // let result_raw = stdout_accum.lock().unwrap().clone();
-        // let err_raw = stderr_accum.lock().unwrap().clone();
-
-        // tx1.send((
-        //     dag_run_id,
         TaskResult {
             task_id,
             result: if status.success() {
@@ -269,11 +182,8 @@ impl Task {
             attempt,
             max_attempts,
             function_name,
-            // template_args_str,
             resolved_args_str,
             success: status.success(),
-            // stdout: result_raw.into(),
-            // stderr: err_raw.into(),
             started: start.to_rfc3339(),
             ended: end.to_rfc3339(),
             elapsed: end.timestamp() - start.timestamp(),
@@ -285,8 +195,5 @@ impl Task {
             },
             is_branch,
         }
-        // ))
-        // .unwrap();
-        // })
     }
 }

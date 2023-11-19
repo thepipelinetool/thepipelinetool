@@ -30,7 +30,7 @@ impl InMemoryRunner {
     pub fn new(_name: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
             default_nodes: nodes.to_vec(),
-            nodes: Vec::new(),
+            nodes: vec![],
             edges: edges.clone(),
             task_results: HashMap::new(),
             task_statuses: HashMap::new(),
@@ -44,71 +44,52 @@ impl InMemoryRunner {
 }
 
 impl Runner for InMemoryRunner {
-    fn get_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize) -> usize {
-        if !self.task_depth.contains_key(task_id) {
+    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
+        if !self.task_depth.contains_key(&task_id) {
             let depth = self
-                .get_upstream(_dag_run_id, task_id)
+                .get_upstream(run_id, task_id)
                 .iter()
-                .map(|up| self.get_task_depth(_dag_run_id, up) + 1)
+                .map(|upstream_id: &usize| self.get_task_depth(run_id, *upstream_id) + 1)
                 .max()
                 .unwrap_or(0);
-            self.task_depth.insert(*task_id, depth);
+            self.task_depth.insert(task_id, depth);
         }
-        self.task_depth[task_id]
+        self.task_depth[&task_id]
     }
 
-    fn set_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize, depth: usize) {
-        self.task_depth.insert(*task_id, depth);
+    fn set_task_depth(&mut self, _run_id: usize, task_id: usize, depth: usize) {
+        self.task_depth.insert(task_id, depth);
     }
 
-    fn delete_task_depth(&mut self, _dag_run_id: &usize, task_id: &usize) {
-        self.task_depth.remove(task_id);
+    fn delete_task_depth(&mut self, _run_id: usize, task_id: usize) {
+        self.task_depth.remove(&task_id);
     }
 
-    fn get_log(
-        &mut self,
-        _dag_run_id: &usize,
-        task_id: &usize,
-        _attempt: usize,
-        // pool: Pool<Postgres>,
-    ) -> String {
-        dbg!(task_id);
+    fn get_log(&mut self, _run_id: usize, task_id: usize, _attempt: usize) -> String {
         self.task_logs
             .lock()
             .unwrap()
-            .get(task_id)
+            .get(&task_id)
             .unwrap_or(&"".to_string())
             .clone()
     }
 
-    // fn init_log(&mut self, _dag_run_id: &usize, task_id: &usize, _attempt: usize) {
-    //     dbg!(&task_id);
-    //     let mut task_logs = self.task_logs.lock().unwrap();
-    //     task_logs.insert(*task_id, "".into());
-    // }
-
     fn handle_log(
         &mut self,
-        _dag_run_id: &usize,
-        task_id: &usize,
+        _run_id: usize,
+        task_id: usize,
         _attempt: usize,
     ) -> Box<dyn Fn(String) + Send> {
         let task_logs = self.task_logs.clone();
-        let task_id = *task_id;
-
         Box::new(move |s| {
             let mut task_logs = task_logs.lock().unwrap();
             let log = task_logs.entry(task_id).or_insert_with(|| "".into());
             *log += &s;
-            // *task_logs.get_mut(&task_id).unwrap() += &s;
         })
     }
 
-    fn insert_task_results(&mut self, _dag_run_id: &usize, result: &TaskResult) {
-        // dbg!(&self.task_logs.lock().unwrap());
-
+    fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) {
         self.attempts.insert(result.task_id, result.attempt);
-
         self.task_results.insert(result.task_id, result.clone());
     }
 
@@ -121,89 +102,84 @@ impl Runner for InMemoryRunner {
         0
     }
 
-    fn get_task_result(&mut self, _dag_run_id: &usize, task_id: &usize) -> TaskResult {
-        self.task_results[task_id].clone()
+    fn get_task_result(&mut self, _run_id: usize, task_id: usize) -> TaskResult {
+        self.task_results[&task_id].clone()
     }
 
-    fn get_attempt_by_task_id(&self, _dag_run_id: &usize, task_id: &usize) -> usize {
-        if !self.attempts.contains_key(task_id) {
+    fn get_attempt_by_task_id(&self, _run_id: usize, task_id: usize) -> usize {
+        if !self.attempts.contains_key(&task_id) {
             return 1;
         }
-        *self.attempts.get(task_id).unwrap() + 1
+        *self.attempts.get(&task_id).unwrap() + 1
     }
 
-    fn get_task_status(&mut self, _dag_run_id: &usize, task_id: &usize) -> TaskStatus {
-        match self.task_statuses.get(task_id) {
+    fn get_task_status(&mut self, _run_id: usize, task_id: usize) -> TaskStatus {
+        match self.task_statuses.get(&task_id) {
             Some(task_status) => task_status.clone(),
             None => TaskStatus::Pending,
         }
     }
 
-    fn set_task_status(&mut self, _dag_run_id: &usize, task_id: &usize, task_status: TaskStatus) {
-        self.task_statuses.insert(*task_id, task_status);
+    fn set_task_status(&mut self, _run_id: usize, task_id: usize, task_status: TaskStatus) {
+        self.task_statuses.insert(task_id, task_status);
     }
 
-    // fn mark_finished(&self, _dag_run_id: &usize) {
-    //     // todo!()
-    // }
-
-    fn any_upstream_incomplete(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
-        self.get_upstream(dag_run_id, task_id)
+    fn any_upstream_incomplete(&mut self, run_id: usize, task_id: usize) -> bool {
+        self.get_upstream(run_id, task_id)
             .iter()
-            .any(|edge| !self.is_task_completed(dag_run_id, edge))
+            .any(|edge| !self.is_task_completed(run_id, *edge))
     }
 
     fn get_dependency_keys(
-        &self,
-        _dag_run_id: &usize,
-        task_id: &usize,
+        &mut self,
+        _run_id: usize,
+        task_id: usize,
     ) -> HashMap<(usize, String), String> {
-        let h: HashMap<(usize, String), String> = HashMap::new();
-
-        self.dep_keys.get(task_id).unwrap_or(&h).clone()
+        self.dep_keys.entry(task_id).or_default().clone()
     }
 
-    fn get_downstream(&self, _dag_run_id: &usize, task_id: &usize) -> HashSet<usize> {
-        HashSet::from_iter(
-            self.edges
-                .iter()
-                .filter(|(u, _)| u == task_id)
-                .map(|(_, d)| *d),
-        )
+    fn get_downstream(&self, _run_id: usize, task_id: usize) -> Vec<usize> {
+        let mut downstream: Vec<usize> = self
+            .edges
+            .iter()
+            .filter(|(upstream_id, _)| upstream_id == &task_id)
+            .map(|(_, downstream_id)| *downstream_id)
+            .collect();
+        downstream.sort();
+        downstream
     }
 
-    fn remove_edge(&mut self, _dag_run_id: &usize, edge: &(usize, usize)) {
-        let (upstream_task_id, downstream_task_id) = *edge;
+    fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) {
+        let (upstream_task_id, downstream_task_id) = edge;
         self.dep_keys
             .get_mut(&downstream_task_id)
             .unwrap_or(&mut HashMap::new())
             .remove(&(upstream_task_id, "".into()));
 
-        self.edges.remove(edge);
+        self.edges.remove(&edge);
     }
 
-    fn insert_edge(&mut self, _dag_run_id: &usize, edge: &(usize, usize)) {
-        self.edges.insert(*edge);
+    fn insert_edge(&mut self, _run_id: usize, edge: (usize, usize)) {
+        self.edges.insert(edge);
     }
 
-    fn get_upstream(&self, _dag_run_id: &usize, task_id: &usize) -> HashSet<usize> {
-        HashSet::from_iter(
-            self.edges
-                .iter()
-                .filter(|(_, d)| d == task_id)
-                .map(|(u, _)| *u),
-        )
+    fn get_upstream(&self, _run_id: usize, task_id: usize) -> Vec<usize> {
+        self.edges
+            .iter()
+            .filter(|(_, d)| d == &task_id)
+            .map(|(u, _)| *u)
+            .collect()
     }
 
     fn set_dependency_keys(
         &mut self,
-        _dag_run_id: &usize,
-        task_id: &usize,
+        _run_id: usize,
+        task_id: usize,
         upstream: (usize, String),
         v: String,
     ) {
         self.dep_keys
-            .entry(*task_id)
+            .entry(task_id)
             .or_default()
             .insert(upstream, v);
     }
@@ -218,7 +194,7 @@ impl Runner for InMemoryRunner {
 
     fn append_new_task_and_set_status_to_pending(
         &mut self,
-        _dag_run_id: &usize,
+        _run_id: usize,
         function_name: String,
         template_args: Value,
         options: task::task_options::TaskOptions,
@@ -229,7 +205,6 @@ impl Runner for InMemoryRunner {
         let new_id = self.nodes.len();
         self.nodes.push(Task {
             id: new_id,
-            // name,
             function_name,
             template_args,
             options,
@@ -240,73 +215,42 @@ impl Runner for InMemoryRunner {
         new_id
     }
 
-    fn get_template_args(&self, _dag_run_id: &usize, task_id: &usize) -> Value {
-        self.nodes[*task_id].template_args.clone()
+    fn get_template_args(&self, _run_id: usize, task_id: usize) -> Value {
+        self.nodes[task_id].template_args.clone()
     }
 
-    fn set_template_args(&mut self, _dag_run_id: &usize, task_id: &usize, template_args_str: &str) {
-        self.nodes[*task_id].template_args = serde_json::from_str(template_args_str).unwrap();
+    fn set_template_args(&mut self, _run_id: usize, task_id: usize, template_args_str: &str) {
+        self.nodes[task_id].template_args = serde_json::from_str(template_args_str).unwrap();
     }
 
-    fn get_task_by_id(&self, _dag_run_id: &usize, task_id: &usize) -> Task {
-        self.nodes[*task_id].clone()
+    fn get_task_by_id(&self, _run_id: usize, task_id: usize) -> Task {
+        self.nodes[task_id].clone()
     }
-
-    // fn set_status_to_running_if_possible(&mut self, dag_run_id: &usize, task_id: &usize) -> bool {
-    //     let current_task_status = self.get_task_status(dag_run_id, task_id);
-
-    //     if !(current_task_status == TaskStatus::Pending
-    //         || current_task_status == TaskStatus::Retrying)
-    //     {
-    //         return false;
-    //     }
-    //     self.set_task_status(dag_run_id, task_id, TaskStatus::Running);
-    //     true
-    // }
 
     fn get_dag_name(&self) -> String {
-        "default".into()
+        "in_memory".into()
     }
 
-    fn get_all_tasks_incomplete(&mut self, dag_run_id: &usize) -> Vec<Task> {
-        self.nodes
-            .clone()
-            .iter()
-            .filter(|n| !self.is_task_completed(dag_run_id, &n.id))
-            .cloned()
-            // .map(|t| t.clone())
-            .collect()
-    }
-
-    fn get_all_tasks(&self, _dag_run_id: &usize) -> Vec<Task> {
+    fn get_all_tasks(&self, _run_id: usize) -> Vec<Task> {
         self.nodes.clone()
     }
 
-    fn enqueue_task(&mut self, dag_run_id: &usize, task_id: &usize) {
-        let depth = self.get_task_depth(dag_run_id, task_id);
-        self.priority_queue.retain(|x| x.task.task_id != *task_id);
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize) {
+        let depth = self.get_task_depth(run_id, task_id);
+        self.priority_queue
+            .retain(|x| x.queued_task.task_id != task_id);
         self.priority_queue.push(OrderedQueuedTask {
             score: depth,
-            task: QueuedTask {
-                // depth,
-                task_id: *task_id,
-                run_id: *dag_run_id,
+            queued_task: QueuedTask {
+                task_id,
+                run_id,
                 dag_name: self.get_dag_name(),
             },
         });
-        dbg!(&self.priority_queue);
     }
 
     fn print_priority_queue(&mut self) {
-        // self.priority_queue.iter().collect()
-        // let mut vec = vec![];
-        // let len = self.priority_queue.len();
-        // for i in 0..len {
-        //     vec.push(self.priority_queue.pop().unwrap());
-        // }
-        // vec
         println!("{:#?}", self.priority_queue);
-        // println!("{:?}", &self.task_statuses);
     }
 
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
@@ -314,9 +258,5 @@ impl Runner for InMemoryRunner {
     }
     fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask) {
         self.priority_queue.push(queued_task);
-    }
-
-    fn priority_queue_len(&self) -> usize {
-        self.priority_queue.len()
     }
 }

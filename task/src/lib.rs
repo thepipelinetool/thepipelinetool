@@ -1,9 +1,8 @@
 use serde::Serialize;
-use serde_json::Value;
 
 pub mod task;
 pub mod task_options;
-pub mod task_ref;
+pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
 
@@ -20,9 +19,5 @@ impl<T: Serialize> Branch<T> {
 
     pub fn right(val: T) -> Self {
         Self { is_left: true, val }
-    }
-
-    pub fn get_val(&self) -> Value {
-        serde_json::to_value(&self.val).unwrap()
     }
 }

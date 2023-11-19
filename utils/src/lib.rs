@@ -44,3 +44,29 @@ pub fn execute_function(in_file: &str, out_file: &str, task_function: &dyn Fn(Va
 pub fn collector(args: Value) -> Value {
     args
 }
+
+const BASE62: &[char] = &[
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
+    'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
+    'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z',
+];
+
+pub fn to_base62(mut num: u64) -> String {
+    let mut chars = vec![];
+
+    while num > 0 {
+        chars.push(BASE62[(num % 62) as usize]);
+        num /= 62;
+    }
+
+    chars.reverse();
+
+    while chars.len() < 7 {
+        chars.push('0');
+    }
+
+    chars.truncate(7); // Ensure length is 7
+    chars.iter().collect()
+}
+

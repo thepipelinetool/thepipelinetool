@@ -33,19 +33,6 @@ impl TaskStatus {
             TaskStatus::Skipped => 5,
         }
     }
-
-    // Convert a &str to a TaskStatus
-    // pub fn from_str(s: &str) -> Option<Self> {
-    //     match s {
-    //         "Pending" => Some(TaskStatus::Pending),
-    //         "Running" => Some(TaskStatus::Running),
-    //         "Retrying" => Some(TaskStatus::Retrying),
-    //         "Success" => Some(TaskStatus::Success),
-    //         "Failure" => Some(TaskStatus::Failure),
-    //         "Skipped" => Some(TaskStatus::Skipped),
-    //         _ => None,
-    //     }
-    // }
 }
 
 impl FromStr for TaskStatus {
