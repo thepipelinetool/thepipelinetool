@@ -6,12 +6,11 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{
-    task::{OrderedQueuedTask, QueuedTask, Task},
-    task_result::TaskResult,
-    task_status::TaskStatus,
+    ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
+    task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
-use crate::{DefRunner, Runner};
+use crate::{blanket::BlanketRunner, Runner};
 
 pub struct InMemoryRunner {
     task_results: HashMap<usize, TaskResult>,
@@ -74,7 +73,7 @@ impl Runner for InMemoryRunner {
             .clone()
     }
 
-    fn handle_log(
+    fn get_log_handle_closure(
         &mut self,
         _run_id: usize,
         task_id: usize,
@@ -195,9 +194,9 @@ impl Runner for InMemoryRunner {
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         _run_id: usize,
-        function_name: String,
-        template_args: Value,
-        options: task::task_options::TaskOptions,
+        function_name: &str,
+        template_args: &Value,
+        options: &TaskOptions,
         lazy_expand: bool,
         is_dynamic: bool,
         is_branch: bool,
@@ -205,9 +204,9 @@ impl Runner for InMemoryRunner {
         let new_id = self.nodes.len();
         self.nodes.push(Task {
             id: new_id,
-            function_name,
-            template_args,
-            options,
+            function_name: function_name.to_owned(),
+            template_args: template_args.to_owned(),
+            options: options.to_owned(),
             lazy_expand,
             is_dynamic,
             is_branch,
@@ -259,4 +258,5 @@ impl Runner for InMemoryRunner {
     fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask) {
         self.priority_queue.push(queued_task);
     }
+
 }

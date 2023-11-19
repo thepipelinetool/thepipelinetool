@@ -1,12 +1,13 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashSet},
+    env,
     hash::{Hash, Hasher},
 };
 
 use chrono::Utc;
 use clap::{arg, command, Command};
 // use graph::dag::get_dag;
-use runner::{in_memory::InMemoryRunner, DefRunner, Runner};
+use runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
@@ -234,20 +235,22 @@ pub fn parse_cli() {
                             for task in &default_tasks {
                                 let mut visited = HashSet::new();
                                 let mut path = vec![];
-                                let deps = runner.get_circular_dependencies(
+                                let circular_dependencies = runner.get_circular_dependencies(
                                     run_id,
                                     task.id,
                                     &mut visited,
                                     &mut path,
                                 );
 
-                                if let Some(deps) = deps {
+                                if let Some(deps) = circular_dependencies {
                                     panic!("{:?}", deps);
                                 }
                             }
 
+                            let current_executable_path = &env::args().next().unwrap();
+
                             while let Some(queued_task) = runner.pop_priority_queue() {
-                                runner.work(run_id, queued_task);
+                                runner.work(run_id, queued_task, current_executable_path.as_str());
                             }
                         }
                         "function" => {

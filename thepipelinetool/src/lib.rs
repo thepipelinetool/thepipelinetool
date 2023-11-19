@@ -10,14 +10,16 @@ pub mod prelude {
     };
     pub use proc_macro::dag;
     pub use runner::in_memory::InMemoryRunner;
-    pub use runner::{DefRunner, Runner};
+    pub use runner::{blanket::BlanketRunner, Runner};
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
-    pub use task::task::{OrderedQueuedTask, QueuedTask, Task};
+    pub use task::branch::Branch;
+    pub use task::ordered_queued_task::OrderedQueuedTask;
+    pub use task::queued_task::QueuedTask;
     pub use task::task_options::TaskOptions;
     pub use task::task_result::TaskResult;
     pub use task::task_status::TaskStatus;
-    pub use task::Branch;
+    pub use task::Task;
     pub use utils::execute_function;
 }
 
@@ -32,30 +34,35 @@ use std::{
     ops::{BitOr, Shr},
     process::Command,
 };
-use task::{task::Task, task_options::TaskOptions, task_ref_inner::TaskRefInner, Branch};
+use task::branch::Branch;
+use task::Task;
+use task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
 use utils::{collector, function_name_as_string};
 
-static TASKS: OnceLock<RwLock<Vec<Task>>> = OnceLock::new();
-static FUNCTIONS: OnceLock<RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>> =
-    OnceLock::new();
-static EDGES: OnceLock<RwLock<HashSet<(usize, usize)>>> = OnceLock::new();
-static OPTIONS: OnceLock<RwLock<DagOptions>> = OnceLock::new();
+type StaticTasks = RwLock<Vec<Task>>;
+type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
+type StaticEdges = RwLock<HashSet<(usize, usize)>>;
+type StaticOptions = RwLock<DagOptions>;
 
-pub fn get_tasks() -> &'static RwLock<Vec<Task>> {
-    TASKS.get_or_init(|| RwLock::new(vec![]))
+static TASKS: OnceLock<StaticTasks> = OnceLock::new();
+static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
+static EDGES: OnceLock<StaticEdges> = OnceLock::new();
+static OPTIONS: OnceLock<StaticOptions> = OnceLock::new();
+
+pub fn get_tasks() -> &'static StaticTasks {
+    TASKS.get_or_init(StaticTasks::default)
 }
 
-pub fn get_functions() -> &'static RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>
-{
-    FUNCTIONS.get_or_init(|| RwLock::new(HashMap::new()))
+pub fn get_functions() -> &'static StaticFunctions {
+    FUNCTIONS.get_or_init(StaticFunctions::default)
 }
 
-pub fn get_edges() -> &'static RwLock<HashSet<(usize, usize)>> {
-    EDGES.get_or_init(|| RwLock::new(HashSet::new()))
+pub fn get_edges() -> &'static StaticEdges {
+    EDGES.get_or_init(StaticEdges::default)
 }
 
-pub fn get_options() -> &'static RwLock<DagOptions> {
-    OPTIONS.get_or_init(|| RwLock::new(DagOptions::default()))
+pub fn get_options() -> &'static StaticOptions {
+    OPTIONS.get_or_init(StaticOptions::default)
 }
 
 impl<T, G> Shr<TaskRef<G>> for TaskRef<T>

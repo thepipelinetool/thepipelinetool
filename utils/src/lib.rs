@@ -69,4 +69,3 @@ pub fn to_base62(mut num: u64) -> String {
     chars.truncate(7); // Ensure length is 7
     chars.iter().collect()
 }
-
