@@ -90,14 +90,16 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.update_referenced_dependencies(run_id, task.id);
         }
 
-        for task in default_tasks {
-            if self.get_task_depth(run_id, task.id) == 0 {
-                self.enqueue_task(run_id, task.id);
-            }
-        }
-
         for (upstream_task_id, downstream_task_id) in self.get_default_edges() {
             self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
+        }
+
+        for task in default_tasks
+            .iter()
+            .filter(|task| self.get_task_depth(run_id, task.id) == 0)
+            .collect::<Vec<&Task>>()
+        {
+            self.enqueue_task(run_id, task.id);
         }
 
         run_id
@@ -130,16 +132,16 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         }
 
         if result.is_branch && result.success {
-            let to_skip = if branch_left {
+            let skip_task = if branch_left {
                 result.task_id + 2
             } else {
                 result.task_id + 1
             };
-            let mut arr = vec![to_skip];
-            arr.append(&mut self.get_downstream(run_id, to_skip));
+            let mut to_skip = vec![skip_task];
+            to_skip.append(&mut self.get_downstream(run_id, skip_task));
 
-            while let Some(curr) = arr.pop() {
-                arr.append(&mut self.get_downstream(run_id, curr));
+            while let Some(curr) = to_skip.pop() {
+                to_skip.append(&mut self.get_downstream(run_id, curr));
                 self.set_task_status(run_id, curr, TaskStatus::Skipped);
             }
         }
@@ -230,12 +232,10 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                                 .unwrap(),
                             ),
                     );
-                    dbg!(self.get_dependency_keys(run_id, *d));
                 }
                 for d in &downstream {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
-                    dbg!(self.get_dependency_keys(run_id, *d));
                     self.delete_task_depth(run_id, *d);
                     self.enqueue_task(run_id, *d);
                 }
