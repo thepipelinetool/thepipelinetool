@@ -27,6 +27,7 @@ use chrono::{DateTime, FixedOffset};
 use options::DagOptions;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
+use std::ops::Shl;
 use std::sync::{OnceLock, RwLock};
 use std::{
     collections::{HashMap, HashSet},
@@ -72,7 +73,20 @@ where
 {
     type Output = TaskRef<G>;
     fn shr(self, rhs: TaskRef<G>) -> Self::Output {
-        seq(&self, &rhs)
+        seq(&self, &rhs);
+        rhs
+    }
+}
+
+impl<T, G> Shl<TaskRef<G>> for TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn shl(self, rhs: TaskRef<G>) -> Self::Output {
+        seq(&rhs, &self);
+        rhs
     }
 }
 
