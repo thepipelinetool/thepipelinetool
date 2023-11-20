@@ -9,12 +9,10 @@ use task::{
 
 pub mod blanket;
 pub mod in_memory;
-// pub mod in_memory_parallel;
 
 pub trait Runner {
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
-    // fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask);
     fn enqueue_task(&mut self, run_id: usize, task_id: usize);
 
     fn get_dag_name(&self) -> String;
@@ -82,5 +80,4 @@ pub trait Runner {
         is_dynamic: bool,
         is_branch: bool,
     ) -> usize;
-
 }

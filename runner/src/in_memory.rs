@@ -26,23 +26,6 @@ pub struct InMemoryRunner {
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>, // runner: InMemoryRunner,
 }
 
-impl Clone for InMemoryRunner {
-    fn clone(&self) -> Self {
-        Self {
-            task_results: self.task_results.clone(),
-            task_logs: self.task_logs.clone(),
-            task_statuses: self.task_statuses.clone(),
-            attempts: self.attempts.clone(),
-            dep_keys: self.dep_keys.clone(),
-            edges: self.edges.clone(),
-            default_nodes: self.default_nodes.clone(),
-            nodes: self.nodes.clone(),
-            task_depth: self.task_depth.clone(),
-            priority_queue: self.priority_queue.clone(),
-        }
-    }
-}
-
 impl InMemoryRunner {
     pub fn new(nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
@@ -56,6 +39,23 @@ impl InMemoryRunner {
             task_logs: Arc::new(Mutex::new(HashMap::new())),
             priority_queue: Arc::new(Mutex::new(BinaryHeap::new())),
             task_depth: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+impl Clone for InMemoryRunner {
+    fn clone(&self) -> Self {
+        Self {
+            task_results: self.task_results.clone(),
+            task_logs: self.task_logs.clone(),
+            task_statuses: self.task_statuses.clone(),
+            attempts: self.attempts.clone(),
+            dep_keys: self.dep_keys.clone(),
+            edges: self.edges.clone(),
+            default_nodes: self.default_nodes.clone(),
+            nodes: self.nodes.clone(),
+            task_depth: self.task_depth.clone(),
+            priority_queue: self.priority_queue.clone(),
         }
     }
 }
@@ -85,7 +85,6 @@ impl Runner for InMemoryRunner {
     fn get_log(&mut self, _run_id: usize, task_id: usize, _attempt: usize) -> String {
         self.task_logs
             .lock()
-            // .unwrap()
             .get(&task_id)
             .unwrap_or(&"".to_string())
             .clone()
@@ -188,8 +187,8 @@ impl Runner for InMemoryRunner {
         self.edges
             .lock()
             .iter()
-            .filter(|(_, d)| d == &task_id)
-            .map(|(u, _)| *u)
+            .filter(|(_, downstream)| downstream == &task_id)
+            .map(|(upstream, _)| *upstream)
             .collect()
     }
 
@@ -198,13 +197,13 @@ impl Runner for InMemoryRunner {
         _run_id: usize,
         task_id: usize,
         upstream: (usize, String),
-        v: String,
+        result_key: String,
     ) {
         self.dep_keys
             .lock()
             .entry(task_id)
             .or_default()
-            .insert(upstream, v);
+            .insert(upstream, result_key);
     }
 
     fn get_default_tasks(&self) -> Vec<Task> {
@@ -266,10 +265,6 @@ impl Runner for InMemoryRunner {
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         self.priority_queue.lock().pop()
     }
-    // fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask) {
-    //     // dbg!(1);
-    //     self.priority_queue.lock().push(queued_task);
-    // }
 
     fn enqueue_task(&mut self, run_id: usize, task_id: usize) {
         let depth = self.get_task_depth(run_id, task_id);

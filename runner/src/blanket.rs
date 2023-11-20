@@ -267,7 +267,6 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         }
 
         task.execute(
-            // self.get_dag_name(),
             resolution_result,
             attempt,
             self.get_log_handle_closure(run_id, task.id, attempt),
@@ -396,12 +395,6 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         ordered_queued_task: OrderedQueuedTask,
         executable_path: &str,
     ) {
-        // dbg!(ordered_queued_task.queued_task.task_id);
-        // if self.get_task_status(run_id, ordered_queued_task.queued_task.task_id)
-        //     == TaskStatus::Skipped
-        // {
-        //     return;
-        // }
         if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
