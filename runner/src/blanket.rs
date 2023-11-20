@@ -6,8 +6,11 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
-    ordered_queued_task::OrderedQueuedTask, task_ref_inner::TaskRefInner, task_result::TaskResult,
-    task_status::TaskStatus, Task,
+    ordered_queued_task::OrderedQueuedTask,
+    task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
+    task_result::TaskResult,
+    task_status::TaskStatus,
+    Task,
 };
 use utils::{collector, function_name_as_string};
 
@@ -26,7 +29,7 @@ pub trait BlanketRunner {
         visited: &mut HashSet<usize>,
         path: &mut Vec<usize>,
     ) -> Option<Vec<usize>>;
-    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_task_id: usize);
+    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
     fn run_task(
         &mut self,
         run_id: usize,
@@ -90,8 +93,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.update_referenced_dependencies(run_id, task.id);
         }
 
-        for (upstream_task_id, downstream_task_id) in self.get_default_edges() {
-            self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
+        for (upstream_id, downstream_id) in self.get_default_edges() {
+            self.insert_edge(run_id, (upstream_id, downstream_id));
         }
 
         for task in default_tasks
@@ -281,23 +284,23 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error> {
         let mut results: HashMap<usize, Value> = HashMap::new();
-        for ((upstream_task_id, _), key) in upstream_deps {
-            if results.contains_key(upstream_task_id) {
+        for ((upstream_id, _), key) in upstream_deps {
+            if results.contains_key(upstream_id) {
                 continue;
             }
 
-            if !self.is_task_completed(run_id, *upstream_task_id) {
-                return Err(Error::new(
-                    ErrorKind::NotFound,
-                    format!("upstream task_id {} does not exist!", upstream_task_id),
-                ));
-            }
-            let task_result = self.get_task_result(run_id, *upstream_task_id);
-            results.insert(*upstream_task_id, task_result.result.clone());
+            // if !self.is_task_completed(run_id, *upstream_task_id) {
+            //     return Err(Error::new(
+            //         ErrorKind::NotFound,
+            //         format!("upstream task_id {} does not exist!", upstream_task_id),
+            //     ));
+            // }
+            let task_result = self.get_task_result(run_id, *upstream_id);
+            results.insert(*upstream_id, task_result.result.clone());
             if !task_result.success {
                 return Err(Error::new(
                     ErrorKind::NotFound,
-                    format!("upstream task_id {} failed!", upstream_task_id,),
+                    format!("upstream task_id {} failed!", upstream_id,),
                 ));
             }
 
@@ -313,7 +316,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                         ErrorKind::NotFound,
                         format!(
                             "upstream task_id {} result does not contain key {}",
-                            upstream_task_id, key
+                            upstream_id, key
                         ),
                     ));
                 }
@@ -325,7 +328,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 ErrorKind::NotFound,
                 format!(
                     "upstream_task_id {} result type '{:?}' is not a map",
-                    upstream_task_id, task_result.result
+                    upstream_id, task_result.result
                 ),
             ));
         }
@@ -343,14 +346,15 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     let binding = a.clone();
                     let map: &serde_json::Map<String, Value> = binding.as_object().unwrap();
 
-                    if !map.contains_key("upstream_task_id") {
+                    if !map.contains_key(UPSTREAM_TASK_ID_KEY) {
                         return a.clone();
                     }
 
-                    let upstream_task_id = map["upstream_task_id"].as_u64().unwrap() as usize;
-                    let result: Value = results[&upstream_task_id].clone();
-                    if map.contains_key("key") {
-                        result.as_object().unwrap()[map["key"].as_str().unwrap()].clone()
+                    let upstream_id = map[UPSTREAM_TASK_ID_KEY].as_u64().unwrap() as usize;
+                    let result: Value = results[&upstream_id].clone();
+                    if map.contains_key(UPSTREAM_TASK_RESULT_KEY) {
+                        result.as_object().unwrap()[map[UPSTREAM_TASK_RESULT_KEY].as_str().unwrap()]
+                            .clone()
                     } else {
                         result
                     }
@@ -363,8 +367,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 resolved_args[k.to_string()] = v.clone();
             }
 
-            for ((upstream_task_id, original_key), key) in upstream_deps {
-                let result = &results[upstream_task_id];
+            for ((upstream_id, original_key), key) in upstream_deps {
+                let result = &results[upstream_id];
 
                 if key.is_empty() {
                     if !original_key.is_empty() {
@@ -518,8 +522,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .collect()
     }
 
-    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_task_id: usize) {
-        let template_args = self.get_template_args(run_id, downstream_task_id);
+    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize) {
+        let template_args = self.get_template_args(run_id, downstream_id);
 
         if template_args.is_array() {
             for value in template_args
@@ -529,38 +533,46 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 .filter(|v| v.is_object())
             {
                 let map_value = value.as_object().unwrap();
-                if map_value.contains_key("upstream_task_id") {
-                    let upstream_task_id =
-                        map_value.get("upstream_task_id").unwrap().as_u64().unwrap() as usize;
+                if map_value.contains_key(UPSTREAM_TASK_ID_KEY) {
+                    let upstream_id = map_value
+                        .get(UPSTREAM_TASK_ID_KEY)
+                        .unwrap()
+                        .as_u64()
+                        .unwrap() as usize;
 
                     self.set_dependency_keys(
                         run_id,
-                        downstream_task_id,
-                        (upstream_task_id, "".into()),
-                        if map_value.contains_key("key") {
-                            map_value.get("key").unwrap().as_str().unwrap().to_string()
+                        downstream_id,
+                        (upstream_id, "".into()),
+                        if map_value.contains_key(UPSTREAM_TASK_RESULT_KEY) {
+                            map_value
+                                .get(UPSTREAM_TASK_RESULT_KEY)
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string()
                         } else {
                             "".into()
                         },
                     );
-                    self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
+                    self.insert_edge(run_id, (upstream_id, downstream_id));
                 }
             }
         } else if template_args.is_object() {
             let template_args = template_args.as_object().unwrap();
-            if template_args.contains_key("upstream_task_id") {
-                let upstream_task_id = template_args
-                    .get("upstream_task_id")
+            if template_args.contains_key(UPSTREAM_TASK_ID_KEY) {
+                let upstream_id = template_args
+                    .get(UPSTREAM_TASK_ID_KEY)
                     .unwrap()
                     .as_u64()
                     .unwrap() as usize;
                 self.set_dependency_keys(
                     run_id,
-                    downstream_task_id,
-                    (upstream_task_id, "".into()),
-                    if template_args.contains_key("key") {
+                    downstream_id,
+                    (upstream_id, "".into()),
+                    if template_args.contains_key(UPSTREAM_TASK_RESULT_KEY) {
                         template_args
-                            .get("key")
+                            .get(UPSTREAM_TASK_RESULT_KEY)
                             .unwrap()
                             .as_str()
                             .unwrap()
@@ -570,29 +582,33 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     },
                 );
 
-                self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
+                self.insert_edge(run_id, (upstream_id, downstream_id));
 
                 return;
             }
 
             for (key, value) in template_args.iter().filter(|(_, v)| v.is_object()) {
                 let map = value.as_object().unwrap();
-                if map.contains_key("upstream_task_id") {
-                    let upstream_task_id =
-                        map.get("upstream_task_id").unwrap().as_u64().unwrap() as usize;
+                if map.contains_key(UPSTREAM_TASK_ID_KEY) {
+                    let upstream_id =
+                        map.get(UPSTREAM_TASK_ID_KEY).unwrap().as_u64().unwrap() as usize;
 
                     self.set_dependency_keys(
                         run_id,
-                        downstream_task_id,
-                        (upstream_task_id, key.to_string()),
-                        if map.contains_key("key") {
-                            map.get("key").unwrap().as_str().unwrap().to_string()
+                        downstream_id,
+                        (upstream_id, key.to_string()),
+                        if map.contains_key(UPSTREAM_TASK_RESULT_KEY) {
+                            map.get(UPSTREAM_TASK_RESULT_KEY)
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .to_string()
                         } else {
                             "".into()
                         },
                     );
 
-                    self.insert_edge(run_id, (upstream_task_id, downstream_task_id));
+                    self.insert_edge(run_id, (upstream_id, downstream_id));
                 }
             }
         }

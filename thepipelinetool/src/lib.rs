@@ -73,8 +73,7 @@ where
 {
     type Output = TaskRef<G>;
     fn shr(self, rhs: TaskRef<G>) -> Self::Output {
-        seq(&self, &rhs);
-        rhs
+        seq(&self, &rhs)
     }
 }
 
@@ -83,10 +82,9 @@ where
     T: Serialize,
     G: Serialize,
 {
-    type Output = TaskRef<G>;
+    type Output = TaskRef<T>;
     fn shl(self, rhs: TaskRef<G>) -> Self::Output {
-        seq(&rhs, &self);
-        rhs
+        seq(&rhs, &self)
     }
 }
 
@@ -106,15 +104,7 @@ impl<T: Serialize> Serialize for TaskRef<T> {
     where
         S: serde::Serializer,
     {
-        let mut json_value = json!({
-            "upstream_task_id": self.0.task_ids.iter().next().unwrap(),
-        });
-
-        if self.0.key.is_some() {
-            json_value["key"] = serde_json::Value::String(self.0.key.clone().unwrap());
-        }
-
-        json_value.serialize(serializer)
+        self.0.serialize(serializer)
     }
 }
 

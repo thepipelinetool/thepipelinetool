@@ -2,6 +2,9 @@ use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashSet, marker::PhantomData};
 
+pub const UPSTREAM_TASK_ID_KEY: &str = "upstream_task_id";
+pub const UPSTREAM_TASK_RESULT_KEY: &str = "key";
+
 #[derive(Clone)]
 pub struct TaskRefInner<T: Serialize> {
     pub task_ids: HashSet<usize>,
@@ -15,11 +18,11 @@ impl<T: Serialize> Serialize for TaskRefInner<T> {
         S: serde::Serializer,
     {
         let mut json_value = json!({
-            "upstream_task_id": self.task_ids.iter().next().unwrap(),
+            UPSTREAM_TASK_ID_KEY: self.task_ids.iter().next().unwrap(),
         });
 
         if self.key.is_some() {
-            json_value["key"] = serde_json::Value::String(self.key.clone().unwrap());
+            json_value[UPSTREAM_TASK_RESULT_KEY] = serde_json::Value::String(self.key.clone().unwrap());
         }
 
         json_value.serialize(serializer)

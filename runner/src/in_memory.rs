@@ -169,12 +169,12 @@ impl Runner for InMemoryRunner {
     }
 
     fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) {
-        let (upstream_task_id, downstream_task_id) = edge;
+        let (upstream_id, downstream_id) = edge;
         self.dep_keys
             .lock()
-            .get_mut(&downstream_task_id)
+            .get_mut(&downstream_id)
             .unwrap_or(&mut HashMap::new())
-            .remove(&(upstream_task_id, "".into()));
+            .remove(&(upstream_id, "".into()));
 
         self.edges.lock().remove(&edge);
     }
