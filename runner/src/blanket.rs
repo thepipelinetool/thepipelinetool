@@ -164,7 +164,6 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         executable_path: &str,
     ) -> TaskResult {
         if task.lazy_expand {
-            dbg!(&run_id, &task);
             let downstream = self.get_downstream(run_id, task.id);
 
             let mut lazy_ids = vec![];
