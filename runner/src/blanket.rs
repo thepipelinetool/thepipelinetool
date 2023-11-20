@@ -428,7 +428,10 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     for downstream in self
                         .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
                         .iter()
-                        .filter(|d| !self.is_task_completed(run_id, **d))
+                        .filter(|d| {
+                            !self.is_task_completed(run_id, **d)
+                                && !self.any_upstream_incomplete(run_id, **d)
+                        })
                         .collect::<Vec<&usize>>()
                     {
                         self.enqueue_task(run_id, *downstream);
@@ -450,7 +453,10 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 for downstream in self
                     .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
                     .iter()
-                    .filter(|d| !self.is_task_completed(run_id, **d))
+                    .filter(|d| {
+                        !self.is_task_completed(run_id, **d)
+                            && !self.any_upstream_incomplete(run_id, **d)
+                    })
                     .collect::<Vec<&usize>>()
                 {
                     self.enqueue_task(run_id, *downstream);
