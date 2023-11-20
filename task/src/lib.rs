@@ -22,7 +22,7 @@ pub mod task_status;
 
 pub const DAGS_DIR: &str = "./bin";
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Task {
     pub id: usize,
     pub function_name: String,

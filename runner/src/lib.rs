@@ -9,14 +9,15 @@ use task::{
 
 pub mod blanket;
 pub mod in_memory;
+// pub mod in_memory_parallel;
 
 pub trait Runner {
-    fn get_dag_name(&self) -> String;
-
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
-    fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask);
+    // fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask);
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize);
 
+    fn get_dag_name(&self) -> String;
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String;
     fn get_log_handle_closure(
         &mut self,
@@ -82,5 +83,4 @@ pub trait Runner {
         is_branch: bool,
     ) -> usize;
 
-    fn enqueue_task(&mut self, run_id: usize, task_id: usize);
 }

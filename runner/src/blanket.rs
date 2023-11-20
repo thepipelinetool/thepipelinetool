@@ -76,8 +76,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         logical_date: DateTime<Utc>,
     ) -> usize {
         let run_id = self.create_new_run(dag_name, dag_hash, logical_date);
-
-        for task in self.get_default_tasks() {
+        let default_tasks = self.get_default_tasks();
+        for task in &default_tasks {
             self.append_new_task_and_set_status_to_pending(
                 run_id,
                 &task.function_name,
@@ -88,7 +88,12 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 task.is_branch,
             );
             self.update_referenced_dependencies(run_id, task.id);
-            self.enqueue_task(run_id, task.id);
+        }
+
+        for task in default_tasks {
+            if self.get_task_depth(run_id, task.id) == 0 {
+                self.enqueue_task(run_id, task.id);
+            }
         }
 
         for (upstream_task_id, downstream_task_id) in self.get_default_edges() {
@@ -159,6 +164,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         executable_path: &str,
     ) -> TaskResult {
         if task.lazy_expand {
+            dbg!(&run_id, &task);
             let downstream = self.get_downstream(run_id, task.id);
 
             let mut lazy_ids = vec![];
@@ -225,10 +231,12 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                                 .unwrap(),
                             ),
                     );
-                    self.update_referenced_dependencies(run_id, *d);
+                    dbg!(self.get_dependency_keys(run_id, *d));
                 }
                 for d in &downstream {
                     self.remove_edge(run_id, (task.id, *d));
+                    self.update_referenced_dependencies(run_id, *d);
+                    dbg!(self.get_dependency_keys(run_id, *d));
                     self.delete_task_depth(run_id, *d);
                     self.enqueue_task(run_id, *d);
                 }
@@ -388,18 +396,23 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         ordered_queued_task: OrderedQueuedTask,
         executable_path: &str,
     ) {
-        if self.get_task_status(run_id, ordered_queued_task.queued_task.task_id)
-            == TaskStatus::Skipped
-        {
+        // dbg!(ordered_queued_task.queued_task.task_id);
+        // if self.get_task_status(run_id, ordered_queued_task.queued_task.task_id)
+        //     == TaskStatus::Skipped
+        // {
+        //     return;
+        // }
+        if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if self.any_upstream_incomplete(run_id, ordered_queued_task.queued_task.task_id) {
-            self.push_priority_queue(ordered_queued_task);
+            self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
             return;
         }
+
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
         let deps = self.get_dependency_keys(run_id, task.id);
-        let resolution_result = self.resolve_args(run_id, &task.template_args, &deps);
+        let resolution_result = self.resolve_args(run_id, &task.template_args, &dbg!(deps));
         let attempt: usize = self.get_attempt_by_task_id(run_id, task.id);
 
         match resolution_result {
@@ -410,7 +423,16 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 self.handle_task_result(run_id, result);
 
                 if self.task_needs_running(run_id, ordered_queued_task.queued_task.task_id) {
-                    self.push_priority_queue(ordered_queued_task);
+                    self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
+                } else {
+                    for downstream in self
+                        .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
+                        .iter()
+                        .filter(|d| !self.is_task_completed(run_id, **d))
+                        .collect::<Vec<&usize>>()
+                    {
+                        self.enqueue_task(run_id, *downstream);
+                    }
                 }
             }
             Err(resolution_result) => {
@@ -425,6 +447,14 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                         task.is_branch,
                     ),
                 );
+                for downstream in self
+                    .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
+                    .iter()
+                    .filter(|d| !self.is_task_completed(run_id, **d))
+                    .collect::<Vec<&usize>>()
+                {
+                    self.enqueue_task(run_id, *downstream);
+                }
             }
         }
     }

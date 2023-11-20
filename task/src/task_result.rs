@@ -57,6 +57,8 @@ impl TaskResult {
     }
 
     pub fn print_task_result(&self, template_args: Value, log: String) {
+        // return;
+
         println!("=============================================");
         println!("TASK RUN");
         println!("id:\t\t{}", self.task_id);

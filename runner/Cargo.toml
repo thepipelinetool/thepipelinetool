@@ -10,3 +10,4 @@ task = { path = "../task" }
 serde_json = "1.0"
 chrono = "0.4.31"
 utils = { path = "../utils" }
+parking_lot = "0.12.1"
