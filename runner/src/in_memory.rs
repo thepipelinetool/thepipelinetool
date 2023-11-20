@@ -26,6 +26,23 @@ pub struct InMemoryRunner {
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>, // runner: InMemoryRunner,
 }
 
+impl Clone for InMemoryRunner {
+    fn clone(&self) -> Self {
+        Self {
+            task_results: self.task_results.clone(),
+            task_logs: self.task_logs.clone(),
+            task_statuses: self.task_statuses.clone(),
+            attempts: self.attempts.clone(),
+            dep_keys: self.dep_keys.clone(),
+            edges: self.edges.clone(),
+            default_nodes: self.default_nodes.clone(),
+            nodes: self.nodes.clone(),
+            task_depth: self.task_depth.clone(),
+            priority_queue: self.priority_queue.clone(),
+        }
+    }
+}
+
 impl InMemoryRunner {
     pub fn new(nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {

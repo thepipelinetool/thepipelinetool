@@ -412,7 +412,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
 
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
         let deps = self.get_dependency_keys(run_id, task.id);
-        let resolution_result = self.resolve_args(run_id, &task.template_args, &dbg!(deps));
+        let resolution_result = self.resolve_args(run_id, &task.template_args, &deps);
         let attempt: usize = self.get_attempt_by_task_id(run_id, task.id);
 
         match resolution_result {
