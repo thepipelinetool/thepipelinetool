@@ -284,7 +284,5 @@ impl Runner for InMemoryRunner {
         });
     }
 
-    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {
-        
-    }
+    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
 }

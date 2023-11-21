@@ -22,7 +22,8 @@ impl<T: Serialize> Serialize for TaskRefInner<T> {
         });
 
         if self.key.is_some() {
-            json_value[UPSTREAM_TASK_RESULT_KEY] = serde_json::Value::String(self.key.clone().unwrap());
+            json_value[UPSTREAM_TASK_RESULT_KEY] =
+                serde_json::Value::String(self.key.clone().unwrap());
         }
 
         json_value.serialize(serializer)

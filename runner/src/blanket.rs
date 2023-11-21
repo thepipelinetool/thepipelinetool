@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
     ordered_queued_task::OrderedQueuedTask,
-    queued_task::{self, QueuedTask},
+    queued_task::QueuedTask,
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
     task_result::TaskResult,
     task_status::TaskStatus,
@@ -428,11 +428,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
 
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
         let dependency_keys = self.get_dependency_keys(run_id, task.id);
-        let result = match self.resolve_args(
-            run_id,
-            &task.template_args,
-            &dependency_keys,
-        ) {
+        let result = match self.resolve_args(run_id, &task.template_args, &dependency_keys) {
             Ok(resolution_result) => self.run_task(
                 run_id,
                 &task,
