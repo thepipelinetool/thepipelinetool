@@ -110,6 +110,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
     }
 
     fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask) {
+        // TODO check if this result has been handled, ignore handling if so
+
         let mut result = result;
         let mut branch_left = false;
 
