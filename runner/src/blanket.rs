@@ -98,6 +98,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.insert_edge(run_id, (upstream_id, downstream_id));
         }
 
+        // only enqueue default tasks with no upstream dependencies
         for task in default_tasks
             .iter()
             .filter(|task| self.get_task_depth(run_id, task.id) == 0)
