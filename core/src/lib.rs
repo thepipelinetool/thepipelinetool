@@ -1,12 +1,27 @@
-mod cli;
 mod options;
 
+mod module {
+    #[macro_export]
+    macro_rules! add_task {
+        ($mand_1:expr) => {
+            add_task!($mand_1, Value::Null)
+        };
+        ($mand_1:expr, $mand_2:expr) => {
+            add_task!($mand_1, $mand_2, &TaskOptions::default())
+        };
+        ($mand_1:expr, $mand_2:expr, $mand_3:expr) => {
+            add_task($mand_1, $mand_2, $mand_3)
+        };
+    }
+    pub use add_task;
+}
+
 pub mod prelude {
-    pub use crate::cli::*;
+    pub use crate::module::*;
     pub use crate::options::DagOptions;
     pub use crate::{
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, set_catchup,
-        set_end_date, set_schedule, set_start_date,
+        set_end_date, set_schedule, set_start_date, parse_cli
     };
     pub use proc_macro::dag;
     pub use runner::in_memory::InMemoryRunner;
@@ -44,6 +59,24 @@ type StaticTasks = RwLock<Vec<Task>>;
 type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
 type StaticEdges = RwLock<HashSet<(usize, usize)>>;
 type StaticOptions = RwLock<DagOptions>;
+
+use std::{
+    cmp::max,
+    collections::hash_map::DefaultHasher,
+    env,
+    hash::{Hash, Hasher},
+    sync::mpsc::channel,
+    thread,
+};
+
+use chrono::Utc;
+use clap::{arg, command, value_parser, Command as CliCommand};
+use runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
+use saffron::{
+    parse::{CronExpr, English},
+    Cron,
+};
+use utils::{execute_function, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
 static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
@@ -237,6 +270,41 @@ where
     })
 }
 
+/// Adds a new task to the task management system.
+///
+/// This function takes a closure `function`, its template arguments `template_args`, and task options. It registers the task in the system and returns a reference to the newly added task.
+///
+/// # Type Parameters
+///
+/// - `F`: The type of the closure function.
+/// - `T`: The type of the template arguments. Must be serializable and deserializable.
+/// - `G`: The type of the output of the closure function. Must be serializable.
+///
+/// # Arguments
+///
+/// * `function` - A closure that takes a value of type `T` and returns a value of type `G`.
+/// * `template_args` - Arguments to the closure, which must implement `Serialize` and `DeserializeOwned`.
+/// * `options` - A reference to the `TaskOptions` struct, containing configuration options for the task.
+///
+/// # Returns
+///
+/// Returns `TaskRef<G>`, a reference to the created task.
+///
+/// # Examples
+///
+/// ```
+/// use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     let task_ref = add_task(
+///         |arg: i32| arg + 1,     // function
+///         5,                      // template_args
+///         &TaskOptions::default() // options
+///     );
+/// }
+/// // Use `task_ref` here
+/// ```
 pub fn add_task<F, T, G>(function: F, template_args: T, options: &TaskOptions) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned,
@@ -283,6 +351,52 @@ where
     })
 }
 
+/// Creates a branching task with two possible outcomes.
+///
+/// This function registers a new branching task based on a specified function and its template arguments. It returns two `TaskRef` instances representing the two possible branches of execution.
+///
+/// # Type Parameters
+///
+/// - `F`: The type of the branching function.
+/// - `K`: The type of the template arguments for the branching function.
+/// - `T`: The intermediate type produced by the branching function.
+/// - `L`: The type of the left branch function.
+/// - `J`: The output type of the left branch.
+/// - `R`: The type of the right branch function.
+/// - `M`: The output type of the right branch.
+///
+/// # Arguments
+///
+/// * `function` - A branching function that takes a value of type `K` and returns a `Branch<T>`.
+/// * `template_args` - Arguments for the branching function, which must implement `Serialize` and `DeserializeOwned`.
+/// * `left` - A function to be executed if the left branch is taken.
+/// * `right` - A function to be executed if the right branch is taken.
+/// * `options` - A reference to `TaskOptions` struct, containing configuration options for the task.
+///
+/// # Returns
+///
+/// Returns a tuple of two `TaskRef` instances, one for each branch (`left` and `right`).
+///
+/// # Examples
+///
+/// ```
+/// use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     let (left_ref, right_ref) = branch(
+///         |arg: i32| if arg > 10 { Branch::Left(arg) } else { Branch::Right(arg) },
+///         5,
+///         |left_arg| left_arg + 1,
+///         |right_arg| right_arg - 1,
+///         &TaskOptions::default()
+///     );
+/// }
+/// ```
+///
+/// # Panics
+///
+/// This function panics if serialization or deserialization of the template arguments or the branch outcomes fails.
 pub fn branch<F, K, T, L, J, R, M>(
     function: F,
     template_args: K,
@@ -343,6 +457,47 @@ where
     )
 }
 
+/// Dynamically expands a collection of tasks based on a transformation function.
+///
+/// This function takes a task and applies a transformation to each item in the task's collection,
+/// returning a new task reference with the transformed items. It's designed to work with tasks
+/// that require serialization and deserialization of their input and output.
+///
+/// # Type Parameters
+///
+/// - `K`: The type of items in the input task's collection. Must be serializable and deserializable.
+/// - `T`: The type of the task's collection. Must be serializable, deserializable, and convertible
+///   into an iterator over items of type `K`.
+/// - `G`: The type of items in the output task's collection. Must be serializable.
+/// - `F`: The transformation function type. Takes an item of type `K` and transforms it into type `G`.
+///
+/// # Arguments
+///
+/// - `function`: A function that defines how each item of type `K` in the task's collection will
+///   be transformed into type `G`. Must be thread-safe and static (`'static`), and implement both
+///   `Sync` and `Send` traits.
+/// - `task_ref`: A reference to the task containing the collection of items to be transformed.
+/// - `options`: Configuration options for the task.
+///
+/// # Returns
+///
+/// Returns a `TaskRef<Vec<G>>`, which is a reference to the new task containing the transformed
+/// items.
+///
+/// # Examples
+///
+/// ```
+/// use thepipelinetool::prelude::*;
+///
+/// fn lazy_producer(_: ()) -> Vec<usize> {
+///     vec![0, 1, 2]
+/// }
+/// #[dag]
+/// fn main() {
+///     let lazy_task = add_task(lazy_producer, (), &TaskOptions::default());
+///     expand_lazy(|i: usize| println!("{i}"), &lazy_task, &TaskOptions::default());
+/// }
+/// ```
 pub fn expand_lazy<K, F, T, G>(
     function: F,
     task_ref: &TaskRef<T>,
@@ -465,4 +620,361 @@ pub fn set_end_date(end_date: DateTime<FixedOffset>) {
 
 pub fn set_catchup(catchup: bool) {
     get_options().write().unwrap().catchup = catchup;
+}
+
+pub fn parse_cli() {
+    let command = command!()
+        .about("DAG CLI Tool")
+        .subcommand(CliCommand::new("describe").about("Describes the DAG"))
+        .subcommand(CliCommand::new("options").about("Displays options as JSON"))
+        .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
+        .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
+        .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
+        .subcommand(CliCommand::new("graph").about("Displays graph"))
+        .subcommand(CliCommand::new("tree").about("Displays tree"))
+        .subcommand(
+            CliCommand::new("run")
+                .arg_required_else_help(true)
+                .subcommand(
+                    CliCommand::new("in_memory").about("Runs dag locally").arg(
+                        arg!(
+                            [mode] "Mode for running locally"
+                        )
+                        .required(false)
+                        .value_parser(value_parser!(String))
+                        .default_values(["max", "--blocking"])
+                        .default_missing_value("max"),
+                    ),
+                )
+                .subcommand(
+                    CliCommand::new("function")
+                        .about("Runs function")
+                        .arg(
+                            arg!(
+                                <function_name> "Function name"
+                            )
+                            .required(true),
+                        )
+                        .arg(
+                            arg!(
+                                <out_path> "Output file"
+                            )
+                            .required(true),
+                        )
+                        .arg(
+                            arg!(
+                                <in_path> "Input file"
+                            )
+                            .required(true),
+                        ),
+                )
+                .subcommand_required(true),
+        )
+        .subcommand_required(true);
+
+    let matches = command.get_matches();
+
+    if let Some(subcommand) = matches.subcommand_name() {
+        match subcommand {
+            "options" => {
+                let options = get_options().read().unwrap();
+
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&options.clone()).unwrap()
+                );
+            }
+            "describe" => {
+                let tasks = get_tasks().read().unwrap();
+                let options = get_options().read().unwrap();
+                let functions = get_functions().read().unwrap();
+
+                println!("Task count: {}", tasks.len());
+                println!(
+                    "Functions: {:#?}",
+                    functions.keys().collect::<Vec<&String>>()
+                );
+
+                if let Some(schedule) = &options.schedule {
+                    println!("Schedule: {schedule}");
+                    match schedule.parse::<CronExpr>() {
+                        Ok(cron) => {
+                            println!("Description: {}", cron.describe(English::default()));
+                        }
+                        Err(err) => {
+                            println!("{err}: {schedule}");
+                            return;
+                        }
+                    }
+
+                    match schedule.parse::<Cron>() {
+                        Ok(cron) => {
+                            if !cron.any() {
+                                println!("Cron will never match any given time!");
+                                return;
+                            }
+
+                            if let Some(start_date) = options.start_date {
+                                println!("Start date: {start_date}");
+                            } else {
+                                println!("Start date: None");
+                            }
+
+                            println!("Upcoming:");
+                            let futures = cron.clone().iter_from(
+                                if let Some(start_date) = options.start_date {
+                                    if options.catchup || start_date > Utc::now() {
+                                        start_date.into()
+                                    } else {
+                                        Utc::now()
+                                    }
+                                } else {
+                                    Utc::now()
+                                },
+                            );
+                            for time in futures.take(10) {
+                                if !cron.contains(time) {
+                                    println!("Failed check! Cron does not contain {}.", time);
+                                    break;
+                                }
+                                if let Some(end_date) = options.end_date {
+                                    if time > end_date {
+                                        break;
+                                    }
+                                }
+                                println!("  {}", time.format("%F %R"));
+                            }
+                        }
+                        Err(err) => println!("{err}: {schedule}"),
+                    }
+                } else {
+                    println!("No schedule set");
+                }
+            }
+            "tasks" => {
+                let tasks = get_tasks().read().unwrap();
+
+                println!("{}", serde_json::to_string_pretty(&*tasks).unwrap());
+            }
+            "edges" => {
+                let edges = get_edges().read().unwrap();
+
+                println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
+            }
+            "graph" => {
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
+
+                let mut runner = InMemoryRunner::new(&tasks, &edges);
+                runner.enqueue_run("in_memory", "", Utc::now());
+
+                let graph = runner.get_graphite_graph(0);
+                print!("{}", serde_json::to_string_pretty(&graph).unwrap());
+            }
+            "hash" => {
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
+
+                let hash = hash_dag(
+                    &serde_json::to_string(&*tasks).unwrap(),
+                    &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
+                );
+                print!("{hash}");
+            }
+            "tree" => {
+                let tasks = get_tasks().read().unwrap();
+                let edges = get_edges().read().unwrap();
+
+                let mut runner = InMemoryRunner::new(&tasks, &edges);
+                let run_id = runner.enqueue_run("in_memory", "", Utc::now());
+                let tasks = runner
+                    .get_default_tasks()
+                    .iter()
+                    .filter(|t| runner.get_task_depth(run_id, t.id) == 0)
+                    .map(|t| t.id)
+                    .collect::<Vec<usize>>();
+
+                let mut output = "DAG\n".to_string();
+                let mut task_ids_in_order: Vec<usize> = vec![];
+
+                for (index, child) in tasks.iter().enumerate() {
+                    let is_last = index == tasks.len() - 1;
+
+                    let connector = if is_last { "└── " } else { "├── " };
+                    task_ids_in_order.push(*child);
+                    output.push_str(&runner.get_tree(
+                        run_id,
+                        *child,
+                        1,
+                        connector,
+                        vec![is_last],
+                        &mut task_ids_in_order,
+                    ));
+                }
+                println!("{}", output);
+                println!("{:?}", task_ids_in_order);
+            }
+            "run" => {
+                let matches = matches.subcommand_matches("run").unwrap();
+                if let Some(subcommand) = matches.subcommand_name() {
+                    match subcommand {
+                        "in_memory" => {
+                            let tasks = get_tasks().read().unwrap();
+                            let edges = get_edges().read().unwrap();
+
+                            let mut runner = InMemoryRunner::new(&tasks.to_vec(), &edges);
+
+                            let run_id = runner.enqueue_run("", "", Utc::now());
+
+                            let default_tasks = runner.get_default_tasks();
+
+                            for task in &default_tasks {
+                                let mut visited = HashSet::new();
+                                let mut path = vec![];
+                                let circular_dependencies = runner.get_circular_dependencies(
+                                    run_id,
+                                    task.id,
+                                    &mut visited,
+                                    &mut path,
+                                );
+
+                                if let Some(deps) = circular_dependencies {
+                                    panic!("{:?}", deps);
+                                }
+                            }
+
+                            let sub_matches = matches.subcommand_matches("in_memory").unwrap();
+                            let mode = sub_matches.get_one::<String>("mode").unwrap();
+
+                            let max_threads = max(
+                                usize::from(std::thread::available_parallelism().unwrap()) - 1,
+                                1,
+                            );
+                            let thread_count = match mode.as_str() {
+                                "--blocking" => 1,
+                                "max" => max_threads,
+                                _ => mode.parse::<usize>().unwrap(),
+                            };
+
+                            let (tx, rx) = channel();
+
+                            let mut count = 0;
+
+                            for _ in 0..thread_count {
+                                let mut runner = runner.clone();
+                                let tx = tx.clone();
+
+                                if let Some(queued_task) = runner.pop_priority_queue() {
+                                    thread::spawn(move || {
+                                        let current_executable_path = &env::args().next().unwrap();
+
+                                        runner.work(
+                                            run_id,
+                                            &queued_task,
+                                            current_executable_path.as_str(),
+                                        );
+                                        tx.send(()).unwrap();
+                                    });
+
+                                    count += 1;
+                                    if count >= thread_count {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            for _ in rx.iter() {
+                                count -= 1;
+
+                                let mut runner = runner.clone();
+                                if let Some(queued_task) = runner.pop_priority_queue() {
+                                    let tx = tx.clone();
+
+                                    thread::spawn(move || {
+                                        let current_executable_path = &env::args().next().unwrap();
+
+                                        runner.work(
+                                            run_id,
+                                            &queued_task,
+                                            current_executable_path.as_str(),
+                                        );
+                                        tx.send(()).unwrap();
+                                    });
+
+                                    count += 1;
+
+                                    if count >= thread_count {
+                                        continue;
+                                    }
+                                }
+                                if count == 0 {
+                                    drop(tx);
+                                    break;
+                                }
+                            }
+
+                            // let tasks = runner
+                            //     .get_default_tasks()
+                            //     .iter()
+                            //     .filter(|t| runner.get_task_depth(run_id, t.id) == 0)
+                            //     .map(|t| t.id)
+                            //     .collect::<Vec<usize>>();
+
+                            // let mut output = "DAG\n".to_string();
+                            // let mut task_ids_in_order: Vec<usize> = vec![];
+
+                            // for (index, child) in tasks.iter().enumerate() {
+                            //     let is_last = index == tasks.len() - 1;
+
+                            //     let connector = if is_last { "└── " } else { "├── " };
+                            //     task_ids_in_order.push(*child);
+                            //     output.push_str(&runner.get_tree(
+                            //         run_id,
+                            //         *child,
+                            //         1,
+                            //         connector,
+                            //         vec![is_last],
+                            //         &mut task_ids_in_order,
+                            //     ));
+                            // }
+                            // println!("{}", output);
+                            // println!("{:?}", task_ids_in_order);
+                        }
+                        "function" => {
+                            let functions = get_functions().read().unwrap();
+
+                            let sub_matches = matches.subcommand_matches("function").unwrap();
+                            let function_name =
+                                sub_matches.get_one::<String>("function_name").unwrap();
+                            let in_path = sub_matches.get_one::<String>("in_path").unwrap();
+                            let out_path = sub_matches.get_one::<String>("out_path").unwrap();
+
+                            if functions.contains_key(function_name) {
+                                execute_function(in_path, out_path, &functions[function_name]);
+                            } else {
+                                panic!(
+                                    "no such function {function_name}\navailable functions: {:#?}",
+                                    functions.keys().collect::<Vec<&String>>()
+                                )
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn hash_dag(nodes: &str, edges: &[(usize, usize)]) -> String {
+    let mut hasher = DefaultHasher::new();
+    let mut edges: Vec<&(usize, usize)> = edges.iter().collect();
+    edges.sort();
+
+    let to_hash = serde_json::to_string(&nodes).unwrap() + &serde_json::to_string(&edges).unwrap();
+    to_hash.hash(&mut hasher);
+    to_base62(hasher.finish())
 }

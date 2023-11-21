@@ -11,7 +11,7 @@ use task::{
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
     task_result::TaskResult,
     task_status::TaskStatus,
-    Task,
+    Task, branch::Branch,
 };
 use utils::{collector, function_name_as_string};
 
@@ -117,8 +117,14 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         let mut branch_left = false;
 
         if result.is_branch {
-            branch_left = result.result["is_left"].as_bool().unwrap();
-            result.result = result.result["val"].take();
+            let branch = result.result.as_object().unwrap();
+            branch_left = branch.contains_key("Left");
+
+            result.result = if branch_left {
+                result.result["Left"].take()
+            } else {
+                result.result["Right"].take()
+            };
         }
 
         self.insert_task_results(run_id, &result);

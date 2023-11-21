@@ -1,7 +1,7 @@
 use thepipelinetool::prelude::*;
 
 fn branch_task(_: Value) -> Branch<usize> {
-    Branch::left(0)
+    Branch::Left(0)
 }
 
 fn left(arg: usize) -> () {
