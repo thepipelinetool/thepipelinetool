@@ -43,9 +43,6 @@ impl TaskResult {
             max_attempts,
             function_name,
             success: false,
-            // stdout: "".into(),
-            // stderr: "".into(),
-            // template_args_str,
             resolved_args_str: "".into(),
             started: start.to_rfc3339(),
             ended: start.to_rfc3339(),
@@ -57,8 +54,6 @@ impl TaskResult {
     }
 
     pub fn print_task_result(&self, template_args: Value, log: String) {
-        // return;
-
         println!("=============================================");
         println!("TASK RUN");
         println!("id:\t\t{}", self.task_id);
