@@ -270,13 +270,21 @@ impl Runner for InMemoryRunner {
         let depth = self.get_task_depth(run_id, task_id);
         let mut priority_queue = self.priority_queue.lock();
         priority_queue.retain(|x| x.queued_task.task_id != task_id);
+        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
+
         priority_queue.push(OrderedQueuedTask {
             score: depth,
             queued_task: QueuedTask {
                 task_id,
                 run_id,
                 dag_name: self.get_dag_name(),
+                queued_date: Utc::now().into(),
+                attempt,
             },
         });
+    }
+
+    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {
+        
     }
 }

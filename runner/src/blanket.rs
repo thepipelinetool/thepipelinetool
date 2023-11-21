@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use task::{
     ordered_queued_task::OrderedQueuedTask,
+    queued_task::{self, QueuedTask},
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
     task_result::TaskResult,
     task_status::TaskStatus,
@@ -21,7 +22,7 @@ pub trait BlanketRunner {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
-    fn work(&mut self, run_id: usize, queued_task: OrderedQueuedTask, executable_path: &str);
+    fn work(&mut self, run_id: usize, queued_task: &OrderedQueuedTask, executable_path: &str);
     fn get_circular_dependencies(
         &self,
         run_id: usize,
@@ -54,7 +55,7 @@ pub trait BlanketRunner {
         prev_is_last: Vec<bool>,
         task_ids_in_order: &mut Vec<usize>,
     ) -> String;
-    fn handle_task_result(&mut self, run_id: usize, result: TaskResult);
+    fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask);
 }
 
 impl<U: Runner + Send + Sync> BlanketRunner for U {
@@ -108,7 +109,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         run_id
     }
 
-    fn handle_task_result(&mut self, run_id: usize, result: TaskResult) {
+    fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask) {
         let mut result = result;
         let mut branch_left = false;
 
@@ -158,6 +159,24 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 TaskStatus::Failure
             },
         );
+
+        self.remove_from_temp_queue(queued_task);
+
+        if !result.premature_failure && self.task_needs_running(run_id, result.task_id) {
+            self.enqueue_task(run_id, result.task_id);
+        } else {
+            for downstream in self
+                .get_downstream(run_id, result.task_id)
+                .iter()
+                .filter(|d| {
+                    !self.is_task_completed(run_id, **d)
+                        && !self.any_upstream_incomplete(run_id, **d)
+                })
+                .collect::<Vec<&usize>>()
+            {
+                self.enqueue_task(run_id, *downstream);
+            }
+        }
     }
 
     fn run_task(
@@ -395,70 +414,42 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
     fn work(
         &mut self,
         run_id: usize,
-        ordered_queued_task: OrderedQueuedTask,
+        ordered_queued_task: &OrderedQueuedTask,
         executable_path: &str,
     ) {
         if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if self.any_upstream_incomplete(run_id, ordered_queued_task.queued_task.task_id) {
+            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
             return;
         }
 
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
-        let deps = self.get_dependency_keys(run_id, task.id);
-        let resolution_result = self.resolve_args(run_id, &task.template_args, &deps);
-        let attempt: usize = self.get_attempt_by_task_id(run_id, task.id);
-
-        match resolution_result {
-            Ok(resolution_result) => {
-                let result =
-                    self.run_task(run_id, &task, attempt, &resolution_result, executable_path);
-
-                self.handle_task_result(run_id, result);
-
-                if self.task_needs_running(run_id, ordered_queued_task.queued_task.task_id) {
-                    self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
-                } else {
-                    for downstream in self
-                        .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
-                        .iter()
-                        .filter(|d| {
-                            !self.is_task_completed(run_id, **d)
-                                && !self.any_upstream_incomplete(run_id, **d)
-                        })
-                        .collect::<Vec<&usize>>()
-                    {
-                        self.enqueue_task(run_id, *downstream);
-                    }
-                }
-            }
-            Err(resolution_result) => {
-                self.handle_task_result(
-                    run_id,
-                    TaskResult::premature_error(
-                        task.id,
-                        attempt,
-                        task.options.max_attempts,
-                        task.function_name.clone(),
-                        resolution_result.to_string(),
-                        task.is_branch,
-                    ),
-                );
-                for downstream in self
-                    .get_downstream(run_id, ordered_queued_task.queued_task.task_id)
-                    .iter()
-                    .filter(|d| {
-                        !self.is_task_completed(run_id, **d)
-                            && !self.any_upstream_incomplete(run_id, **d)
-                    })
-                    .collect::<Vec<&usize>>()
-                {
-                    self.enqueue_task(run_id, *downstream);
-                }
-            }
-        }
+        let dependency_keys = self.get_dependency_keys(run_id, task.id);
+        let result = match self.resolve_args(
+            run_id,
+            &task.template_args,
+            &dependency_keys,
+        ) {
+            Ok(resolution_result) => self.run_task(
+                run_id,
+                &task,
+                ordered_queued_task.queued_task.attempt,
+                &resolution_result,
+                executable_path,
+            ),
+            Err(resolution_result) => TaskResult::premature_error(
+                task.id,
+                ordered_queued_task.queued_task.attempt,
+                task.options.max_attempts,
+                task.function_name.clone(),
+                resolution_result.to_string(),
+                task.is_branch,
+            ),
+        };
+        self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);
     }
 
     fn get_circular_dependencies(

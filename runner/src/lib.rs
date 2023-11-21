@@ -4,13 +4,15 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use task::{
     ordered_queued_task::OrderedQueuedTask, task_options::TaskOptions, task_result::TaskResult,
-    task_status::TaskStatus, Task,
+    task_status::TaskStatus, Task, queued_task::QueuedTask,
 };
 
 pub mod blanket;
 pub mod in_memory;
 
 pub trait Runner {
+    fn remove_from_temp_queue(&self, queued_task: &QueuedTask);
+    
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
     fn enqueue_task(&mut self, run_id: usize, task_id: usize);

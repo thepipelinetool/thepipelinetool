@@ -266,7 +266,7 @@ pub fn parse_cli() {
 
                                         runner.work(
                                             run_id,
-                                            queued_task,
+                                            &queued_task,
                                             current_executable_path.as_str(),
                                         );
                                         tx.send(()).unwrap();
@@ -293,7 +293,7 @@ pub fn parse_cli() {
 
                                         runner.work(
                                             run_id,
-                                            queued_task,
+                                            &queued_task,
                                             current_executable_path.as_str(),
                                         );
                                         tx.send(()).unwrap();
