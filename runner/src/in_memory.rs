@@ -23,7 +23,7 @@ pub struct InMemoryRunner {
     pub default_nodes: Arc<Mutex<Vec<Task>>>,
     pub nodes: Arc<Mutex<Vec<Task>>>,
     pub task_depth: Arc<Mutex<HashMap<usize, usize>>>,
-    pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>, // runner: InMemoryRunner,
+    pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
 }
 
 impl InMemoryRunner {
