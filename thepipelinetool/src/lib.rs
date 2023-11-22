@@ -3,142 +3,8 @@
 //! `thepipelinetool` is an *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow.
 //! It organizes Rust functions into a Directed Acyclic Graph (DAG) structure, ensuring orderly execution according to their dependencies.
 //! The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally.
-//! Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, and live task monitoring with a modern UI.
+//! Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, and live task monitoring with a num_threadsrn UI.
 //!
-//! ### Features
-//! - *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs.
-//! - *Scalable* - Designed to handle large-scale data processing tasks with ease.
-//! - *Extensible* - Supports custom tasks and integrations, allowing for flexible workflow design.
-//!
-//! ### Deployment (WIP)
-//! - Coming soon.
-//!
-//! ### Simple DAG
-//! ```rust
-//! // simple.rs
-//! use thepipelinetool::prelude::*;
-//!
-//! // function argument type must derive Serialize & Deserialize
-//! #[derive(Deserialize, Serialize)]
-//! struct MyConfig {
-//!     data: String,
-//! }
-//!
-//! fn produce_data(config: MyConfig) -> String {
-//!     config.data
-//! }
-//!
-//! fn print_data(arg: String) -> () {
-//!     println!("hello {arg}");
-//! }
-//!
-//! #[dag]
-//! fn main() {
-//!     // define your tasks and dependencies within the main() function
-//! 
-//!     // add a task that uses the function 'produce_data'
-//!     let task_ref = add_task(produce_data, MyConfig{ data: "world".into() }, &TaskOptions::default());
-//!
-//!     // add a task that will wait to use the result from produce_data
-//!     let _ = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
-//! }
-//! ```
-//!
-//! Run using the following command
-//! ```bash
-//! cargo run --bin simple run in_memory
-//! ```
-//!
-//! Or use "help" to see all commands
-//! ```bash
-//! cargo run --bin simple --help
-//! ```
-//!
-//! ### Manually Defining Depencencies
-//! ```rust
-//! // chain.rs
-//! use thepipelinetool::prelude::*;
-//!
-//! fn produce_data(_: ()) -> String {
-//!     "world".to_string()
-//! }
-//! 
-//! fn print_data(arg: String) -> () {
-//!     println!("hello {arg}");
-//! }
-//!
-//! #[dag]
-//! fn main() {
-//!     let task_ref = add_task(produce_data, (), &TaskOptions::default());
-//!     
-//!     let print_task1 = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
-//!     let print_task2 = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
-//!     // without further code, both tasks will run at the same time
-//!
-//!     // Sequential:
-//!     // UPSTREAM_TASK >> DOWNSTREAM_TASK
-//!     // or DOWNSTREAM_TASK << UPSTREAM_TASK
-//!     let _ = print_task1 >> print_task2; // print_task2 will now wait for print_task1 completion
-//!
-//!     // Multiple Sequential:
-//!     // task1 >> task2 >> task3;
-//!     // task1 >> (task2 << task3) >> task4;
-//!
-//!     // Parallel:
-//!     // task1 >> (task2 | task3 | task4) >> task5;
-//! }
-//! ```
-//!
-//! ### Dynamic Tasks
-//! ```rust
-//! // dynamic.rs
-//! 
-//! use thepipelinetool::prelude::*;
-//!
-//! fn produce_lazy(_: ()) -> Vec<u8> {
-//!     vec![0, 1]
-//! }
-//! 
-//! fn say_hello(arg: u8) -> u8 {
-//!     println!("hello {arg}");
-//!     arg
-//! }
-//!
-//! #[dag]
-//! fn main() {
-//!     let produce_lazy_task_ref = add_task(produce_lazy, (), &TaskOptions::default());
-//!
-//!     // creates a new task for each item in "produce_lazy" result
-//!     let expanded_lazy_task_ref = expand_lazy(say_hello, &produce_lazy_task_ref, &TaskOptions::default());
-//!
-//!     // you can also chain lazily expanded tasks
-//!     let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, &TaskOptions::default());
-//! }
-//! ```
-//!
-//! ### Branching Tasks
-//! ```rust
-//! // branch.rs
-//! use thepipelinetool::prelude::*;
-//! 
-//! fn branch_task(_: ()) -> Branch<usize> {
-//!     Branch::Left(0)
-//! }
-//!
-//! fn left(arg: usize) -> () {
-//!     println!("left {arg}");
-//! }
-//!
-//! fn right(_: usize) -> () {
-//!     println!("this won't execute");
-//! }
-//!
-//! #[dag]
-//! fn main() {
-//!     // only "left" task will be executed since branch_task returns Branch::Left
-//!     let _ = branch(branch_task, (), left, right, &TaskOptions::default());
-//! }
-//! ```
 
 mod options;
 
@@ -165,11 +31,11 @@ pub mod prelude {
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, parse_cli,
         set_catchup, set_end_date, set_schedule, set_start_date,
     };
+    pub use serde::{Deserialize, Serialize};
+    pub use serde_json::{json, Value};
     pub use thepipelinetool_proc_macro::dag;
     pub use thepipelinetool_runner::in_memory::InMemoryRunner;
     pub use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
-    pub use serde::{Deserialize, Serialize};
-    pub use serde_json::{json, Value};
     pub use thepipelinetool_task::branch::Branch;
     pub use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
     pub use thepipelinetool_task::queued_task::QueuedTask;
@@ -213,11 +79,11 @@ use std::{
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command as CliCommand};
-use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
+use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use thepipelinetool_utils::{execute_function, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
@@ -1110,17 +976,20 @@ pub fn parse_cli() {
         .subcommand(CliCommand::new("tree").about("Displays tree"))
         .subcommand(
             CliCommand::new("run")
+                .about("Run complete DAG or function by name")
                 .arg_required_else_help(true)
                 .subcommand(
-                    CliCommand::new("in_memory").about("Runs dag locally").arg(
-                        arg!(
-                            [mode] "Mode for running locally"
-                        )
-                        .required(false)
-                        .value_parser(value_parser!(String))
-                        .default_values(["max", "--blocking"])
-                        .default_missing_value("max"),
-                    ),
+                    CliCommand::new("in_memory")
+                        .about("Runs this DAG in memory")
+                        .arg(
+                            arg!(
+                                [num_threads] "Max number of threads for parallel execution"
+                            )
+                            .required(false)
+                            .value_parser(value_parser!(String))
+                            .default_value("max")
+                            .default_missing_value("max"),
+                        ),
                 )
                 .subcommand(
                     CliCommand::new("function")
@@ -1288,7 +1157,7 @@ pub fn parse_cli() {
                     ));
                 }
                 println!("{}", output);
-                println!("{:?}", task_ids_in_order);
+                // println!("{:?}", task_ids_in_order);
             }
             "run" => {
                 let matches = matches.subcommand_matches("run").unwrap();
@@ -1319,24 +1188,25 @@ pub fn parse_cli() {
                                 }
                             }
 
-                            let sub_matches = matches.subcommand_matches("in_memory").unwrap();
-                            let mode = sub_matches.get_one::<String>("mode").unwrap();
-
-                            let max_threads = max(
-                                usize::from(std::thread::available_parallelism().unwrap()) - 1,
-                                1,
-                            );
-                            let thread_count = match mode.as_str() {
-                                "--blocking" => 1,
-                                "max" => max_threads,
-                                _ => mode.parse::<usize>().unwrap(),
+                            let num_threads = match matches
+                                .subcommand_matches("in_memory")
+                                .unwrap()
+                                .get_one::<String>("num_threads")
+                                .unwrap()
+                                .as_str()
+                            {
+                                "max" => max(
+                                    usize::from(std::thread::available_parallelism().unwrap()) - 1,
+                                    1,
+                                ),
+                                any => any.parse::<usize>().unwrap(),
                             };
 
                             let (tx, rx) = channel();
 
-                            let mut count = 0;
+                            let mut thread_count = 0;
 
-                            for _ in 0..thread_count {
+                            for _ in 0..num_threads {
                                 let mut runner = runner.clone();
                                 let tx = tx.clone();
 
@@ -1352,8 +1222,8 @@ pub fn parse_cli() {
                                         tx.send(()).unwrap();
                                     });
 
-                                    count += 1;
-                                    if count >= thread_count {
+                                    thread_count += 1;
+                                    if thread_count >= num_threads {
                                         break;
                                     }
                                 } else {
@@ -1362,7 +1232,7 @@ pub fn parse_cli() {
                             }
 
                             for _ in rx.iter() {
-                                count -= 1;
+                                thread_count -= 1;
 
                                 let mut runner = runner.clone();
                                 if let Some(queued_task) = runner.pop_priority_queue() {
@@ -1379,13 +1249,13 @@ pub fn parse_cli() {
                                         tx.send(()).unwrap();
                                     });
 
-                                    count += 1;
+                                    thread_count += 1;
 
-                                    if count >= thread_count {
+                                    if thread_count >= num_threads {
                                         continue;
                                     }
                                 }
-                                if count == 0 {
+                                if thread_count == 0 {
                                     drop(tx);
                                     break;
                                 }
