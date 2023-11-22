@@ -252,6 +252,40 @@ where
     }
 }
 
+impl<T, G> Shr<&TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn shr(self, rhs: &TaskRef<G>) -> Self::Output {
+        seq(self, rhs)
+    }
+}
+
+impl<T, G> Shr<TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn shr(self, rhs: TaskRef<G>) -> Self::Output {
+        seq(self, &rhs)
+    }
+}
+
+
+impl<T, G> Shr<&TaskRef<G>> for TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn shr(self, rhs: &TaskRef<G>) -> Self::Output {
+        seq(&self, &rhs)
+    }
+}
+
 impl<T, G> Shl<TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
@@ -263,6 +297,40 @@ where
     }
 }
 
+impl<T, G> Shl<&TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<T>;
+    fn shl(self, rhs: &TaskRef<G>) -> Self::Output {
+        seq(rhs, self)
+    }
+}
+
+impl<T, G> Shl<TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<T>;
+    fn shl(self, rhs: TaskRef<G>) -> Self::Output {
+        seq(&rhs, self)
+    }
+}
+
+
+impl<T, G> Shl<&TaskRef<G>> for TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<T>;
+    fn shl(self, rhs: &TaskRef<G>) -> Self::Output {
+        seq(&rhs, &self)
+    }
+}
+
 impl<T, G> BitOr<TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
@@ -270,6 +338,39 @@ where
 {
     type Output = TaskRef<G>;
     fn bitor(self, rhs: TaskRef<G>) -> Self::Output {
+        par(&self, &rhs)
+    }
+}
+
+impl<T, G> BitOr<&TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn bitor(self, rhs: &TaskRef<G>) -> Self::Output {
+        par(self, rhs)
+    }
+}
+
+impl<T, G> BitOr<TaskRef<G>> for &TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn bitor(self, rhs: TaskRef<G>) -> Self::Output {
+        par(self, &rhs)
+    }
+}
+
+impl<T, G> BitOr<&TaskRef<G>> for TaskRef<T>
+where
+    T: Serialize,
+    G: Serialize,
+{
+    type Output = TaskRef<G>;
+    fn bitor(self, rhs: &TaskRef<G>) -> Self::Output {
         par(&self, &rhs)
     }
 }
