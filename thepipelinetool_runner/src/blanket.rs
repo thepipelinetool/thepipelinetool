@@ -11,13 +11,14 @@ use thepipelinetool_task::{
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
     task_result::TaskResult,
     task_status::TaskStatus,
-    Task
+    Task,
 };
 use thepipelinetool_utils::{collector, function_name_as_string};
 
 use crate::Runner;
 
 pub trait BlanketRunner {
+    fn get_mermaid_graph(&self, dag_run_id: usize) -> String;
     fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
@@ -59,6 +60,34 @@ pub trait BlanketRunner {
 }
 
 impl<U: Runner + Send + Sync> BlanketRunner for U {
+    fn get_mermaid_graph(&self, dag_run_id: usize) -> String {
+        let task_statuses: Vec<(String, TaskStatus)> = self
+            .get_all_tasks(dag_run_id)
+            .iter()
+            .map(|t| {
+                (
+                    t.function_name.clone(),
+                    self.get_task_status(dag_run_id, t.id),
+                )
+            })
+            .collect();
+
+        let mut out = "".to_string();
+        out += "flowchart TD\n";
+
+        for (task_id, (function_name, task_status)) in task_statuses.iter().enumerate() {
+            let styling = get_styling_for_status(task_status);
+            out += &format!("  id{task_id}({function_name}_{task_id})\n");
+            out += &format!("  style id{task_id} {styling}\n");
+
+            for edge_id in self.get_upstream(dag_run_id, task_id) {
+                out += &format!("  id{edge_id}-->id{task_id}\n");
+            }
+        }
+
+        out
+    }
+
     fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool {
         match self.get_task_status(run_id, task_id) {
             TaskStatus::Pending | TaskStatus::Running | TaskStatus::Retrying => false,
@@ -652,5 +681,16 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         }
 
         output
+    }
+}
+
+fn get_styling_for_status(task_status: &TaskStatus) -> String {
+    match task_status {
+        TaskStatus::Pending => "color:black,stroke:grey,fill:white,stroke-width:4px".into(),
+        TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
+        TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
+        TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
+        TaskStatus::Retrying => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
+        TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
     }
 }

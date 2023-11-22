@@ -131,7 +131,7 @@ impl Runner for InMemoryRunner {
         *self.attempts.lock().get(&task_id).unwrap() + 1
     }
 
-    fn get_task_status(&mut self, _run_id: usize, task_id: usize) -> TaskStatus {
+    fn get_task_status(&self, _run_id: usize, task_id: usize) -> TaskStatus {
         match self.task_statuses.lock().get(&task_id) {
             Some(task_status) => task_status.clone(),
             None => TaskStatus::Pending,

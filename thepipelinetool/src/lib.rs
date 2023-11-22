@@ -140,7 +140,6 @@ where
     }
 }
 
-
 impl<T, G> Shr<&TaskRef<G>> for TaskRef<T>
 where
     T: Serialize,
@@ -184,7 +183,6 @@ where
         seq(&rhs, self)
     }
 }
-
 
 impl<T, G> Shl<&TaskRef<G>> for TaskRef<T>
 where
@@ -972,7 +970,20 @@ pub fn parse_cli() {
         .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
         .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
         .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
-        .subcommand(CliCommand::new("graph").about("Displays graph"))
+        .subcommand(
+            CliCommand::new("graph")
+                .about("Displays graph")
+                .arg_required_else_help(true)
+                .arg(
+                    arg!(
+                        [graph_type] "Type of graph to output"
+                    )
+                    .required(true)
+                    .value_parser(value_parser!(String))
+                    .default_values(&["mermaid", "graphite"])
+                    .default_missing_value("mermaid"),
+                ),
+        )
         .subcommand(CliCommand::new("tree").about("Displays tree"))
         .subcommand(
             CliCommand::new("run")
@@ -1107,14 +1118,28 @@ pub fn parse_cli() {
                 println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
             }
             "graph" => {
-                let tasks = get_tasks().read().unwrap();
-                let edges = get_edges().read().unwrap();
+                let matches = matches.subcommand_matches("graph").unwrap();
+                if let Some(subcommand) = matches.get_one::<String>("graph_type") {
+                    let tasks = get_tasks().read().unwrap();
+                    let edges = get_edges().read().unwrap();
 
-                let mut runner = InMemoryRunner::new(&tasks, &edges);
-                runner.enqueue_run("in_memory", "", Utc::now());
+                    let mut runner = InMemoryRunner::new(&tasks, &edges);
+                    runner.enqueue_run("in_memory", "", Utc::now());
 
-                let graph = runner.get_graphite_graph(0);
-                print!("{}", serde_json::to_string_pretty(&graph).unwrap());
+                    match subcommand.as_str() {
+                        "mermaid" => {
+                            let graph = runner.get_mermaid_graph(0);
+                            print!("{graph}");
+                        }
+                        "graphite" => {
+                            let graph = runner.get_graphite_graph(0);
+                            print!("{}", serde_json::to_string_pretty(&graph).unwrap());
+                        }
+                        o => {
+                            panic!("undefined graph type: {o}");
+                        }
+                    }
+                }
             }
             "hash" => {
                 let tasks = get_tasks().read().unwrap();
