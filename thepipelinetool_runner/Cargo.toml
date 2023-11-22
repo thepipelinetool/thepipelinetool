@@ -1,13 +1,13 @@
 [package]
-name = "runner"
+name = "thepipelinetool_runner"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-task = { path = "../task" }
+thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.0" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.0" }
 serde_json = "1.0"
 chrono = "0.4.31"
-utils = { path = "../utils" }
 parking_lot = "0.12.1"

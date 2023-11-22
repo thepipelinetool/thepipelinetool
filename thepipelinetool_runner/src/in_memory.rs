@@ -6,7 +6,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
-use task::{
+use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
     task_result::TaskResult, task_status::TaskStatus, Task,
 };

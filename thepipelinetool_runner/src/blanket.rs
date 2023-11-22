@@ -5,7 +5,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
-use task::{
+use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask,
     queued_task::QueuedTask,
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
@@ -13,7 +13,7 @@ use task::{
     task_status::TaskStatus,
     Task
 };
-use utils::{collector, function_name_as_string};
+use thepipelinetool_utils::{collector, function_name_as_string};
 
 use crate::Runner;
 

@@ -2,10 +2,10 @@
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 members = [
-    "core",
-    "runner",
-    "utils",
-    "task",
-    "proc_macro",
+    "thepipelinetool",
+    "thepipelinetool_runner",
+    "thepipelinetool_utils",
+    "thepipelinetool_task",
+    "thepipelinetool_proc_macro",
 ]
 resolver = "2"

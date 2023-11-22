@@ -165,19 +165,19 @@ pub mod prelude {
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, parse_cli,
         set_catchup, set_end_date, set_schedule, set_start_date,
     };
-    pub use proc_macro::dag;
-    pub use runner::in_memory::InMemoryRunner;
-    pub use runner::{blanket::BlanketRunner, Runner};
+    pub use thepipelinetool_proc_macro::dag;
+    pub use thepipelinetool_runner::in_memory::InMemoryRunner;
+    pub use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
-    pub use task::branch::Branch;
-    pub use task::ordered_queued_task::OrderedQueuedTask;
-    pub use task::queued_task::QueuedTask;
-    pub use task::task_options::TaskOptions;
-    pub use task::task_result::TaskResult;
-    pub use task::task_status::TaskStatus;
-    pub use task::Task;
-    pub use utils::execute_function;
+    pub use thepipelinetool_task::branch::Branch;
+    pub use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
+    pub use thepipelinetool_task::queued_task::QueuedTask;
+    pub use thepipelinetool_task::task_options::TaskOptions;
+    pub use thepipelinetool_task::task_result::TaskResult;
+    pub use thepipelinetool_task::task_status::TaskStatus;
+    pub use thepipelinetool_task::Task;
+    pub use thepipelinetool_utils::execute_function;
 }
 
 use chrono::{DateTime, FixedOffset};
@@ -192,10 +192,10 @@ use std::{
     ops::{BitOr, Shr},
     process::Command,
 };
-use task::branch::Branch;
-use task::Task;
-use task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
-use utils::{collector, function_name_as_string};
+use thepipelinetool_task::branch::Branch;
+use thepipelinetool_task::Task;
+use thepipelinetool_task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
+use thepipelinetool_utils::{collector, function_name_as_string};
 
 type StaticTasks = RwLock<Vec<Task>>;
 type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
@@ -213,12 +213,12 @@ use std::{
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command as CliCommand};
-use runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
+use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use saffron::{
     parse::{CronExpr, English},
     Cron,
 };
-use utils::{execute_function, to_base62};
+use thepipelinetool_utils::{execute_function, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
 static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();

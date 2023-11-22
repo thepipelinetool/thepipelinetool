@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use utils::{value_from_file, value_to_file};
+use thepipelinetool_utils::{value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
