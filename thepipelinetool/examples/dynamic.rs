@@ -1,20 +1,23 @@
 use thepipelinetool::prelude::*;
 
-fn hi(args: u8) -> u8 {
-    println!("{}", args);
-    args
+fn produce_lazy(_: ()) -> Vec<u8> {
+    vec![0, 1]
 }
 
-fn hi2(args: Value) -> [u8; 2] {
-    println!("{}", args);
-
-    [0, 1]
+fn say_hello(arg: u8) -> u8 {
+    println!("hello {arg}");
+    arg
 }
 
 #[dag]
 fn main() {
-    let a = add_task(hi2, json!({}), &TaskOptions::default());
-    let b = expand_lazy(hi, &a, &TaskOptions::default());
+    let opts = &TaskOptions::default();
 
-    expand_lazy(hi, &b, &TaskOptions::default());
+    let produce_lazy_task_ref = add_task(produce_lazy, (), opts);
+
+    // creates a new task for each item in 'produce_lazy' result
+    let expanded_lazy_task_ref = expand_lazy(say_hello, &produce_lazy_task_ref, opts);
+
+    // you can also chain lazily expanded tasks
+    let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, opts);
 }

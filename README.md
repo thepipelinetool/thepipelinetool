@@ -3,7 +3,7 @@
 `thepipelinetool` is an *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow.
 It organizes Rust functions into a Directed Acyclic Graph (DAG) structure, ensuring orderly execution according to their dependencies.
 The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally.
-Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, and live task monitoring with a modern UI.
+Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, retries, and live task monitoring with a modern UI.
 
 ## Features
 - *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs.
@@ -48,11 +48,13 @@ fn print_data(arg: String) -> () {
 
 #[dag]
 fn main() {
+    let opts = &TaskOptions::default();
+
     // add a task that uses the function 'produce_data'
-    let task_ref = add_task(produce_data, (), &TaskOptions::default());
+    let task_ref = add_task(produce_data, (), opts);
 
     // add a task that depends on 'task_ref'
-    let _ = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
+    let _ = add_task_with_ref(print_data, &task_ref, opts);
 }
 ```
 
@@ -76,35 +78,35 @@ fn print_data(arg: String) -> () {
 
 #[dag]
 fn main() {
-    let options = TaskOptions::default();
-    let task_ref = add_task(produce_data, (), &options);
+    let opts = &TaskOptions::default();
+    let task_ref = add_task(produce_data, (), opts);
 
     // these tasks will execute in parallel
-    let _task_ref1 = add_task_with_ref(print_data, &task_ref, &options);
-    let _task_ref2 = add_task_with_ref(print_data, &task_ref, &options);
+    let _task_ref1 = add_task_with_ref(print_data, &task_ref, opts);
+    let _task_ref2 = add_task_with_ref(print_data, &task_ref, opts);
 
     // declare downstream dependencies using right-shift operator '>>'
-    let task_ref3 = add_task_with_ref(print_data, &task_ref, &options);
-    let task_ref4 = add_task_with_ref(print_data, &task_ref, &options);
+    let task_ref3 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref4 = add_task_with_ref(print_data, &task_ref, opts);
     let _ = task_ref4 >> task_ref3; // run task4 before task3
 
     // declare upstream dependencies using left-shift operator '<<'
-    let task_ref5 = add_task_with_ref(print_data, &task_ref, &options);
-    let task_ref6 = add_task_with_ref(print_data, &task_ref, &options);
+    let task_ref5 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref6 = add_task_with_ref(print_data, &task_ref, opts);
     let _ = &task_ref5 << task_ref6; // run task6 before task5
 
     // declare parallel tasks using bitwise-or operator '|'
-    let task_ref7 = add_task_with_ref(print_data, &task_ref, &options);
-    let task_ref8 = add_task_with_ref(print_data, &task_ref, &options);
+    let task_ref7 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref8 = add_task_with_ref(print_data, &task_ref, opts);
     let parallel_task_ref = task_ref7 | task_ref8; // run task7 and task8 in parallel
 
     // use previous results for further dependency declaration
     let _ = parallel_task_ref >> task_ref5;
 
     // chaining
-    let task_ref8 = add_task_with_ref(print_data, &task_ref, &options);
-    let task_ref9 = add_task_with_ref(print_data, &task_ref, &options);
-    let task_ref10 = add_task_with_ref(print_data, &task_ref, &options);
+    let task_ref8 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref9 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref10 = add_task_with_ref(print_data, &task_ref, opts);
     
     let _ = task_ref8 >> task_ref9 >> task_ref10;
     // the result of taskA >> taskB is taskB, so the above is equivalent to:
@@ -127,13 +129,15 @@ fn say_hello(arg: u8) -> u8 {
 
 #[dag]
 fn main() {
-    let produce_lazy_task_ref = add_task(produce_lazy, (), &TaskOptions::default());
+    let opts = &TaskOptions::default();
 
-    // creates a new task for each item in "produce_lazy" result
-    let expanded_lazy_task_ref = expand_lazy(say_hello, &produce_lazy_task_ref, &TaskOptions::default());
+    let produce_lazy_task_ref = add_task(produce_lazy, (), opts);
+
+    // creates a new task for each item in 'produce_lazy' result
+    let expanded_lazy_task_ref = expand_lazy(say_hello, &produce_lazy_task_ref, opts);
 
     // you can also chain lazily expanded tasks
-    let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, &TaskOptions::default());
+    let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, opts);
 }
 ```
 
