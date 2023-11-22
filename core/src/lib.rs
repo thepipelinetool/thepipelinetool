@@ -1,27 +1,169 @@
+//! # thepipelinetool
+//!
+//! `thepipelinetool` is an *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow.
+//! It organizes Rust functions into a Directed Acyclic Graph (DAG) structure, ensuring orderly execution according to their dependencies.
+//! The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally.
+//! Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, and live task monitoring with a modern UI.
+//!
+//! ### Features
+//! - *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs.
+//! - *Scalable* - Designed to handle large-scale data processing tasks with ease.
+//! - *Extensible* - Supports custom tasks and integrations, allowing for flexible workflow design.
+//!
+//! ### Deployment (WIP)
+//! - Coming soon.
+//!
+//! ### Simple DAG
+//! ```rust
+//! // simple.rs
+//! use thepipelinetool::prelude::*;
+//!
+//! // function argument type must derive Serialize & Deserialize
+//! #[derive(Deserialize, Serialize)]
+//! struct MyConfig {
+//!     data: String,
+//! }
+//!
+//! fn produce_data(config: MyConfig) -> String {
+//!     config.data
+//! }
+//!
+//! fn print_data(arg: String) -> () {
+//!     println!("hello {arg}");
+//! }
+//!
+//! #[dag]
+//! fn main() {
+//!     // define your tasks and dependencies within the main() function
+//! 
+//!     // add a task that uses the function 'produce_data'
+//!     let task_ref = add_task(produce_data, MyConfig{ data: "world".into() }, &TaskOptions::default());
+//!
+//!     // add a task that will wait to use the result from produce_data
+//!     let _ = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
+//! }
+//! ```
+//!
+//! Run using the following command
+//! ```bash
+//! cargo run --bin simple run in_memory
+//! ```
+//!
+//! Or use "help" to see all commands
+//! ```bash
+//! cargo run --bin simple --help
+//! ```
+//!
+//! ### Manually Defining Depencencies
+//! ```rust
+//! // chain.rs
+//! use thepipelinetool::prelude::*;
+//!
+//! fn produce_data(_: ()) -> String {
+//!     "world".to_string()
+//! }
+//! 
+//! fn print_data(arg: String) -> () {
+//!     println!("hello {arg}");
+//! }
+//!
+//! #[dag]
+//! fn main() {
+//!     let task_ref = add_task(produce_data, (), &TaskOptions::default());
+//!     
+//!     let print_task1 = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
+//!     let print_task2 = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
+//!     // without further code, both tasks will run at the same time
+//!
+//!     // Sequential:
+//!     // UPSTREAM_TASK >> DOWNSTREAM_TASK
+//!     // or DOWNSTREAM_TASK << UPSTREAM_TASK
+//!     let _ = print_task1 >> print_task2; // print_task2 will now wait for print_task1 completion
+//!
+//!     // Multiple Sequential:
+//!     // task1 >> task2 >> task3;
+//!     // task1 >> (task2 << task3) >> task4;
+//!
+//!     // Parallel:
+//!     // task1 >> (task2 | task3 | task4) >> task5;
+//! }
+//! ```
+//!
+//! ### Dynamic Tasks
+//! ```rust
+//! // dynamic.rs
+//! 
+//! use thepipelinetool::prelude::*;
+//!
+//! fn produce_lazy(_: ()) -> Vec<u8> {
+//!     vec![0, 1]
+//! }
+//! 
+//! fn say_hello(arg: u8) -> u8 {
+//!     println!("hello {arg}");
+//!     arg
+//! }
+//!
+//! #[dag]
+//! fn main() {
+//!     let produce_lazy_task_ref = add_task(produce_lazy, (), &TaskOptions::default());
+//!
+//!     // creates a new task for each item in "produce_lazy" result
+//!     let expanded_lazy_task_ref = expand_lazy(say_hello, &produce_lazy_task_ref, &TaskOptions::default());
+//!
+//!     // you can also chain lazily expanded tasks
+//!     let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, &TaskOptions::default());
+//! }
+//! ```
+//!
+//! ### Branching Tasks
+//! ```rust
+//! // branch.rs
+//! use thepipelinetool::prelude::*;
+//! 
+//! fn branch_task(_: ()) -> Branch<usize> {
+//!     Branch::Left(0)
+//! }
+//!
+//! fn left(arg: usize) -> () {
+//!     println!("left {arg}");
+//! }
+//!
+//! fn right(_: usize) -> () {
+//!     println!("this won't execute");
+//! }
+//!
+//! #[dag]
+//! fn main() {
+//!     // only "left" task will be executed since branch_task returns Branch::Left
+//!     let _ = branch(branch_task, (), left, right, &TaskOptions::default());
+//! }
+//! ```
+
 mod options;
 
-mod module {
-    #[macro_export]
-    macro_rules! add_task {
-        ($mand_1:expr) => {
-            add_task!($mand_1, Value::Null)
-        };
-        ($mand_1:expr, $mand_2:expr) => {
-            add_task!($mand_1, $mand_2, &TaskOptions::default())
-        };
-        ($mand_1:expr, $mand_2:expr, $mand_3:expr) => {
-            add_task($mand_1, $mand_2, $mand_3)
-        };
-    }
-    pub use add_task;
-}
+// mod module {
+//     #[macro_export]
+//     macro_rules! add_task {
+//         ($mand_1:expr) => {
+//             add_task!($mand_1, Value::Null)
+//         };
+//         ($mand_1:expr, $mand_2:expr) => {
+//             add_task!($mand_1, $mand_2, &TaskOptions::default())
+//         };
+//         ($mand_1:expr, $mand_2:expr, $mand_3:expr) => {
+//             add_task($mand_1, $mand_2, $mand_3)
+//         };
+//     }
+//     pub use add_task;
+// }
 
 pub mod prelude {
-    pub use crate::module::*;
+    // pub use crate::module::*;
     pub use crate::options::DagOptions;
     pub use crate::{
-        add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, set_catchup,
-        set_end_date, set_schedule, set_start_date, parse_cli
+        add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, parse_cli,
+        set_catchup, set_end_date, set_schedule, set_start_date,
     };
     pub use proc_macro::dag;
     pub use runner::in_memory::InMemoryRunner;
@@ -83,19 +225,19 @@ static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
 static EDGES: OnceLock<StaticEdges> = OnceLock::new();
 static OPTIONS: OnceLock<StaticOptions> = OnceLock::new();
 
-pub fn get_tasks() -> &'static StaticTasks {
+fn get_tasks() -> &'static StaticTasks {
     TASKS.get_or_init(StaticTasks::default)
 }
 
-pub fn get_functions() -> &'static StaticFunctions {
+fn get_functions() -> &'static StaticFunctions {
     FUNCTIONS.get_or_init(StaticFunctions::default)
 }
 
-pub fn get_edges() -> &'static StaticEdges {
+fn get_edges() -> &'static StaticEdges {
     EDGES.get_or_init(StaticEdges::default)
 }
 
-pub fn get_options() -> &'static StaticOptions {
+fn get_options() -> &'static StaticOptions {
     OPTIONS.get_or_init(StaticOptions::default)
 }
 
@@ -164,6 +306,48 @@ impl<T: Serialize> TaskRef<T> {
 }
 pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
 
+/// Expands a template using a provided function and template arguments.
+///
+/// This function takes a generic closure `function`, an array of template arguments
+/// `template_args_vec`, and a reference to `TaskOptions`. It expands the template
+/// for each template argument using the provided closure and returns an array of
+/// `TaskRef<TaskRefInner<G>>` containing the expanded tasks.
+///
+/// # Type Parameters
+///
+/// - `F`: The type of the closure function.
+/// - `T`: The type of the template arguments. Must be serializable and deserializable.
+/// - `G`: The type of the output of the closure function. Must be serializable.
+///
+/// # Arguments
+///
+/// * `function` - A closure that takes a value of type `T` and returns a value of type `G`.
+/// * `template_args_vec` - Arguments to the closure, which must implement `Serialize` and `DeserializeOwned`.
+/// * `options` - A reference to the `TaskOptions` struct, containing configuration options for the task.
+///
+/// # Returns
+///
+/// An array of `TaskRef<TaskRefInner<G>>` with a length of `N`, where each element
+/// represents an expanded task.
+///
+/// # Examples
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// // Define a function to be used for expansion.
+/// fn square(x: i32) -> i32 {
+///     x * x
+/// }
+///
+/// fn main() {
+///     // Define an array of template arguments.
+///     let template_args: [i32; 3] = [1, 2, 3];
+///
+///     // Expand the template using the `square` function and template arguments.
+///     let expanded_tasks = expand(square, &template_args, &TaskOptions::default());
+/// }
+/// ```
 pub fn expand<F, T, G, const N: usize>(
     function: F,
     template_args_vec: &[T; N],
@@ -192,8 +376,6 @@ where
     }
     let mut i = 0;
 
-    // let mut tasks = ;
-
     [(); N].map(|_| {
         let id = get_tasks().read().unwrap().len();
         {
@@ -220,6 +402,51 @@ where
     })
 }
 
+/// Adds a new task to the task management system with a reference to an existing task.
+///
+/// This function takes a generic closure `function`, a reference to an existing task `task_ref`,
+/// and task options. It registers the new task in the system and returns a reference to the
+/// newly added task.
+///
+/// # Type Parameters
+///
+/// - `F`: The type of the closure function.
+/// - `T`: The type of the input task referenced by `task_ref`. Must be serializable and deserializable.
+/// - `G`: The type of the output of the closure function. Must be serializable.
+///
+/// # Arguments
+///
+/// * `function` - A closure that takes a value of type `T` and returns a value of type `G`.
+/// * `task_ref` - A reference to an existing task that provides the template arguments.
+/// * `options` - A reference to the `TaskOptions` struct, containing configuration options for the task.
+///
+/// # Returns
+///
+/// Returns `TaskRef<G>`, a reference to the created task.
+///
+/// # Example
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// // Define a function to be used for expansion.
+/// fn double(x: i32) -> i32 {
+///     x * 2
+/// }
+///
+/// #[dag]
+/// fn main() {
+///     // Create an initial task with template arguments.
+///     let initial_task_args = 5;
+///     let initial_task = add_task(double, initial_task_args, &TaskOptions::default());
+///
+///     // Define an array of template arguments for the new task.
+///     let new_task_args = 10;
+///
+///     // Add a new task based on the `double` function and reference the initial task.
+///     let new_task_ref = add_task_with_ref(double, &initial_task, &TaskOptions::default());
+/// }
+/// ```
 pub fn add_task_with_ref<F, T, G>(
     function: F,
     task_ref: &TaskRef<T>,
@@ -303,7 +530,6 @@ where
 ///         &TaskOptions::default() // options
 ///     );
 /// }
-/// // Use `task_ref` here
 /// ```
 pub fn add_task<F, T, G>(function: F, template_args: T, options: &TaskOptions) -> TaskRef<G>
 where
@@ -393,10 +619,6 @@ where
 ///     );
 /// }
 /// ```
-///
-/// # Panics
-///
-/// This function panics if serialization or deserialization of the template arguments or the branch outcomes fails.
 pub fn branch<F, K, T, L, J, R, M>(
     function: F,
     template_args: K,
@@ -548,6 +770,41 @@ where
     })
 }
 
+/// Adds a command task to the task management system.
+///
+/// This function takes a JSON `args` value representing an array of command arguments
+/// and a reference to `TaskOptions`. It registers the command task in the system and
+/// returns a reference to the newly added task.
+///
+/// # Arguments
+///
+/// * `args` - A JSON `Value` representing an array of command arguments. The array
+///   should contain the command and its arguments as strings.
+/// * `options` - A reference to the `TaskOptions` struct, containing configuration
+///   options for the task.
+///
+/// # Returns
+///
+/// Returns `TaskRef<Value>`, a reference to the created command task.
+///
+/// # Examples
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// fn main() {
+///     // Define command arguments as a JSON array.
+///     let command_args: Value = json!(["ls", "-l"]);
+//////
+///     // Add a command task using the `add_command` function.
+///     let command_task = add_command(command_args, &TaskOptions::default());
+/// }
+/// ```
+pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
+    assert!(args.is_array());
+    add_task(run_command, args, options)
+}
+
 fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut last: usize = 0;
     let mut edges = get_edges().write().unwrap();
@@ -578,11 +835,6 @@ fn par<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G>
     })
 }
 
-pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
-    assert!(args.is_array());
-    add_task(run_command, args, options)
-}
-
 fn run_command(args: Value) -> Value {
     let mut args: Vec<&str> = args
         .as_array()
@@ -606,22 +858,145 @@ fn run_command(args: Value) -> Value {
     json!(result_raw.to_string().trim_end())
 }
 
+/// Sets the schedule for task execution in the task management system.
+///
+/// This function takes a `schedule` string and updates the schedule option in the
+/// system's task options. The schedule determines when tasks are executed based
+/// on a defined pattern.
+///
+/// # Arguments
+///
+/// * `schedule` - A string representing the schedule pattern.
+///
+/// # Example
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     // Set a new schedule pattern.
+///     set_schedule("0 0 * * *");
+///
+///     // ...
+/// }
+/// ```
 pub fn set_schedule(schedule: &str) {
     get_options().write().unwrap().schedule = Some(schedule.to_string());
 }
 
+/// Sets the start date for task execution in the task management system.
+///
+/// This function takes a `start_date` of type `DateTime<FixedOffset>` and updates
+/// the start date option in the system's task options. The start date specifies when
+/// task execution should begin.
+///
+/// # Arguments
+///
+/// * `start_date` - A `DateTime<FixedOffset>` representing the desired start date.
+///
+/// # Example
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     // Set a new schedule pattern.
+///     set_start_date(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap());
+///
+///     // ...
+/// }
+/// ```
 pub fn set_start_date(start_date: DateTime<FixedOffset>) {
     get_options().write().unwrap().start_date = Some(start_date);
 }
 
+/// Sets the end date for task execution in the task management system.
+///
+/// This function takes an `end_date` of type `DateTime<FixedOffset>` and updates
+/// the end date option in the system's task options. The end date specifies when
+/// task execution should stop.
+///
+/// # Arguments
+///
+/// * `end_date` - A `DateTime<FixedOffset>` representing the desired end date.
+///
+/// # Example
+///
+/// ```rust
+/// use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     set_end_date(DateTime::parse_from_rfc3339("1997-06-19T16:39:57-08:00").unwrap());
+///
+///     // ...
+/// }
+/// ```
 pub fn set_end_date(end_date: DateTime<FixedOffset>) {
     get_options().write().unwrap().end_date = Some(end_date);
 }
 
+/// Sets the catchup option for task execution in the task management system.
+///
+/// This function takes a `catchup` boolean value and updates the catchup option
+/// in the system's task options. When catchup is enabled, the system will attempt
+/// to execute tasks that were missed during periods of inactivity.
+///
+/// # Arguments
+///
+/// * `catchup` - A boolean value indicating whether catchup should be enabled (`true`)
+///   or disabled (`false`).
+///
+/// # Example
+///
+/// ```rust
+///  use thepipelinetool::prelude::*;
+///
+/// #[dag]
+/// fn main() {
+///     set_catchup(true);
+///
+///     // ...
+/// }
+/// ```
 pub fn set_catchup(catchup: bool) {
     get_options().write().unwrap().catchup = catchup;
 }
 
+/// Parses command-line arguments and executes various tasks in the DAG CLI tool.
+///
+/// This function parses command-line arguments using the `command!` macro and executes
+/// corresponding tasks based on the subcommands and options provided. It interacts with
+/// the task management system to perform operations like displaying task information, running
+/// tasks, and more.
+///
+/// The `parse_cli` function is typically called in the `main` function of your Rust application.
+/// If you are using the #[dag] macro, it will automatically add a `parse_cli()` function call
+/// to the end of the `main` function, simplifying the setup.
+///
+/// # Examples
+///
+///
+/// ```rust
+/// #[dag]
+/// fn main() {
+///     // your code here
+///
+///     // The #[dag] macro adds a parse_cli() function call to the end of the main function
+/// }
+/// ```
+/// is equivalent to
+/// ```rust
+/// fn main() {
+///     // your code here
+///     parse_cli();
+/// }
+/// ```
+///
+/// The behavior of the CLI tool depends on the subcommands and options passed on the command
+/// line. Use the "--help" command to see the CLI details.
 pub fn parse_cli() {
     let command = command!()
         .about("DAG CLI Tool")

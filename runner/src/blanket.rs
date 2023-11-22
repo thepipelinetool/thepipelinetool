@@ -11,7 +11,7 @@ use task::{
     task_ref_inner::{TaskRefInner, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY},
     task_result::TaskResult,
     task_status::TaskStatus,
-    Task, branch::Branch,
+    Task
 };
 use utils::{collector, function_name_as_string};
 
