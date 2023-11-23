@@ -6,10 +6,11 @@ on:
       - '**'
     paths:
       - .github/workflows/examples.yml
-      - runner/**
-      - task/**
       - thepipelinetool/**
-      - utils/**
+      - thepipelinetool_proc_macro/**
+      - thepipelinetool_runner/**
+      - thepipelinetool_task/**
+      - thepipelinetool_utils/**
       - Cargo.toml
 jobs:
   examples:
