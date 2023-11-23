@@ -1,10 +1,10 @@
 # thepipelinetool
 
 `thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
-The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to `thepipelinetool_server` (WIP) to enjoy scheduling, catchup, retries, and live task monitoring with a modern UI.
+The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to `thepipelinetool_server` (WIP) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
 ## Features
-- *Easy Usage* - Simply write normal rust code and let `thepipelinetool` handle execution order, concurrent execution, and retries
+- *Easy Usage* - Simply write normal rust code and let `thepipelinetool` handle execution order, concurrent execution, timeouts, and retries
 - *Special Tasks* - Create multiple [Dynamic](#dynamic-tasks) tasks from upstream results or a control flow using [Branching](#branching-tasks) tasks
 - *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs
 
@@ -19,7 +19,12 @@ The DAG is compiled into a CLI executable, which can then be used to list tasks/
   - [Deployment (WIP)](#deployment-wip)
 
 ## Installation
-Create your project and add `thepipelinetool` dependency
+Get started by cloning the [template](https://github.com/thepipelinetool/thepipelinetool_template) project
+```bash
+git clone https://github.com/thepipelinetool/thepipelinetool_template
+```
+
+Or create a new project and add `thepipelinetool` dependency
 ```bash
 mkdir your_dag_name
 cd your_dag_name
@@ -81,11 +86,20 @@ fn main() {
     // add a task that uses the function 'produce_data'
     let task_ref = add_task(produce_data, (), opts);
 
-    // add a task that depends on 'task_ref'
+    // add a task that depends on 'produce_data'
     let _ = add_task_with_ref(print_data, &task_ref, opts);
 }
 ```
 
+```mermaid
+flowchart TD
+  id0(produce_data_0)
+  style id0 color:black,stroke:grey,fill:white,stroke-width:4px
+  id1(print_data_1)
+  style id1 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id1
+```
+----
 ### Manually Defining Depencencies
 ```rust
 use thepipelinetool::prelude::*;
@@ -135,7 +149,7 @@ fn main() {
     // ((task_ref8 >> task_ref9) >> task_ref10)
 }
 ```
-
+----
 ### Dynamic Tasks
 ```rust
 use thepipelinetool::prelude::*;
@@ -162,7 +176,7 @@ fn main() {
     let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, opts);
 }
 ```
-
+----
 ### Branching Tasks
 ```rust
 use thepipelinetool::prelude::*;
@@ -185,5 +199,6 @@ fn main() {
     let _ = branch(branch_task, (), left, right, &TaskOptions::default());
 }
 ```
+----
 ## Deployment (WIP)
 - Coming soon.
