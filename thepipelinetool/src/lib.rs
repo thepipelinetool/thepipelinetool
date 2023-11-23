@@ -1,10 +1,7 @@
 //! # thepipelinetool
 //!
-//! `thepipelinetool` is an *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow.
-//! It organizes Rust functions into a Directed Acyclic Graph (DAG) structure, ensuring orderly execution according to their dependencies.
-//! The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally.
-//! Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, and live task monitoring with a num_threadsrn UI.
-//!
+//! `thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
+//! The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
 mod options;
 
