@@ -18,7 +18,7 @@ use thepipelinetool_utils::{collector, function_name_as_string};
 use crate::Runner;
 
 pub trait BlanketRunner {
-    fn get_mermaid_graph(&self, dag_run_id: usize) -> String;
+    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String;
     fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
@@ -60,7 +60,7 @@ pub trait BlanketRunner {
 }
 
 impl<U: Runner + Send + Sync> BlanketRunner for U {
-    fn get_mermaid_graph(&self, dag_run_id: usize) -> String {
+    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String {
         let task_statuses: Vec<(String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
             .iter()
