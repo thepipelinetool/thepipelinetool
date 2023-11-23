@@ -149,6 +149,84 @@ fn main() {
     // ((task_ref8 >> task_ref9) >> task_ref10)
 }
 ```
+```mermaid
+flowchart TD
+  id0(produce_data_0)
+  style id0 color:black,stroke:grey,fill:white,stroke-width:4px
+  id1(print_data_1)
+  style id1 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id1
+  id2(print_data_2)
+  style id2 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id2
+  id3(print_data_3)
+  style id3 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id3
+  id4-->id3
+  id4(print_data_4)
+  style id4 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id4
+  id5(print_data_5)
+  style id5 color:black,stroke:grey,fill:white,stroke-width:4px
+  id8-->id5
+  id7-->id5
+  id0-->id5
+  id6-->id5
+  id6(print_data_6)
+  style id6 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id6
+  id7(print_data_7)
+  style id7 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id7
+  id8(print_data_8)
+  style id8 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id8
+  id9(print_data_9)
+  style id9 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id9
+  id10(print_data_10)
+  style id10 color:black,stroke:grey,fill:white,stroke-width:4px
+  id9-->id10
+  id0-->id10
+  id11(print_data_11)
+  style id11 color:black,stroke:grey,fill:white,stroke-width:4px
+  id10-->id11
+  id0-->id11
+```
+----
+### Branching Tasks
+```rust
+use thepipelinetool::prelude::*;
+
+fn branch_task(_: ()) -> Branch<usize> {
+    Branch::Left(0)
+}
+
+fn left(arg: usize) -> () {
+    println!("left {arg}");
+}
+
+fn right(_: usize) -> () {
+    println!("this won't execute");
+}
+
+#[dag]
+fn main() {
+    // only 'left' task will be executed since branch_task returns Branch::Left
+    let _ = branch(branch_task, (), left, right, &TaskOptions::default());
+}
+```
+```mermaid
+flowchart TD
+  id0(branch_task_0)
+  style id0 color:black,stroke:grey,fill:white,stroke-width:4px
+  id1(left_1)
+  style id1 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id1
+  id2(right_2)
+  style id2 color:black,stroke:grey,fill:white,stroke-width:4px
+  id0-->id2
+```
 ----
 ### Dynamic Tasks
 ```rust
@@ -174,29 +252,6 @@ fn main() {
 
     // you can also chain lazily expanded tasks
     let _ = expand_lazy(say_hello, &expanded_lazy_task_ref, opts);
-}
-```
-----
-### Branching Tasks
-```rust
-use thepipelinetool::prelude::*;
-
-fn branch_task(_: ()) -> Branch<usize> {
-    Branch::Left(0)
-}
-
-fn left(arg: usize) -> () {
-    println!("left {arg}");
-}
-
-fn right(_: usize) -> () {
-    println!("this won't execute");
-}
-
-#[dag]
-fn main() {
-    // only 'left' task will be executed since branch_task returns Branch::Left
-    let _ = branch(branch_task, (), left, right, &TaskOptions::default());
 }
 ```
 ----
