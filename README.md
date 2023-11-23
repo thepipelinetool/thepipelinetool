@@ -2,6 +2,9 @@
 <!-- <h4 align="center"></h4> -->
 
 <div align="center">
+  <a href="https://github.com/thepipelinetool/thepipelinetool/releases" target="_blank">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/thepipelinetool/thepipelinetool" />
+  </a>
   <a href="https://crates.io/crates/thepipelinetool" target="_blank">
     <img src="https://img.shields.io/crates/v/thepipelinetool" />
   </a>
