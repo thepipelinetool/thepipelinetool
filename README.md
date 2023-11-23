@@ -132,7 +132,7 @@ fn main() {
     
     let _ = task_ref8 >> task_ref9 >> task_ref10;
     // the result of taskA >> taskB is taskB, so the above is equivalent to:
-    // ((task_ref5 >> task_ref6) >> task_ref7)
+    // ((task_ref8 >> task_ref9) >> task_ref10)
 }
 ```
 
