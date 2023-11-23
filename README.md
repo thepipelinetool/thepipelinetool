@@ -1,4 +1,8 @@
 # thepipelinetool
+[![Crates.io][crates-badge]][crates-url]
+
+[crates-badge]: https://img.shields.io/crates/v/thepipelinetool.svg
+[crates-url]: https://crates.io/crates/thepipelinetool
 
 `thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
 The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to `thepipelinetool_server` (WIP) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
@@ -140,13 +144,13 @@ fn main() {
     let _ = parallel_task_ref >> task_ref5;
 
     // chaining
-    let task_ref8 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref9 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref10 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref11 = add_task_with_ref(print_data, &task_ref, opts);
     
-    let _ = task_ref8 >> task_ref9 >> task_ref10;
+    let _ = task_ref9 >> task_ref10 >> task_ref11;
     // the result of taskA >> taskB is taskB, so the above is equivalent to:
-    // ((task_ref8 >> task_ref9) >> task_ref10)
+    // ((task_ref9 >> task_ref10) >> task_ref11)
 }
 ```
 ```mermaid

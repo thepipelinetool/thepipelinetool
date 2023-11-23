@@ -36,11 +36,11 @@ fn main() {
     let _ = parallel_task_ref >> task_ref5;
 
     // chaining
-    let task_ref8 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref9 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref10 = add_task_with_ref(print_data, &task_ref, opts);
+    let task_ref11 = add_task_with_ref(print_data, &task_ref, opts);
     
-    let _ = task_ref8 >> task_ref9 >> task_ref10;
+    let _ = task_ref9 >> task_ref10 >> task_ref11;
     // the result of taskA >> taskB is taskB, so the above is equivalent to:
-    // ((task_ref5 >> task_ref6) >> task_ref7)
+    // ((task_ref9 >> task_ref10) >> task_ref11)
 }
