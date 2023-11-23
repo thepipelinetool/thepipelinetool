@@ -1,18 +1,49 @@
 # thepipelinetool
 
-`thepipelinetool` is an *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow.
-It organizes Rust functions into a Directed Acyclic Graph (DAG) structure, ensuring orderly execution according to their dependencies.
-The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally.
-Finally, deploy to `thepipelinetool_server` to enjoy scheduling, catchup, retries, and live task monitoring with a modern UI.
+`thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
+The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to `thepipelinetool_server` (WIP) to enjoy scheduling, catchup, retries, and live task monitoring with a modern UI.
 
 ## Features
-- *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs.
-- *Scalable* - Designed to handle large-scale data processing tasks with ease.
-- *Extensible* - Supports custom tasks and integrations, allowing for flexible workflow design.
+- *Easy Usage* - Simply write normal rust code and let `thepipelinetool` handle execution order, concurrent execution, and retries
+- *Special Tasks* - Create multiple [Dynamic](#dynamic-tasks) tasks from upstream results or a control flow using [Branching](#branching-tasks) tasks
+- *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs
 
-## DAG CLI
+## Contents
+- [Installation](#installation)
+- [Usage](#usage)
+- [Examples](#examples)
+  - [Simple DAG](#simple-dag)  
+  - [Manually Defining Depencencies](#manually-defining-depencencies)
+  - [Dynamic Tasks](#dynamic-tasks)
+  - [Branching Tasks](#branching-tasks)
+  - [Deployment (WIP)](#deployment-wip)
+
+## Installation
+Create your project and add `thepipelinetool` dependency
+```bash
+mkdir your_dag_name
+cd your_dag_name
+cargo init --bin
+cargo add thepipelinetool
 ```
-Usage: your_dag_name <COMMAND>
+Add the following to `src/main`
+```rust 
+use thepipelinetool::prelude::*;
+
+#[dag]
+fn main() {
+    // define your tasks here
+}
+```
+
+Run the complete DAG in memory:
+```bash
+cargo run your_dag_name run in_memory
+```
+
+## Usage
+```
+cargo run --release your_dag_name <COMMAND>
 
 Commands:
   describe  Describes the DAG
@@ -29,9 +60,6 @@ Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
-
-## Deployment (WIP)
-- Coming soon.
 
 ## Examples
 ### Simple DAG
@@ -57,12 +85,6 @@ fn main() {
     let _ = add_task_with_ref(print_data, &task_ref, opts);
 }
 ```
-
-Run using the following command
-```bash
-cargo run simple run in_memory
-```
-
 
 ### Manually Defining Depencencies
 ```rust
@@ -163,3 +185,5 @@ fn main() {
     let _ = branch(branch_task, (), left, right, &TaskOptions::default());
 }
 ```
+## Deployment (WIP)
+- Coming soon.
