@@ -1,11 +1,17 @@
-# thepipelinetool
-[![Crates.io][crates-badge]][crates-url]
+<h1 align=center>thepipelinetool</h1>
+<!-- <h4 align="center"></h4> -->
 
-[crates-badge]: https://img.shields.io/crates/v/thepipelinetool.svg
-[crates-url]: https://crates.io/crates/thepipelinetool
+<div align="center">
+  <a href="https://crates.io/crates/thepipelinetool" target="_blank">
+    <img src="https://img.shields.io/crates/v/thepipelinetool" />
+  </a>
+  <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/examples.yml" target="_blank">
+    <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/examples.yml/badge.svg" />
+  </a>
+</div>
 
 `thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
-The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to `thepipelinetool_server` (WIP) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
+The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
 ## Features
 - *Easy Usage* - Simply write normal rust code and let `thepipelinetool` handle execution order, concurrent execution, timeouts, and retries
@@ -20,7 +26,7 @@ The DAG is compiled into a CLI executable, which can then be used to list tasks/
   - [Manually Defining Depencencies](#manually-defining-depencencies)
   - [Dynamic Tasks](#dynamic-tasks)
   - [Branching Tasks](#branching-tasks)
-  - [Deployment (WIP)](#deployment-wip)
+  - [Deployment](#deployment)
 
 ## Installation
 Get started by cloning the [template](https://github.com/thepipelinetool/thepipelinetool_template) project
@@ -259,5 +265,5 @@ fn main() {
 }
 ```
 ----
-## Deployment (WIP)
-- Coming soon.
+## Deployment
+Visit [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) for deployment information
