@@ -21,6 +21,7 @@ The DAG is compiled into a CLI executable, which can then be used to list tasks/
 ## Contents
 - [Installation](#installation)
 - [Usage](#usage)
+- [Documentation](#documentation)
 - [Examples](#examples)
   - [Simple DAG](#simple-dag)  
   - [Manually Defining Depencencies](#manually-defining-depencencies)
@@ -75,6 +76,8 @@ Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
+## Documentation
+- Find the latest docs [here](https://docs.rs/thepipelinetool/latest/thepipelinetool/)
 
 ## Examples
 ### Simple DAG
