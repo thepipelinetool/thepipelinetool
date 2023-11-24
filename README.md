@@ -276,3 +276,4 @@ fn main() {
 Visit [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) for deployment information
 
 ## License
+AGPLv3
