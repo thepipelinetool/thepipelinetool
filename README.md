@@ -31,7 +31,7 @@
   - [Manually Defining Depencencies](#manually-defining-depencencies)
   - [Dynamic Tasks](#dynamic-tasks)
   - [Branching Tasks](#branching-tasks)
-  - [Deployment](#deployment)
+- [Deployment](#deployment)
 
 ## Installation
 Get started by cloning the [template](https://github.com/thepipelinetool/thepipelinetool_template) project
