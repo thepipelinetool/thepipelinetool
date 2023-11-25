@@ -20,8 +20,6 @@ pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
 
-pub const DAGS_DIR: &str = "./bin";
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Task {
     pub id: usize,
