@@ -16,7 +16,13 @@ fn print_data(arg: String) -> () {
 #[dag]
 fn main() {
     // define a task that uses the function 'produce_data'
-    let task_ref = add_task(produce_data, MyConfig{ data: "world".into() }, &TaskOptions::default());
+    let task_ref = add_task(
+        produce_data,
+        MyConfig {
+            data: "world".into(),
+        },
+        &TaskOptions::default(),
+    );
 
     // this task will wait use the result from produce_data
     let _ = add_task_with_ref(print_data, &task_ref, &TaskOptions::default());
