@@ -1,5 +1,9 @@
 use std::{
+    env,
+    ffi::OsStr,
+    fs,
     io::{BufRead, BufReader},
+    path::PathBuf,
     process::{Command, Stdio},
     thread,
     time::Duration,
@@ -20,6 +24,12 @@ pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
 
+fn get_json_dir() -> String {
+    env::var("JSON_DIR")
+        .unwrap_or("./json/".to_string())
+        .to_string()
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Task {
     pub id: usize,
@@ -32,23 +42,32 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn execute(
+    pub fn execute<P>(
         &self,
         resolved_args: &Value,
         attempt: usize,
         handle_stdout: Box<dyn Fn(String) + Send>,
         handle_stderr: Box<dyn Fn(String) + Send>,
-        executable_path: &str,
-    ) -> TaskResult {
+        executable_path: P,
+    ) -> TaskResult
+    where
+        P: AsRef<OsStr>,
+    {
         if attempt > 1 {
             thread::sleep(self.options.retry_delay);
         }
+        let json_dir = get_json_dir();
+        fs::create_dir_all(&json_dir).unwrap();
 
         let task_id: usize = self.id;
         let function_name = &self.function_name;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
-        let in_path = format!("./in_{function_name}_{task_id}.json");
-        let out_path = format!("./{function_name}_{task_id}.json");
+        let in_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_in.json")]
+            .iter()
+            .collect();
+        let out_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_out.json")]
+            .iter()
+            .collect();
         let use_timeout = self.options.timeout.is_some();
         let timeout_as_secs = self
             .options
@@ -60,32 +79,23 @@ impl Task {
         value_to_file(resolved_args, &in_path);
 
         let start = Utc::now();
-        let mut child = Command::new(if use_timeout {
-            "timeout"
+        let mut child = if use_timeout {
+            Command::new("timeout")
         } else {
-            executable_path
+            Command::new(&executable_path)
+        }
+        .args(if use_timeout {
+            vec!["-k", &timeout_as_secs, &timeout_as_secs]
+        } else {
+            vec![]
         })
         .args(if use_timeout {
-            vec![
-                "-k",
-                &timeout_as_secs,
-                &timeout_as_secs,
-                executable_path,
-                "run",
-                "function",
-                &function_name,
-                &out_path,
-                &in_path,
-            ]
+            vec![executable_path]
         } else {
-            vec![
-                "run",
-                "function",
-                function_name.as_str(),
-                &out_path,
-                &in_path,
-            ]
+            vec![]
         })
+        .args(vec!["run", "function", function_name])
+        .args(vec![&out_path, &in_path])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    ffi::OsStr,
     io::{Error, ErrorKind},
 };
 
@@ -23,7 +24,12 @@ pub trait BlanketRunner {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
-    fn work(&mut self, run_id: usize, queued_task: &OrderedQueuedTask, executable_path: &str);
+    fn work<P: AsRef<OsStr>>(
+        &mut self,
+        run_id: usize,
+        queued_task: &OrderedQueuedTask,
+        executable_path: P,
+    );
     fn get_circular_dependencies(
         &self,
         run_id: usize,
@@ -32,13 +38,13 @@ pub trait BlanketRunner {
         path: &mut Vec<usize>,
     ) -> Option<Vec<usize>>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
-    fn run_task(
+    fn run_task<P: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        executable_path: &str,
+        executable_path: P,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -217,13 +223,13 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         }
     }
 
-    fn run_task(
+    fn run_task<P: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        executable_path: &str,
+        executable_path: P,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -449,11 +455,11 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         Ok(resolved_args)
     }
 
-    fn work(
+    fn work<P: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        executable_path: &str,
+        executable_path: P,
     ) {
         if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
             return;

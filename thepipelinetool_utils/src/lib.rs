@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{Read, Write},
+    path::Path,
     process,
 };
 
@@ -17,23 +18,23 @@ pub fn function_name_as_string<T>(_: T) -> String {
     }
 }
 
-pub fn value_from_file(file_path: &str) -> Value {
-    let mut file = File::open(file_path)
-        .unwrap_or_else(|_| panic!("could not read file_path: {}", &file_path));
+pub fn value_from_file(file_path: &Path) -> Value {
+    let mut file =
+        File::open(file_path).unwrap_or_else(|e| panic!("could not read file_path\n {e}"));
     let mut json_data = String::new();
     file.read_to_string(&mut json_data).unwrap();
     serde_json::from_str(&json_data).unwrap()
 }
 
-pub fn value_to_file(v: &Value, file_path: &str) {
+pub fn value_to_file(v: &Value, file_path: &Path) {
     let json_string = serde_json::to_string_pretty(v).unwrap();
     let mut file =
-        File::create(file_path).unwrap_or_else(|_| panic!("couldn't write to file {file_path}"));
+        File::create(file_path).unwrap_or_else(|e| panic!("couldn't write to file\n {e}"));
 
     file.write_all(json_string.as_bytes()).unwrap();
 }
 
-pub fn execute_function(in_file: &str, out_file: &str, task_function: &dyn Fn(Value) -> Value) {
+pub fn execute_function(in_file: &Path, out_file: &Path, task_function: &dyn Fn(Value) -> Value) {
     let task_args = value_from_file(in_file);
     let task_result = (task_function)(task_args);
 

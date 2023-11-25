@@ -48,6 +48,7 @@ use options::DagOptions;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use std::ops::Shl;
+use std::path::Path;
 use std::sync::{OnceLock, RwLock};
 use std::{
     collections::{HashMap, HashSet},
@@ -1316,8 +1317,10 @@ pub fn parse_cli() {
                             let sub_matches = matches.subcommand_matches("function").unwrap();
                             let function_name =
                                 sub_matches.get_one::<String>("function_name").unwrap();
-                            let in_path = sub_matches.get_one::<String>("in_path").unwrap();
-                            let out_path = sub_matches.get_one::<String>("out_path").unwrap();
+                            let in_path =
+                                Path::new(sub_matches.get_one::<String>("in_path").unwrap());
+                            let out_path =
+                                Path::new(sub_matches.get_one::<String>("out_path").unwrap());
 
                             if functions.contains_key(function_name) {
                                 execute_function(in_path, out_path, &functions[function_name]);
