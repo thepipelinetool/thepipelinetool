@@ -145,7 +145,7 @@ where
 {
     type Output = TaskRef<G>;
     fn shr(self, rhs: &TaskRef<G>) -> Self::Output {
-        seq(&self, &rhs)
+        seq(&self, rhs)
     }
 }
 
@@ -189,7 +189,7 @@ where
 {
     type Output = TaskRef<T>;
     fn shl(self, rhs: &TaskRef<G>) -> Self::Output {
-        seq(&rhs, &self)
+        seq(rhs, &self)
     }
 }
 
@@ -233,7 +233,7 @@ where
 {
     type Output = TaskRef<G>;
     fn bitor(self, rhs: &TaskRef<G>) -> Self::Output {
-        par(&self, &rhs)
+        par(&self, rhs)
     }
 }
 
@@ -978,7 +978,7 @@ pub fn parse_cli() {
                     )
                     .required(true)
                     .value_parser(value_parser!(String))
-                    .default_values(&["mermaid", "graphite"])
+                    .default_values(["mermaid", "graphite"])
                     .default_missing_value("mermaid"),
                 ),
         )
