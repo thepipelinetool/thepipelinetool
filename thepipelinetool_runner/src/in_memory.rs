@@ -15,7 +15,7 @@ use crate::{blanket::BlanketRunner, Runner};
 
 pub struct InMemoryRunner {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
-    pub task_logs: Arc<Mutex<HashMap<usize, String>>>,
+    pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub task_statuses: Arc<Mutex<HashMap<usize, TaskStatus>>>,
     pub attempts: Arc<Mutex<HashMap<usize, usize>>>,
     pub dep_keys: Arc<Mutex<HashMap<usize, HashMap<(usize, String), String>>>>,
@@ -86,8 +86,8 @@ impl Runner for InMemoryRunner {
         self.task_logs
             .lock()
             .get(&task_id)
-            .unwrap_or(&"".to_string())
-            .clone()
+            .unwrap_or(&vec![])
+            .clone().join("\n")
     }
 
     fn get_log_handle_closure(
@@ -99,8 +99,8 @@ impl Runner for InMemoryRunner {
         let task_logs = self.task_logs.clone();
         Box::new(move |s| {
             let mut task_logs = task_logs.lock();
-            let log = task_logs.entry(task_id).or_insert_with(|| "".into());
-            *log += &s;
+            let log = task_logs.entry(task_id).or_insert(vec![]);
+            log.push(s);
         })
     }
 
@@ -285,4 +285,18 @@ impl Runner for InMemoryRunner {
     }
 
     fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
+
+    fn take_last_stdout_line(
+        &mut self,
+        _run_id: usize,
+        task_id: usize,
+        _attempt: usize,
+    ) -> Box<dyn Fn() -> String + Send> {
+        let task_logs = self.task_logs.clone();
+        Box::new(move || {
+            let mut task_logs = task_logs.lock();
+            let log = task_logs.entry(task_id).or_insert(vec![]);
+            log.pop().unwrap()
+        })
+    }
 }
