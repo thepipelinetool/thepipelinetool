@@ -40,7 +40,7 @@ pub mod prelude {
     pub use thepipelinetool_task::task_result::TaskResult;
     pub use thepipelinetool_task::task_status::TaskStatus;
     pub use thepipelinetool_task::Task;
-    pub use thepipelinetool_utils::execute_function_using_files;
+    pub use thepipelinetool_utils::execute_function_using_json_files;
 }
 
 use chrono::{DateTime, FixedOffset};
@@ -59,7 +59,7 @@ use std::{
 use thepipelinetool_task::branch::Branch;
 use thepipelinetool_task::Task;
 use thepipelinetool_task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
-use thepipelinetool_utils::{collector, execute_function_using_json, function_name_as_string};
+use thepipelinetool_utils::{collector, execute_function_using_json_str_args, function_name_as_string};
 
 type StaticTasks = RwLock<Vec<Task>>;
 type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
@@ -82,7 +82,7 @@ use saffron::{
     Cron,
 };
 use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
-use thepipelinetool_utils::{execute_function_using_files, to_base62};
+use thepipelinetool_utils::{execute_function_using_json_files, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
 static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
@@ -1322,13 +1322,13 @@ pub fn parse_cli() {
 
                             if functions.contains_key(function_name) {
                                 if let Some(out_path) = out_path_match {
-                                    execute_function_using_files(
+                                    execute_function_using_json_files(
                                         Path::new(in_arg),
                                         Path::new(out_path),
                                         &functions[function_name],
                                     );
                                 } else {
-                                    execute_function_using_json(in_arg, &functions[function_name]);
+                                    execute_function_using_json_str_args(in_arg, &functions[function_name]);
                                 }
                             } else {
                                 panic!(
