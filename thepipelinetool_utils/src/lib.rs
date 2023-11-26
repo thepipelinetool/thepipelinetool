@@ -41,7 +41,6 @@ pub fn execute_function_using_files(
 ) {
     let task_args = value_from_file(in_file);
     let task_result = (task_function)(task_args);
-
     value_to_file(&task_result, out_file);
     process::exit(0);
 }
@@ -49,8 +48,6 @@ pub fn execute_function_using_files(
 pub fn execute_function_using_json(task_args_str: &str, task_function: &dyn Fn(Value) -> Value) {
     let task_args = serde_json::from_str(task_args_str).unwrap();
     let task_result = (task_function)(task_args);
-
-    // value_to_file(&task_result, out_file);
     println!("{}", serde_json::to_string(&task_result).unwrap());
     process::exit(0);
 }
