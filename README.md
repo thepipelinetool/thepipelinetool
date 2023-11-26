@@ -273,7 +273,8 @@ fn main() {
 ```
 ----
 ## Deployment
-Visit [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) for deployment information
+To deploy DAGs, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
+Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
 
 ## License
 AGPLv3
