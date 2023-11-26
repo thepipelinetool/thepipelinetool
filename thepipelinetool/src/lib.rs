@@ -40,7 +40,7 @@ pub mod prelude {
     pub use thepipelinetool_task::task_result::TaskResult;
     pub use thepipelinetool_task::task_status::TaskStatus;
     pub use thepipelinetool_task::Task;
-    pub use thepipelinetool_utils::execute_function;
+    pub use thepipelinetool_utils::execute_function_using_files;
 }
 
 use chrono::{DateTime, FixedOffset};
@@ -59,7 +59,7 @@ use std::{
 use thepipelinetool_task::branch::Branch;
 use thepipelinetool_task::Task;
 use thepipelinetool_task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
-use thepipelinetool_utils::{collector, function_name_as_string};
+use thepipelinetool_utils::{collector, execute_function_using_json, function_name_as_string};
 
 type StaticTasks = RwLock<Vec<Task>>;
 type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
@@ -82,7 +82,7 @@ use saffron::{
     Cron,
 };
 use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
-use thepipelinetool_utils::{execute_function, to_base62};
+use thepipelinetool_utils::{execute_function_using_files, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
 static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
@@ -1011,15 +1011,15 @@ pub fn parse_cli() {
                         )
                         .arg(
                             arg!(
-                                <out_path> "Output file"
+                                <in_path> "Input file"
                             )
                             .required(true),
                         )
                         .arg(
                             arg!(
-                                <in_path> "Input file"
+                                <out_path> "Output file"
                             )
-                            .required(true),
+                            .required(false),
                         ),
                 )
                 .subcommand_required(true),
@@ -1317,13 +1317,19 @@ pub fn parse_cli() {
                             let sub_matches = matches.subcommand_matches("function").unwrap();
                             let function_name =
                                 sub_matches.get_one::<String>("function_name").unwrap();
-                            let in_path =
-                                Path::new(sub_matches.get_one::<String>("in_path").unwrap());
-                            let out_path =
-                                Path::new(sub_matches.get_one::<String>("out_path").unwrap());
+                            let in_arg = sub_matches.get_one::<String>("in_path").unwrap();
+                            let out_path_match = sub_matches.get_one::<String>("out_path");
 
                             if functions.contains_key(function_name) {
-                                execute_function(in_path, out_path, &functions[function_name]);
+                                if let Some(out_path) = out_path_match {
+                                    execute_function_using_files(
+                                        Path::new(in_arg),
+                                        Path::new(out_path),
+                                        &functions[function_name],
+                                    );
+                                } else {
+                                    execute_function_using_json(in_arg, &functions[function_name]);
+                                }
                             } else {
                                 panic!(
                                     "no such function {function_name}\navailable functions: {:#?}",

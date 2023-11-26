@@ -25,6 +25,12 @@ pub trait Runner {
         task_id: usize,
         attempt: usize,
     ) -> Box<dyn Fn(String) + Send>;
+    fn take_last_stdout_line(
+        &mut self,
+        run_id: usize,
+        task_id: usize,
+        attempt: usize,
+    ) -> Box<dyn Fn() -> String + Send>;
 
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult;
     fn insert_task_results(&mut self, run_id: usize, result: &TaskResult);

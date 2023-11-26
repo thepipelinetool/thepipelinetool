@@ -87,7 +87,8 @@ impl Runner for InMemoryRunner {
             .lock()
             .get(&task_id)
             .unwrap_or(&vec![])
-            .clone().join("\n")
+            .clone()
+            .join("\n")
     }
 
     fn get_log_handle_closure(
@@ -97,11 +98,7 @@ impl Runner for InMemoryRunner {
         _attempt: usize,
     ) -> Box<dyn Fn(String) + Send> {
         let task_logs = self.task_logs.clone();
-        Box::new(move |s| {
-            let mut task_logs = task_logs.lock();
-            let log = task_logs.entry(task_id).or_insert(vec![]);
-            log.push(s);
-        })
+        Box::new(move |s| task_logs.lock().entry(task_id).or_default().push(s))
     }
 
     fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) {
@@ -293,10 +290,6 @@ impl Runner for InMemoryRunner {
         _attempt: usize,
     ) -> Box<dyn Fn() -> String + Send> {
         let task_logs = self.task_logs.clone();
-        Box::new(move || {
-            let mut task_logs = task_logs.lock();
-            let log = task_logs.entry(task_id).or_insert(vec![]);
-            log.pop().unwrap()
-        })
+        Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
     }
 }

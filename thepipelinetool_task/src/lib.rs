@@ -4,7 +4,7 @@ use std::{
     fs,
     io::{BufRead, BufReader},
     path::PathBuf,
-    process::{Command, Stdio},
+    process::{Command, ExitStatus, Stdio},
     thread,
     time::Duration,
 };
@@ -30,6 +30,12 @@ fn get_json_dir() -> String {
         .to_string()
 }
 
+fn get_save_to_file() -> bool {
+    env::var("SAVE_TO_FILE")
+        .unwrap_or("false".to_string())
+        .to_string().parse::<bool>().unwrap()
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Task {
     pub id: usize,
@@ -46,28 +52,22 @@ impl Task {
         &self,
         resolved_args: &Value,
         attempt: usize,
-        handle_stdout: Box<dyn Fn(String) + Send>,
-        handle_stderr: Box<dyn Fn(String) + Send>,
+        handle_stdout_log: Box<dyn Fn(String) + Send>,
+        handle_stderr_log: Box<dyn Fn(String) + Send>,
+        take_last_stdout_line: Box<dyn Fn() -> String + Send>,
         executable_path: P,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
     {
+        let save_to_file = get_save_to_file();
+
         if attempt > 1 {
             thread::sleep(self.options.retry_delay);
         }
-        let json_dir = get_json_dir();
-        fs::create_dir_all(&json_dir).unwrap();
-
         let task_id: usize = self.id;
         let function_name = &self.function_name;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
-        let in_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_in.json")]
-            .iter()
-            .collect();
-        let out_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_out.json")]
-            .iter()
-            .collect();
         let use_timeout = self.options.timeout.is_some();
         let timeout_as_secs = self
             .options
@@ -76,68 +76,45 @@ impl Task {
             .as_secs()
             .to_string();
 
-        value_to_file(resolved_args, &in_path);
-
         let start = Utc::now();
-        let mut child = if use_timeout {
-            Command::new("timeout")
-        } else {
-            Command::new(&executable_path)
-        }
-        .args(if use_timeout {
-            vec!["-k", &timeout_as_secs, &timeout_as_secs]
-        } else {
-            vec![]
-        })
-        .args(if use_timeout {
-            vec![executable_path]
-        } else {
-            vec![]
-        })
-        .args(vec!["run", "function", function_name])
-        .args(vec![&out_path, &in_path])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to start command");
+        let mut cmd = self.create_command(&executable_path, use_timeout);
 
-        let stdout = child.stdout.take().expect("failed to take stdout");
-        let stderr = child.stderr.take().expect("failed to take stderr");
+        self.command_timeout(&mut cmd, &executable_path, use_timeout, &timeout_as_secs);
 
-        // Spawn a thread to handle stdout
-        let stdout_handle = thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                handle_stdout(line);
+        let (status, timed_out, result) = if save_to_file {
+            let json_dir = get_json_dir();
+            let out_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_out.json")]
+                .iter()
+                .collect();
+            let in_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_in.json")]
+                .iter()
+                .collect();
+            fs::create_dir_all(&json_dir).unwrap();
+            value_to_file(resolved_args, &in_path);
+            cmd.args([&in_path, &out_path]);
+
+            let (status, timed_out) = self.spawn(cmd, handle_stdout_log, handle_stderr_log);
+            if status.success() {
+                (status, timed_out, value_from_file(&out_path))
+            } else {
+                (status, timed_out, Value::Null)
             }
-        });
-
-        // Spawn a thread to handle stderr
-        let stderr_handle = thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                handle_stderr(line);
+        } else {
+            cmd.arg(&resolved_args_str);
+            let (status, timed_out) = self.spawn(cmd, handle_stdout_log, handle_stderr_log);
+            if status.success() {
+                let last_line = take_last_stdout_line();
+                (status, timed_out, serde_json::from_str(&last_line).unwrap())
+            } else {
+                (status, timed_out, Value::Null)
             }
-        });
-
-        let status = child.wait().expect("failed to wait on child");
+        };
         let end = Utc::now();
-
-        let timed_out = matches!(status.code(), Some(124));
-
-        // Join the stdout and stderr threads
-        stdout_handle.join().expect("stdout thread panicked");
-        stderr_handle.join().expect("stderr thread panicked");
+        let premature_failure_error_str = if timed_out { "timed out" } else { "" }.into();
 
         TaskResult {
             task_id,
-            result: if status.success() {
-                value_from_file(&out_path)
-            } else {
-                Value::Null
-            },
+            result,
             attempt,
             max_attempts: self.options.max_attempts,
             function_name: function_name.to_string(),
@@ -147,12 +124,75 @@ impl Task {
             ended: end.to_rfc3339(),
             elapsed: end.timestamp() - start.timestamp(),
             premature_failure: false,
-            premature_failure_error_str: if timed_out {
-                "timed out".into()
-            } else {
-                "".into()
-            },
+            premature_failure_error_str,
             is_branch: self.is_branch,
         }
+    }
+
+    fn create_command<P>(&self, executable_path: &P, use_timeout: bool) -> Command
+    where
+        P: AsRef<OsStr>,
+    {
+        if use_timeout {
+            Command::new("timeout")
+        } else {
+            Command::new(executable_path)
+        }
+    }
+
+    fn command_timeout<P>(
+        &self,
+        command: &mut Command,
+        executable_path: &P,
+        use_timeout: bool,
+        timeout_as_secs: &str,
+    ) where
+        P: AsRef<OsStr>,
+    {
+        if use_timeout {
+            command.args(["-k", timeout_as_secs, timeout_as_secs]);
+            command.arg(executable_path);
+        }
+
+        command.args(["run", "function", &self.function_name]);
+    }
+
+    fn spawn(
+        &self,
+        mut cmd: Command,
+        handle_stdout_log: Box<dyn Fn(String) + Send>,
+        handle_stderr_log: Box<dyn Fn(String) + Send>,
+    ) -> (ExitStatus, bool) {
+        let mut child = cmd
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("failed to start command");
+
+        let stdout = child.stdout.take().expect("failed to take stdout");
+        let stderr = child.stderr.take().expect("failed to take stderr");
+
+        let stdout_handle = thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                let line = format!("{}\n", line.expect("failed to read line from stdout"));
+                handle_stdout_log(line);
+            }
+        });
+
+        let stderr_handle = thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                let line = format!("{}\n", line.expect("failed to read line from stdout"));
+                handle_stderr_log(line);
+            }
+        });
+
+        let status = child.wait().expect("failed to wait on child");
+        let timed_out = matches!(status.code(), Some(124));
+        stdout_handle.join().expect("stdout thread panicked");
+        stderr_handle.join().expect("stderr thread panicked");
+
+        (status, timed_out)
     }
 }
