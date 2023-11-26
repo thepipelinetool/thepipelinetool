@@ -176,6 +176,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 result.max_attempts
             );
             self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
+            self.enqueue_task(run_id, result.task_id);
             return;
         }
 
@@ -336,6 +337,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             attempt,
             self.get_log_handle_closure(run_id, task.id, attempt),
             self.get_log_handle_closure(run_id, task.id, attempt),
+            self.take_last_stdout_line(run_id, task.id, attempt),
             executable_path,
         )
     }
