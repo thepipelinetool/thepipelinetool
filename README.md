@@ -29,8 +29,9 @@
 - [Examples](#examples)
   - [Simple DAG](#simple-dag)  
   - [Manually Defining Depencencies](#manually-defining-depencencies)
-  - [Dynamic Tasks](#dynamic-tasks)
   - [Branching Tasks](#branching-tasks)
+  - [Dynamic Tasks](#dynamic-tasks)
+  - [More Examples](#more-examples)
 - [Deployment](#deployment)
 
 ## Installation
@@ -272,6 +273,9 @@ fn main() {
 }
 ```
 ----
+### More Examples
+Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
+
 ## Deployment
 To deploy DAGs, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
 Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
