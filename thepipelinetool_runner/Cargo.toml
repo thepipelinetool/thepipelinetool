@@ -8,8 +8,8 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.1" }
-thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.1" }
+thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.11" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
 serde_json = "1.0"
 chrono = "0.4.31"
 parking_lot = "0.12.1"

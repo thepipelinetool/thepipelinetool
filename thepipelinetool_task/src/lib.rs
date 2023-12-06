@@ -95,7 +95,7 @@ impl Task {
 
             let (status, timed_out) = self.spawn(cmd, handle_stdout_log, handle_stderr_log);
             if status.success() {
-                (status, timed_out, value_from_file(&out_path))
+                (status, timed_out, value_from_file(&out_path).unwrap())
             } else {
                 (status, timed_out, Value::Null)
             }
