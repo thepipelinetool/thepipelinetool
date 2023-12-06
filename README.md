@@ -68,7 +68,6 @@ cargo run --release your_dag_name <COMMAND>
 
 Commands:
   describe  Describes the DAG
-  options   Displays options as JSON
   tasks     Displays tasks as JSON
   edges     Displays edges as JSON
   hash      Displays hash as JSON
