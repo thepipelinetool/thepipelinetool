@@ -1,10 +1,11 @@
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::{Error, Read, Write},
     path::Path,
     process,
 };
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub fn function_name_as_string<T>(_: T) -> String {
@@ -18,15 +19,14 @@ pub fn function_name_as_string<T>(_: T) -> String {
     }
 }
 
-pub fn value_from_file(file_path: &Path) -> Value {
-    let mut file =
-        File::open(file_path).unwrap_or_else(|e| panic!("could not read file_path\n {e}"));
+pub fn value_from_file<F: for<'a> Deserialize<'a>>(file_path: &Path) -> Result<F, Error> {
+    let mut file = File::open(file_path)?;
     let mut json_data = String::new();
-    file.read_to_string(&mut json_data).unwrap();
-    serde_json::from_str(&json_data).unwrap()
+    file.read_to_string(&mut json_data)?;
+    Ok(serde_json::from_str(&json_data)?)
 }
 
-pub fn value_to_file(v: &Value, file_path: &Path) {
+pub fn value_to_file<F: Serialize>(v: &F, file_path: &Path) {
     let json_string = serde_json::to_string_pretty(v).unwrap();
     let mut file =
         File::create(file_path).unwrap_or_else(|e| panic!("couldn't write to file\n {e}"));
@@ -39,13 +39,16 @@ pub fn execute_function_using_json_files(
     out_file: &Path,
     task_function: &dyn Fn(Value) -> Value,
 ) {
-    let task_args = value_from_file(in_file);
+    let task_args = value_from_file(in_file).unwrap(); // TODO handle error
     let task_result = (task_function)(task_args);
     value_to_file(&task_result, out_file);
     process::exit(0);
 }
 
-pub fn execute_function_using_json_str_args(task_args_str: &str, task_function: &dyn Fn(Value) -> Value) {
+pub fn execute_function_using_json_str_args(
+    task_args_str: &str,
+    task_function: &dyn Fn(Value) -> Value,
+) {
     let task_args = serde_json::from_str(task_args_str).unwrap();
     let task_result = (task_function)(task_args);
     println!("{}", serde_json::to_string(&task_result).unwrap());
