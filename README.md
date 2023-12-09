@@ -47,7 +47,7 @@ cd your_dag_name
 cargo init --bin
 cargo add thepipelinetool
 ```
-Add the following to `src/main`
+Add the following to `src/main.rs`
 ```rust 
 use thepipelinetool::prelude::*;
 
