@@ -23,6 +23,7 @@ pub mod task_options;
 pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
+pub mod trigger_rules;
 
 fn get_json_dir() -> String {
     env::var("JSON_DIR")

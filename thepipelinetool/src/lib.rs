@@ -19,6 +19,7 @@ pub mod prelude {
     pub use thepipelinetool_task::task_result::TaskResult;
     pub use thepipelinetool_task::task_status::TaskStatus;
     pub use thepipelinetool_task::Task;
+    pub use thepipelinetool_task::trigger_rules::TriggerRules;
     pub use thepipelinetool_utils::execute_function_using_json_files;
 }
 
