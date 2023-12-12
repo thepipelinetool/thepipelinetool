@@ -3,30 +3,9 @@
 //! `thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies.
 //! The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
-// mod options;
-
-// mod module {
-//     #[macro_export]
-//     macro_rules! add_task {
-//         ($mand_1:expr) => {
-//             add_task!($mand_1, Value::Null)
-//         };
-//         ($mand_1:expr, $mand_2:expr) => {
-//             add_task!($mand_1, $mand_2, &TaskOptions::default())
-//         };
-//         ($mand_1:expr, $mand_2:expr, $mand_3:expr) => {
-//             add_task($mand_1, $mand_2, $mand_3)
-//         };
-//     }
-//     pub use add_task;
-// }
-
 pub mod prelude {
-    // pub use crate::module::*;
-    // pub use crate::options::DagOptions;
     pub use crate::{
         add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, parse_cli,
-        // set_catchup, set_end_date, set_schedule, set_start_date,
     };
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
@@ -43,8 +22,6 @@ pub mod prelude {
     pub use thepipelinetool_utils::execute_function_using_json_files;
 }
 
-// use chrono::{DateTime, FixedOffset};
-// use options::DagOptions;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{json, Value};
 use std::ops::Shl;
@@ -59,12 +36,13 @@ use std::{
 use thepipelinetool_task::branch::Branch;
 use thepipelinetool_task::Task;
 use thepipelinetool_task::{task_options::TaskOptions, task_ref_inner::TaskRefInner};
-use thepipelinetool_utils::{collector, execute_function_using_json_str_args, function_name_as_string};
+use thepipelinetool_utils::{
+    collector, execute_function_using_json_str_args, function_name_as_string,
+};
 
 type StaticTasks = RwLock<Vec<Task>>;
 type StaticFunctions = RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>>;
 type StaticEdges = RwLock<HashSet<(usize, usize)>>;
-// type StaticOptions = RwLock<DagOptions>;
 
 use std::{
     cmp::max,
@@ -77,17 +55,13 @@ use std::{
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Command as CliCommand};
-// use saffron::{
-//     parse::{CronExpr, English},
-//     Cron,
-// };
+
 use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use thepipelinetool_utils::{execute_function_using_json_files, to_base62};
 
 static TASKS: OnceLock<StaticTasks> = OnceLock::new();
 static FUNCTIONS: OnceLock<StaticFunctions> = OnceLock::new();
 static EDGES: OnceLock<StaticEdges> = OnceLock::new();
-// static OPTIONS: OnceLock<StaticOptions> = OnceLock::new();
 
 fn get_tasks() -> &'static StaticTasks {
     TASKS.get_or_init(StaticTasks::default)
@@ -100,10 +74,6 @@ fn get_functions() -> &'static StaticFunctions {
 fn get_edges() -> &'static StaticEdges {
     EDGES.get_or_init(StaticEdges::default)
 }
-
-// fn get_options() -> &'static StaticOptions {
-//     OPTIONS.get_or_init(StaticOptions::default)
-// }
 
 impl<T, G> Shr<TaskRef<G>> for TaskRef<T>
 where
@@ -821,113 +791,6 @@ fn run_command(args: Value) -> Value {
     json!(result_raw.to_string().trim_end())
 }
 
-// /// Sets the schedule for task execution in the task management system.
-// ///
-// /// This function takes a `schedule` string and updates the schedule option in the
-// /// system's task options. The schedule determines when tasks are executed based
-// /// on a defined pattern.
-// ///
-// /// # Arguments
-// ///
-// /// * `schedule` - A string representing the schedule pattern.
-// ///
-// /// # Example
-// ///
-// /// ```rust
-// /// use thepipelinetool::prelude::*;
-// ///
-// /// #[dag]
-// /// fn main() {
-// ///     // Set a new schedule pattern.
-// ///     set_schedule("0 0 * * *");
-// ///
-// ///     // ...
-// /// }
-// /// ```
-// pub fn set_schedule(schedule: &str) {
-//     get_options().write().unwrap().schedule = Some(schedule.to_string());
-// }
-
-// /// Sets the start date for task execution in the task management system.
-// ///
-// /// This function takes a `start_date` of type `DateTime<FixedOffset>` and updates
-// /// the start date option in the system's task options. The start date specifies when
-// /// task execution should begin.
-// ///
-// /// # Arguments
-// ///
-// /// * `start_date` - A `DateTime<FixedOffset>` representing the desired start date.
-// ///
-// /// # Example
-// ///
-// /// ```rust
-// /// use thepipelinetool::prelude::*;
-// ///
-// /// #[dag]
-// /// fn main() {
-// ///     // Set a new schedule pattern.
-// ///     set_start_date(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap());
-// ///
-// ///     // ...
-// /// }
-// /// ```
-// pub fn set_start_date(start_date: DateTime<FixedOffset>) {
-//     get_options().write().unwrap().start_date = Some(start_date);
-// }
-
-// /// Sets the end date for task execution in the task management system.
-// ///
-// /// This function takes an `end_date` of type `DateTime<FixedOffset>` and updates
-// /// the end date option in the system's task options. The end date specifies when
-// /// task execution should stop.
-// ///
-// /// # Arguments
-// ///
-// /// * `end_date` - A `DateTime<FixedOffset>` representing the desired end date.
-// ///
-// /// # Example
-// ///
-// /// ```rust
-// /// use thepipelinetool::prelude::*;
-// ///
-// /// #[dag]
-// /// fn main() {
-// ///     set_end_date(DateTime::parse_from_rfc3339("1997-06-19T16:39:57-08:00").unwrap());
-// ///
-// ///     // ...
-// /// }
-// /// ```
-// pub fn set_end_date(end_date: DateTime<FixedOffset>) {
-//     get_options().write().unwrap().end_date = Some(end_date);
-// }
-
-// /// Sets the catchup option for task execution in the task management system.
-// ///
-// /// This function takes a `catchup` boolean value and updates the catchup option
-// /// in the system's task options. When catchup is enabled, the system will attempt
-// /// to execute tasks that were missed during periods of inactivity.
-// ///
-// /// # Arguments
-// ///
-// /// * `catchup` - A boolean value indicating whether catchup should be enabled (`true`)
-// ///   or disabled (`false`).
-// ///
-// /// # Example
-// ///
-// /// ```rust
-// ///  use thepipelinetool::prelude::*;
-// ///
-// /// #[dag]
-// /// fn main() {
-// ///     set_catchup(true);
-// ///
-// ///     // ...
-// /// }
-// /// ```
-// pub fn set_catchup(catchup: bool) {
-//     get_options().write().unwrap().catchup = catchup;
-// }
-
 /// Parses command-line arguments and executes various tasks in the DAG CLI tool.
 ///
 /// This function parses command-line arguments using the `command!` macro and executes
@@ -1030,17 +893,8 @@ pub fn parse_cli() {
 
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
-            // "options" => {
-            //     let options = get_options().read().unwrap();
-
-            //     println!(
-            //         "{}",
-            //         serde_json::to_string_pretty(&options.clone()).unwrap()
-            //     );
-            // }
             "describe" => {
-                let tasks = get_tasks().read().unwrap();
-                // let options = get_options().read().unwrap();
+                let tasks: std::sync::RwLockReadGuard<'_, Vec<Task>> = get_tasks().read().unwrap();
                 let functions = get_functions().read().unwrap();
 
                 println!("Task count: {}", tasks.len());
@@ -1048,62 +902,6 @@ pub fn parse_cli() {
                     "Functions: {:#?}",
                     functions.keys().collect::<Vec<&String>>()
                 );
-
-                // if let Some(schedule) = &options.schedule {
-                //     println!("Schedule: {schedule}");
-                //     match schedule.parse::<CronExpr>() {
-                //         Ok(cron) => {
-                //             println!("Description: {}", cron.describe(English::default()));
-                //         }
-                //         Err(err) => {
-                //             println!("{err}: {schedule}");
-                //             return;
-                //         }
-                //     }
-
-                //     match schedule.parse::<Cron>() {
-                //         Ok(cron) => {
-                //             if !cron.any() {
-                //                 println!("Cron will never match any given time!");
-                //                 return;
-                //             }
-
-                //             if let Some(start_date) = options.start_date {
-                //                 println!("Start date: {start_date}");
-                //             } else {
-                //                 println!("Start date: None");
-                //             }
-
-                //             println!("Upcoming:");
-                //             let futures = cron.clone().iter_from(
-                //                 if let Some(start_date) = options.start_date {
-                //                     if options.catchup || start_date > Utc::now() {
-                //                         start_date.into()
-                //                     } else {
-                //                         Utc::now()
-                //                     }
-                //                 } else {
-                //                     Utc::now()
-                //                 },
-                //             );
-                //             for time in futures.take(10) {
-                //                 if !cron.contains(time) {
-                //                     println!("Failed check! Cron does not contain {}.", time);
-                //                     break;
-                //                 }
-                //                 if let Some(end_date) = options.end_date {
-                //                     if time > end_date {
-                //                         break;
-                //                     }
-                //                 }
-                //                 println!("  {}", time.format("%F %R"));
-                //             }
-                //         }
-                //         Err(err) => println!("{err}: {schedule}"),
-                //     }
-                // } else {
-                //     println!("No schedule set");
-                // }
             }
             "tasks" => {
                 let tasks = get_tasks().read().unwrap();
@@ -1328,7 +1126,10 @@ pub fn parse_cli() {
                                         &functions[function_name],
                                     );
                                 } else {
-                                    execute_function_using_json_str_args(in_arg, &functions[function_name]);
+                                    execute_function_using_json_str_args(
+                                        in_arg,
+                                        &functions[function_name],
+                                    );
                                 }
                             } else {
                                 panic!(
