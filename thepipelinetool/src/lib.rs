@@ -5,7 +5,8 @@
 
 pub mod prelude {
     pub use crate::{
-        add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, parse_cli,
+        // add_command, add_task, add_task_with_ref, branch, expand, expand_lazy, 
+        parse_cli,
         TaskBuilder,
     };
     pub use serde::{Deserialize, Serialize};
@@ -256,8 +257,17 @@ impl TaskBuilder {
         }
     }
 
+    pub fn build_conditional<F, T, G>(self, function: F, template_args: T) -> TaskRef<G>
+    where
+        T: Serialize + DeserializeOwned,
+        G: Serialize,
+        F: Fn(T) -> G + 'static + Sync + Send,
+    {
+        add_task(function, template_args, &self.options)
+    }
+
     pub fn options(mut self, options: &TaskOptions) -> Self {
-        self.options = *options;
+        self.options = options.clone();
         self
     }
 
@@ -409,7 +419,7 @@ where
                     id,
                     function_name: function_name.clone(),
                     template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
-                    options: *options,
+                    options: options.clone(),
                     lazy_expand: false,
                     is_dynamic: false,
                     is_branch: false,
@@ -491,7 +501,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
-                options: *options,
+                options: options.clone(),
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,
@@ -571,7 +581,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
-                options: *options,
+                options: options.clone(),
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,
@@ -669,7 +679,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
-                options: *options,
+                options: options.clone(),
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: true,
@@ -765,7 +775,7 @@ where
                 id,
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
-                options: *options,
+                options: options.clone(),
                 lazy_expand: true,
                 is_dynamic: false,
                 is_branch: false,
