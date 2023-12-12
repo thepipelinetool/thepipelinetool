@@ -215,7 +215,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 .iter()
                 .filter(|d| {
                     !self.is_task_completed(run_id, **d)
-                        && !self.any_upstream_incomplete(run_id, **d)
+                        && self.trigger_rules_satisfied(run_id, **d)
                 })
                 .collect::<Vec<&usize>>()
             {
@@ -466,7 +466,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
-        if self.any_upstream_incomplete(run_id, ordered_queued_task.queued_task.task_id) {
+        if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
             self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
             return;

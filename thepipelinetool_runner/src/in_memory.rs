@@ -139,10 +139,12 @@ impl Runner for InMemoryRunner {
         self.task_statuses.lock().insert(task_id, task_status);
     }
 
-    fn any_upstream_incomplete(&mut self, run_id: usize, task_id: usize) -> bool {
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool {
+        // TODO implement more trigger rules, e.g. run on upstream failure(s)
+
         self.get_upstream(run_id, task_id)
             .iter()
-            .any(|edge| !self.is_task_completed(run_id, *edge))
+            .all(|edge| self.is_task_completed(run_id, *edge))
     }
 
     fn get_dependency_keys(

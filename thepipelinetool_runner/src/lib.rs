@@ -40,7 +40,7 @@ pub trait Runner {
 
     fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize>;
     fn get_upstream(&self, run_id: usize, task_id: usize) -> Vec<usize>;
-    fn any_upstream_incomplete(&mut self, run_id: usize, task_id: usize) -> bool;
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
 
     fn get_default_tasks(&self) -> Vec<Task>;
     fn get_all_tasks(&self, run_id: usize) -> Vec<Task>;
