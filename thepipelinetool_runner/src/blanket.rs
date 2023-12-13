@@ -19,6 +19,8 @@ use thepipelinetool_utils::{collector, function_name_as_string};
 use crate::Runner;
 
 pub trait BlanketRunner {
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
+
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String;
     fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
@@ -66,6 +68,14 @@ pub trait BlanketRunner {
 }
 
 impl<U: Runner + Send + Sync> BlanketRunner for U {
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool {
+        // TODO implement more trigger rules, e.g. run on upstream failure(s)
+
+        self.get_upstream(run_id, task_id)
+            .iter()
+            .all(|edge| self.is_task_completed(run_id, *edge))
+    }
+
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String {
         let task_statuses: Vec<(String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
