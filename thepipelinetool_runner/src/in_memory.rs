@@ -11,7 +11,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
-use crate::{blanket::BlanketRunner, Runner};
+use crate::Runner;
 
 pub struct InMemoryRunner {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,

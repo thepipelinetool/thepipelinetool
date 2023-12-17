@@ -22,7 +22,7 @@ pub trait BlanketRunner {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
 
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String;
-    fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool;
+    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
         -> usize;
@@ -73,7 +73,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
 
         self.get_upstream(run_id, task_id)
             .iter()
-            .all(|edge| self.is_task_completed(run_id, *edge))
+            .all(|edge| self.is_task_done(run_id, *edge))
     }
 
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String {
@@ -104,7 +104,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         out
     }
 
-    fn is_task_completed(&mut self, run_id: usize, task_id: usize) -> bool {
+    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool {
         match self.get_task_status(run_id, task_id) {
             TaskStatus::Pending | TaskStatus::Running | TaskStatus::Retrying => false,
             TaskStatus::Success | TaskStatus::Failure | TaskStatus::Skipped => true,
@@ -224,7 +224,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 .get_downstream(run_id, result.task_id)
                 .iter()
                 .filter(|d| {
-                    !self.is_task_completed(run_id, **d)
+                    !self.is_task_done(run_id, **d)
                         && self.trigger_rules_satisfied(run_id, **d)
                 })
                 .collect::<Vec<&usize>>()
@@ -473,7 +473,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         ordered_queued_task: &OrderedQueuedTask,
         executable_path: P,
     ) {
-        if self.is_task_completed(run_id, ordered_queued_task.queued_task.task_id) {
+        if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
