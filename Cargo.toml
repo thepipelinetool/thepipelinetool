@@ -9,6 +9,3 @@ members = [
     "thepipelinetool_proc_macro",
 ]
 resolver = "2"
-
-[workspace.thepipelinetool]
-readme = "README.md"
