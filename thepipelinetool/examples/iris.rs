@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use thepipelinetool::prelude::*;
 
-fn produce_data(_: ()) -> String {
+fn produce_data(_: ()) -> Value {
     let q = LazyCsvReader::new("./thepipelinetool/examples/iris.csv")
         .has_header(true)
         .finish().unwrap()
@@ -11,12 +11,12 @@ fn produce_data(_: ()) -> String {
 
     let df = q.collect().unwrap();
 
-    dbg!(df);
+    dbg!(&df);
 
-    "world".to_string()
+    serde_json::to_value(&df).unwrap()
 }
 
-fn print_data(arg: String) -> () {
+fn print_data(arg: Value) -> () {
     println!("hello {arg}");
 }
 
