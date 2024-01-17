@@ -21,3 +21,4 @@ parking_lot = "0.12.1"
 
 [dev-dependencies]
 rand = "0.8"
+polars = { version = "0.36.2", features = [ "lazy" ] }
