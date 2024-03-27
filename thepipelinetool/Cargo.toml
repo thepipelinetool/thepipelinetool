@@ -17,7 +17,7 @@ thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.1.2"
 thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.1.0" }
 serde = "1.0.189"
 clap = { version = "4.4.7", features = [ "cargo" ] }
-parking_lot = "0.12.1"
+# parking_lot = "0.12.1"
 
 [dev-dependencies]
 rand = "0.8"
