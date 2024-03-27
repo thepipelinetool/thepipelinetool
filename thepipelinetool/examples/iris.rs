@@ -2,7 +2,7 @@ use polars::prelude::*;
 use thepipelinetool::prelude::*;
 
 fn produce_data(_: ()) -> Value {
-    let q = LazyCsvReader::new("./thepipelinetool/examples/iris.csv")
+    let q = LazyCsvReader::new("examples/iris.csv")
         .has_header(true)
         .finish().unwrap()
         .filter(col("SepalLength").gt(lit(5)))
@@ -29,4 +29,15 @@ fn main() {
 
     // add a task that depends on 'task_ref'
     let _ = add_task_with_ref(print_data, &task_ref, opts);
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::produce_data;
+
+    #[test]
+    fn test_data() {
+        dbg!(produce_data(()));
+    }
 }
