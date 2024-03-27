@@ -11,3 +11,12 @@ pub fn dag(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Convert the modified function back to a TokenStream
     TokenStream::from(quote!(#input_fn))
 }
+
+// #[proc_macro_attribute]
+// pub fn test_dag(_attr: TokenStream, item: TokenStream) -> TokenStream {
+//     let mut input_fn = parse_macro_input!(item as ItemFn);
+//     input_fn.block.stmts.push(syn::parse_quote!(run_in_memory(1);));
+
+//     // Convert the modified function back to a TokenStream
+//     TokenStream::from(quote!(#input_fn))
+// }

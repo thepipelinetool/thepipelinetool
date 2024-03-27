@@ -14,14 +14,14 @@ pub mod statics;
 pub use statics::*;
 
 pub mod prelude {
-    pub use crate::cli::parse_cli;
+    pub use crate::cli::{parse_cli, run_in_memory};
     pub use crate::{
         // builder::TaskBuilder,
         functions::{add_command, add_task, add_task_with_ref, branch, expand, expand_lazy},
     };
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
-    pub use thepipelinetool_proc_macro::dag;
+    pub use thepipelinetool_proc_macro::*;
     pub use thepipelinetool_runner::in_memory::InMemoryRunner;
     pub use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
     pub use thepipelinetool_task::branch::Branch;
