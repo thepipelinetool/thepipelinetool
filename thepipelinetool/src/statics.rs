@@ -17,9 +17,8 @@ pub fn get_tasks() -> &'static StaticTasks {
 
 pub fn get_functions() -> &'static StaticFunctions {
     // load built-in operators
-    
+
     FUNCTIONS.get_or_init(|| {
-        
         let functions: RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>> =
             RwLock::new(HashMap::new());
 

@@ -13,7 +13,7 @@ use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 pub struct TaskTemplate {
     #[serde(default)]
     pub name: String,
-    
+
     #[serde(default)]
     pub function_name: String,
 
