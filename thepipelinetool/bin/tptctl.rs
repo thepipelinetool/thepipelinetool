@@ -220,8 +220,6 @@ pub struct TaskTemplate {
     #[serde(default)]
     pub command: Vec<String>,
 
-    // #[serde(default)]
-    // pub args: Value,
     #[serde(default)]
     pub options: TaskOptions,
 
@@ -240,7 +238,6 @@ impl Default for TaskTemplate {
         Self {
             function_name: "".to_string(),
             command: Vec::new(),
-            // args: json!({}),
             options: Default::default(),
             lazy_expand: false,
             is_dynamic: false,
@@ -250,21 +247,12 @@ impl Default for TaskTemplate {
 }
 
 pub fn describe(tasks: &[Task]) {
-    // TODO remove get_tasks, move all these to a separate package, remove statics
-    // let tasks: std::sync::RwLockReadGuard<'_, Vec<Task>> = get_tasks().read().unwrap();
-    // let functions = get_functions().read().unwrap();
+    // TODO
 
     println!("Task count: {}", tasks.len());
-    // println!(
-    //     "Functions: {:#?}",
-    //     functions.keys().collect::<Vec<&String>>()
-    // );
 }
 
 pub fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    // let tasks = get_tasks().read().unwrap();
-    // let edges = get_edges().read().unwrap();
-
     let hash = hash_dag(
         &serde_json::to_string(&*tasks).unwrap(),
         &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
@@ -273,45 +261,22 @@ pub fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
 }
 
 pub fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    // let matches = matches.subcommand_matches("graph").unwrap();
-    // if let Some(subcommand) = matches.get_one::<String>("graph_type") {
-    //     let tasks = get_tasks().read().unwrap();
-    //     let edges = get_edges().read().unwrap();
-
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
     let graph = runner.get_mermaid_graph(0);
     print!("{graph}");
-
-    // let graph = runner.get_graphite_graph(0);
-    // print!("{}", serde_json::to_string_pretty(&graph).unwrap());
-
-    // }
 }
 
 pub fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    // let matches = matches.subcommand_matches("graph").unwrap();
-    // if let Some(subcommand) = matches.get_one::<String>("graph_type") {
-    //     let tasks = get_tasks().read().unwrap();
-    //     let edges = get_edges().read().unwrap();
-
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
-    // let graph = runner.get_mermaid_graph(0);
-    // print!("{graph}");
-
     let graph = runner.get_graphite_graph(0);
     print!("{}", serde_json::to_string_pretty(&graph).unwrap());
-
-    // }
 }
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    // let tasks = get_tasks().read().unwrap();
-    // let edges = get_edges().read().unwrap();
-
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
@@ -339,5 +304,4 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
         ));
     }
     println!("{}", output);
-    // println!("{:?}", task_ids_in_order);
 }
