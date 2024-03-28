@@ -1,5 +1,5 @@
 use std::{
-    cmp::max, collections::HashSet, env, fs::File, path::Path, process::Command,
+    cmp::max, collections::HashSet, env, fs::File, path::Path, process::{self, Command},
     sync::mpsc::channel, thread,
 };
 
@@ -121,12 +121,13 @@ fn main() {
                     // println!("{:#?}", args);
                     let mut cmd = Command::new(&args[1]);
                     cmd.args(&args[2..]);
-                    let (_, _) = spawn(
+                    let (exit_status, _) = spawn(
                         cmd,
                         Box::new(move |s| print!("{s}")),
                         Box::new(move |s| eprint!("{s}")),
                     );
-                    return;
+                    process::exit(exit_status.code().unwrap());
+                    // return;
                 }
 
                 let tasks_json: Vec<Task> =
