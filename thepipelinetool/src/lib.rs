@@ -32,8 +32,6 @@ pub mod dev {
     pub use crate::hash::hash_dag;
     pub use crate::prelude::*;
     pub use crate::statics::*;
-    pub use thepipelinetool_runner::in_memory::{run_in_memory, InMemoryRunner};
-    pub use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
     pub use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
     pub use thepipelinetool_task::queued_task::QueuedTask;
     pub use thepipelinetool_task::task_result::TaskResult;

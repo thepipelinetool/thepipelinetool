@@ -11,19 +11,12 @@ repository = "https://github.com/thepipelinetool/thepipelinetool"
 [dependencies]
 chrono = { version = "0.4.31", features = [ "serde" ] }
 serde_json = "1.0"
-thepipelinetool_reader = { path = "../thepipelinetool_reader", version = "0.1.2" }
 thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.11" }
 thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
-thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.1.2" }
 thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.1.0" }
 serde = "1.0.189"
 clap = { version = "4.4.7", features = [ "cargo" ] }
-# parking_lot = "0.12.1"
 
 [dev-dependencies]
 rand = "0.8"
 polars = { version = "0.38.3", features = [ "lazy", "serde" ] }
-
-[[bin]]
-name = "tpt"
-path = "bin/tpt.rs"

@@ -8,5 +8,6 @@ members = [
     "thepipelinetool_task",
     "thepipelinetool_proc_macro",
     "thepipelinetool_reader",
+    "thepipelinetool_cli",
 ]
 resolver = "2"
