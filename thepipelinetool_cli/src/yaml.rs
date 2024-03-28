@@ -6,8 +6,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use thepipelinetool_task::task_options::TaskOptions;
-use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
+use thepipelinetool::dev::{TaskOptions, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TaskTemplate {

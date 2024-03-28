@@ -14,6 +14,8 @@ use thepipelinetool_runner::{
     Runner,
 };
 
+pub mod yaml;
+
 pub fn create_commands() -> CliCommand {
     command!()
         .about("DAG CLI Tool")

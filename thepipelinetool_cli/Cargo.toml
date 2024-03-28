@@ -9,8 +9,8 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 thepipelinetool = { path = "../thepipelinetool", version = "0.1.216" }
-thepipelinetool_reader = { path = "../thepipelinetool_reader", version = "0.1.2" }
 thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.1.2" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
 
 chrono = { version = "0.4.31", features = [ "serde" ] }
 clap = { version = "4.4.7", features = [ "cargo" ] }

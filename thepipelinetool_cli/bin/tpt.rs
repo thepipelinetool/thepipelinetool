@@ -7,8 +7,10 @@ use std::{
 use clap::Arg;
 use serde_json::json;
 use thepipelinetool::dev::*;
-use thepipelinetool_cli::{create_commands, process_subcommands};
-use thepipelinetool_reader::yaml::{read_from_yaml, Operator};
+use thepipelinetool_cli::{
+    create_commands, process_subcommands,
+    yaml::{read_from_yaml, Operator},
+};
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
