@@ -7,8 +7,8 @@ pub mod cli;
 pub mod flow;
 pub mod functions;
 pub mod hash;
-pub mod ops_overrides;
 pub mod operators;
+pub mod ops_overrides;
 pub mod statics;
 
 pub use statics::*;
@@ -16,9 +16,9 @@ pub use statics::*;
 pub mod prelude {
     pub use crate::cli::parse_cli;
     pub use crate::{
+        functions::{add_command, add_task, add_task_with_ref, branch, expand, expand_lazy},
         // builder::TaskBuilder,
         TaskRef,
-        functions::{add_command, add_task, add_task_with_ref, branch, expand, expand_lazy},
     };
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
@@ -35,12 +35,10 @@ pub mod server {
     pub use thepipelinetool_task::task_result::TaskResult;
     pub use thepipelinetool_task::task_status::TaskStatus;
     // pub use thepipelinetool_task::trigger_rules::TriggerRules;
+    pub use crate::prelude::*;
     pub use thepipelinetool_task::Task;
     pub use thepipelinetool_utils::execute_function_using_json_files;
-    pub use crate::prelude::*;
 }
-
-
 
 use serde::Serialize;
 use thepipelinetool_task::task_ref_inner::TaskRefInner;

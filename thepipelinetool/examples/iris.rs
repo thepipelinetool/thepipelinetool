@@ -4,7 +4,8 @@ use thepipelinetool::prelude::*;
 fn produce_data(_: ()) -> Value {
     let q = LazyCsvReader::new("examples/iris.csv")
         .has_header(true)
-        .finish().unwrap()
+        .finish()
+        .unwrap()
         .filter(col("SepalLength").gt(lit(5)))
         .group_by(vec![col("Name")])
         .agg([col("*").sum()]);
@@ -30,7 +31,6 @@ fn main() {
     // add a task that depends on 'task_ref'
     let _ = add_task_with_ref(print_data, &task_ref, opts);
 }
-
 
 #[cfg(test)]
 mod tests {

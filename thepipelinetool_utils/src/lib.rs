@@ -2,7 +2,8 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
     path::{Path, PathBuf},
-    process::{self, Command, ExitStatus, Stdio}, thread,
+    process::{self, Command, ExitStatus, Stdio},
+    thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -83,7 +84,6 @@ pub fn to_base62(mut num: u64) -> String {
     chars.truncate(7); // Ensure length is 7
     chars.iter().collect()
 }
-
 
 pub fn spawn(
     mut cmd: Command,

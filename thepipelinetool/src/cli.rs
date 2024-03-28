@@ -1,17 +1,12 @@
-use std::collections::HashSet;
 use std::path::Path;
-use thepipelinetool_task::Task;
 use thepipelinetool_utils::execute_function_using_json_str_args;
 
-use std::{cmp::max, env, sync::mpsc::channel, thread};
+use std::env;
 
-use chrono::Utc;
-use clap::{arg, command, value_parser, ArgMatches, Command as CliCommand};
+use clap::{arg, command, ArgMatches, Command as CliCommand};
 
-use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use thepipelinetool_utils::execute_function_using_json_files;
 
-use crate::hash::hash_dag;
 use crate::*;
 
 pub fn display_tasks() {
@@ -25,7 +20,6 @@ pub fn display_edges() {
 
     println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
 }
-
 
 pub fn run_function(matches: &ArgMatches) {
     let functions = get_functions().read().unwrap();
@@ -121,7 +115,6 @@ fn create_commands() -> CliCommand {
 }
 
 fn process_commands(matches: &ArgMatches) {
-
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
             // "describe" => describe(),
@@ -178,9 +171,6 @@ fn process_commands(matches: &ArgMatches) {
 /// The behavior of the CLI tool depends on the subcommands and options passed on the command
 /// line. Use the "--help" command to see the CLI details.
 pub fn parse_cli() {
-    let args: Vec<String> = env::args().collect();
-    // dbg!(&args);
-
     let command = create_commands();
     let matches = command.get_matches();
     process_commands(&matches);

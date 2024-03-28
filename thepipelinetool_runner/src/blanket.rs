@@ -224,8 +224,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 .get_downstream(run_id, result.task_id)
                 .iter()
                 .filter(|d| {
-                    !self.is_task_done(run_id, **d)
-                        && self.trigger_rules_satisfied(run_id, **d)
+                    !self.is_task_done(run_id, **d) && self.trigger_rules_satisfied(run_id, **d)
                 })
                 .collect::<Vec<&usize>>()
             {

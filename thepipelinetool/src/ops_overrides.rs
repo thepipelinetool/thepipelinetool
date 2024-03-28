@@ -1,11 +1,16 @@
-use std::{marker::PhantomData, ops::{BitOr, Shl, Shr}};
+use std::{
+    marker::PhantomData,
+    ops::{BitOr, Shl, Shr},
+};
 
 use serde::Serialize;
 use serde_json::Value;
 use thepipelinetool_task::task_ref_inner::TaskRefInner;
 
-use crate::{flow::{par, seq}, TaskRef};
-
+use crate::{
+    flow::{par, seq},
+    TaskRef,
+};
 
 impl<T, G> Shr<TaskRef<G>> for TaskRef<T>
 where

@@ -1,31 +1,22 @@
 use std::{
-    cmp::max,
-    collections::HashSet,
-    env,
-    fs::File,
-    path::{Path, PathBuf},
-    process::Command,
-    sync::mpsc::channel,
-    thread,
+    cmp::max, collections::HashSet, env, fs::File, path::Path, process::Command,
+    sync::mpsc::channel, thread,
 };
 
 use chrono::Utc;
-use clap::{arg, command, value_parser, Arg, ArgAction, ArgMatches, Command as CliCommand};
+use clap::{arg, command, value_parser, Arg, ArgMatches, Command as CliCommand};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, map::Keys, Value};
+use serde_json::{json, Value};
 use thepipelinetool::{
     cli::*,
-    get_edges, get_functions, get_tasks,
+    get_edges, get_tasks,
     hash::hash_dag,
     operators::run_command,
     server::{add_task, BlanketRunner, InMemoryRunner, TaskOptions},
 };
 use thepipelinetool_runner::Runner;
 use thepipelinetool_task::Task;
-use thepipelinetool_utils::{
-    execute_function_using_json_files, execute_function_using_json_str_args, get_dag_type_by_path,
-    spawn, value_from_file, DagType,
-};
+use thepipelinetool_utils::{get_dag_type_by_path, spawn, DagType};
 
 fn create_commands() -> CliCommand {
     command!()

@@ -1,13 +1,4 @@
-use std::{
-    env,
-    ffi::OsStr,
-    fs,
-    io::{BufRead, BufReader},
-    path::{Path, PathBuf},
-    process::{Command, CommandArgs, ExitStatus, Stdio},
-    thread,
-    time::Duration,
-};
+use std::{env, ffi::OsStr, fs, path::PathBuf, process::Command, thread, time::Duration};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -34,7 +25,9 @@ fn get_json_dir() -> String {
 fn get_save_to_file() -> bool {
     env::var("SAVE_TO_FILE")
         .unwrap_or("false".to_string())
-        .to_string().parse::<bool>().unwrap()
+        .to_string()
+        .parse::<bool>()
+        .unwrap()
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -144,9 +137,9 @@ impl Task {
             let args: Vec<String> = env::args().collect();
             // args.next();
             let dag_name = &args[1];
-            
+
             // if str.ends_with("tptctl") {
-                command.arg(dag_name);
+            command.arg(dag_name);
             // }
             // let k = command.get_args().collect::<Vec<OsStr>>();
             // dbg!(strs);
@@ -171,5 +164,4 @@ impl Task {
 
         command.args(["run", "function", &self.function_name]);
     }
-
 }
