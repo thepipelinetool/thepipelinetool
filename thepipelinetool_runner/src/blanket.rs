@@ -30,7 +30,7 @@ pub trait BlanketRunner {
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
-        executable_path: P,
+        dag_path: P,
     );
     fn get_circular_dependencies(
         &self,
@@ -46,7 +46,7 @@ pub trait BlanketRunner {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        executable_path: P,
+        dag_path: P,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -239,7 +239,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        executable_path: P,
+        dag_path: P,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -347,7 +347,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.get_log_handle_closure(run_id, task.id, attempt),
             self.get_log_handle_closure(run_id, task.id, attempt),
             self.take_last_stdout_line(run_id, task.id, attempt),
-            executable_path,
+            dag_path,
         )
     }
 
@@ -470,7 +470,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        executable_path: P,
+        dag_path: P,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
@@ -489,7 +489,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 &task,
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
-                executable_path,
+                dag_path,
             ),
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,

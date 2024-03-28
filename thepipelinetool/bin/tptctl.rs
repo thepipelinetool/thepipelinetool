@@ -1,6 +1,12 @@
 use std::{
-    cmp::max, collections::HashSet, env, fs::File, path::Path, process::{self, Command},
-    sync::mpsc::channel, thread,
+    cmp::max,
+    collections::HashSet,
+    env,
+    fs::File,
+    path::Path,
+    process::{self, Command},
+    sync::mpsc::channel,
+    thread,
 };
 
 use chrono::Utc;
@@ -176,10 +182,10 @@ fn main() {
             // dbg!(&task_templates);
         }
     }
-    process_commands(&matches);
+    process_commands(&matches, &dag_name);
 }
 
-fn process_commands(matches: &ArgMatches) {
+fn process_commands(matches: &ArgMatches, dag_path: &str) {
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
             "describe" => describe(),
@@ -193,7 +199,22 @@ fn process_commands(matches: &ArgMatches) {
                 if let Some(subcommand) = matches.subcommand_name() {
                     // dbg!(subcommand);
                     match subcommand {
-                        "in_memory" => run_in_memory(matches),
+                        "in_memory" => {
+                            let num_threads = match matches
+                                .subcommand_matches("in_memory")
+                                .unwrap()
+                                .get_one::<String>("num_threads")
+                                .unwrap()
+                                .as_str()
+                            {
+                                "max" => max(
+                                    usize::from(std::thread::available_parallelism().unwrap()) - 1,
+                                    1,
+                                ),
+                                any => any.parse::<usize>().unwrap(),
+                            };
+                            run_in_memory(dag_path.to_string(), num_threads);
+                        }
                         "function" => run_function(matches),
                         _ => {}
                     }
@@ -321,22 +342,8 @@ pub fn display_tree() {
     println!("{}", output);
     // println!("{:?}", task_ids_in_order);
 }
-pub fn run_in_memory(matches: &ArgMatches) {
+pub fn run_in_memory(dag_path: String, num_threads: usize) {
     // dbg!(1);
-
-    let num_threads = match matches
-        .subcommand_matches("in_memory")
-        .unwrap()
-        .get_one::<String>("num_threads")
-        .unwrap()
-        .as_str()
-    {
-        "max" => max(
-            usize::from(std::thread::available_parallelism().unwrap()) - 1,
-            1,
-        ),
-        any => any.parse::<usize>().unwrap(),
-    };
     let tasks = get_tasks().read().unwrap();
     let edges = get_edges().read().unwrap();
 
@@ -366,11 +373,13 @@ pub fn run_in_memory(matches: &ArgMatches) {
     for _ in 0..num_threads {
         let mut runner = runner.clone();
         let tx = tx.clone();
+        let dag_path = dag_path.clone();
+
         if let Some(queued_task) = runner.pop_priority_queue() {
             thread::spawn(move || {
-                let current_executable_path = &env::args().next().unwrap();
+                let dag_path = Path::new(&dag_path);
 
-                runner.work(run_id, &queued_task, current_executable_path.as_str());
+                runner.work(run_id, &queued_task, dag_path);
                 tx.send(()).unwrap();
             });
 
@@ -383,10 +392,13 @@ pub fn run_in_memory(matches: &ArgMatches) {
         }
     }
     // dbg!(1);
+    // let dag_path_2 = Path::new(dag_name.clone());
 
     for _ in rx.iter() {
         thread_count -= 1;
         // dbg!(2);
+        // let dag_path = Path::new(dag_name);
+        let dag_path = dag_path.clone();
 
         let mut runner = runner.clone();
         if let Some(queued_task) = runner.pop_priority_queue() {
@@ -394,10 +406,10 @@ pub fn run_in_memory(matches: &ArgMatches) {
             // dbg!(2);
 
             thread::spawn(move || {
-                let current_executable_path = &env::args().next().unwrap();
-                // dbg!(2);
 
-                runner.work(run_id, &queued_task, current_executable_path.as_str());
+                let dag_path = Path::new(&dag_path);
+
+                runner.work(run_id, &queued_task, dag_path);
                 tx.send(()).unwrap();
             });
 

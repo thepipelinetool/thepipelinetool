@@ -49,7 +49,7 @@ impl Task {
         handle_stdout_log: Box<dyn Fn(String) + Send>,
         handle_stderr_log: Box<dyn Fn(String) + Send>,
         take_last_stdout_line: Box<dyn Fn() -> String + Send>,
-        executable_path: P,
+        dag_path: P,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
@@ -72,9 +72,9 @@ impl Task {
 
         let start = Utc::now();
         // dbg!("{:#?}", Path::new(&executable_path));
-        let mut cmd = self.create_command(&executable_path, use_timeout);
+        let mut cmd = self.create_command(&dag_path, use_timeout);
 
-        self.command_timeout(&mut cmd, &executable_path, use_timeout, &timeout_as_secs);
+        self.command_timeout(&mut cmd, &dag_path, use_timeout, &timeout_as_secs);
 
         let (status, timed_out, result) = if save_to_file {
             let json_dir = get_json_dir();
@@ -124,7 +124,7 @@ impl Task {
         }
     }
 
-    fn create_command<P>(&self, executable_path: &P, use_timeout: bool) -> Command
+    fn create_command<P>(&self, dag_path: &P, use_timeout: bool) -> Command
     where
         P: AsRef<OsStr>,
     {
@@ -132,10 +132,8 @@ impl Task {
         if use_timeout {
             Command::new("timeout")
         } else {
-            let mut command = Command::new(executable_path);
-            let args: Vec<String> = env::args().collect();
-            let dag_name = &args[1];
-            command.arg(dag_name);
+            let mut command = Command::new(get_tptctl_path());
+            command.arg(dag_path);
             command
         }
     }
@@ -143,7 +141,7 @@ impl Task {
     fn command_timeout<P>(
         &self,
         command: &mut Command,
-        executable_path: &P,
+        dag_path: &P,
         use_timeout: bool,
         timeout_as_secs: &str,
     ) where
@@ -151,12 +149,15 @@ impl Task {
     {
         if use_timeout {
             command.args(["-k", timeout_as_secs, timeout_as_secs]);
-            command.arg(executable_path); // TODO add dag name
-            let args: Vec<String> = env::args().collect();
-            let dag_name = &args[1];
-            command.arg(dag_name);
+            command.arg(get_tptctl_path());
+            command.arg(dag_path);
         }
 
         command.args(["run", "function", &self.function_name]);
     }
+}
+
+pub fn get_tptctl_path() -> String {
+    // TODO
+    return "/home/dirk/Documents/thepipelinetool/target/debug/tptctl".into();
 }

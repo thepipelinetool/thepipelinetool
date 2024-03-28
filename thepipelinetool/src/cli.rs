@@ -11,19 +11,16 @@ use crate::*;
 
 pub fn display_tasks() {
     let tasks = get_tasks().read().unwrap();
-
     println!("{}", serde_json::to_string_pretty(&*tasks).unwrap());
 }
 
 pub fn display_edges() {
     let edges = get_edges().read().unwrap();
-
     println!("{}", serde_json::to_string_pretty(&*edges).unwrap());
 }
 
 pub fn run_function(matches: &ArgMatches) {
     let functions = get_functions().read().unwrap();
-
     let sub_matches = matches.subcommand_matches("function").unwrap();
     let function_name = sub_matches.get_one::<String>("function_name").unwrap();
     let in_arg = sub_matches.get_one::<String>("in_path").unwrap();
@@ -50,43 +47,12 @@ pub fn run_function(matches: &ArgMatches) {
 fn create_commands() -> CliCommand {
     command!()
         .about("DAG CLI Tool")
-        // .subcommand(CliCommand::new("describe").about("Describes the DAG"))
-        // .subcommand(CliCommand::new("options").about("Displays options as JSON"))
         .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
         .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
-        // .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
-        // .subcommand(
-        //     CliCommand::new("graph")
-        //         .about("Displays graph")
-        //         .arg_required_else_help(true)
-        //         .arg(
-        //             arg!(
-        //                 [graph_type] "Type of graph to output"
-        //             )
-        //             .required(true)
-        //             .value_parser(value_parser!(String))
-        //             .default_values(["mermaid", "graphite"])
-        //             .default_missing_value("mermaid"),
-        //         ),
-        // )
-        // .subcommand(CliCommand::new("tree").about("Displays tree"))
         .subcommand(
             CliCommand::new("run")
                 .about("Run complete DAG or function by name")
                 .arg_required_else_help(true)
-                // .subcommand(
-                //     CliCommand::new("in_memory")
-                //         .about("Runs this DAG in memory")
-                //         .arg(
-                //             arg!(
-                //                 [num_threads] "Max number of threads for parallel execution"
-                //             )
-                //             .required(false)
-                //             .value_parser(value_parser!(String))
-                //             .default_value("max")
-                //             .default_missing_value("max"),
-                //         ),
-                // )
                 .subcommand(
                     CliCommand::new("function")
                         .about("Runs function")
@@ -117,17 +83,12 @@ fn create_commands() -> CliCommand {
 fn process_commands(matches: &ArgMatches) {
     if let Some(subcommand) = matches.subcommand_name() {
         match subcommand {
-            // "describe" => describe(),
             "tasks" => display_tasks(),
             "edges" => display_edges(),
-            // "graph" => display_graph(&matches),
-            // "hash" => display_hash(),
-            // "tree" => display_tree(),
             "run" => {
                 let matches = matches.subcommand_matches("run").unwrap();
                 if let Some(subcommand) = matches.subcommand_name() {
                     match subcommand {
-                        // "in_memory" => run_in_memory(matches),
                         "function" => run_function(matches),
                         _ => {}
                     }
