@@ -1,10 +1,5 @@
 tasks:
   produce_data:
-    command: ["echo", "hello"]
+    command: ["pwd"]
   print_data:
-    command: ["date"]
-    depends_on:
-      - produce_data
-
-edges:
-  - produce_data >> 
+    command: ["echo", "{{produce_data}}"]

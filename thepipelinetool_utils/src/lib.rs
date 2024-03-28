@@ -9,6 +9,9 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub const UPSTREAM_TASK_ID_KEY: &str = "upstream_task_id";
+pub const UPSTREAM_TASK_RESULT_KEY: &str = "key";
+
 pub fn function_name_as_string<T>(_: T) -> String {
     let name = std::any::type_name::<T>();
     let name = &name.replace(['}', '{'], "");

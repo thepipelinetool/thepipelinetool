@@ -16,9 +16,9 @@ pub fn run_command(args: Value) -> Value {
     let result_raw = String::from_utf8_lossy(&output.stdout);
     let err_raw = String::from_utf8_lossy(&output.stderr);
 
-    // println!("{}", result_raw);
+    print!("{}", result_raw);
     if !output.status.success() {
-        eprintln!("{}", err_raw);
+        eprint!("{}", err_raw);
         panic!("failed to run command:\n{}\n\n", args.join(" "));
     }
 

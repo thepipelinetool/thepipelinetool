@@ -1,9 +1,7 @@
 use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashSet, marker::PhantomData};
-
-pub const UPSTREAM_TASK_ID_KEY: &str = "upstream_task_id";
-pub const UPSTREAM_TASK_RESULT_KEY: &str = "key";
+use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 
 #[derive(Clone)]
 pub struct TaskRefInner<T: Serialize> {

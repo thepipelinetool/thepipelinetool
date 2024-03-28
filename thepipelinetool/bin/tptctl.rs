@@ -1,6 +1,6 @@
 use std::{
     cmp::max,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env,
     fs::File,
     path::Path,
@@ -9,9 +9,9 @@ use std::{
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, Arg, ArgMatches, Command as CliCommand};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use thepipelinetool::dev::*;
+use thepipelinetool_reader::yaml::read_from_yaml;
 
 fn create_commands() -> CliCommand {
     command!()
@@ -129,27 +129,9 @@ fn main() {
             }
         }
         DagType::YAML => {
-            let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();
-
-            if !value.as_object().unwrap().contains_key("tasks") {
-                return;
-            }
-
-            let tasks = value["tasks"].as_object().unwrap();
-            let task_templates: Vec<TaskTemplate> = tasks
-                .iter()
-                .map(|(key, value)| {
-                    let mut template: TaskTemplate = serde_json::from_value(value.clone()).unwrap();
-                    template.function_name = key.to_string();
-                    template
-                })
-                .collect();
-
-            for task_template in &task_templates {
-                let template_args = serde_json::to_value(&task_template.command).unwrap();
+            for template_args in read_from_yaml(dag_path) {
                 add_task(run_command, template_args, &TaskOptions::default());
             }
-            // dbg!(&task_templates);
         }
     }
 
@@ -212,47 +194,13 @@ fn process_subcommands(
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TaskTemplate {
-    #[serde(default)]
-    pub function_name: String,
-
-    #[serde(default)]
-    pub command: Vec<String>,
-
-    #[serde(default)]
-    pub options: TaskOptions,
-
-    #[serde(default)]
-    pub lazy_expand: bool,
-
-    #[serde(default)]
-    pub is_dynamic: bool,
-
-    #[serde(default)]
-    pub is_branch: bool,
-}
-
-impl Default for TaskTemplate {
-    fn default() -> Self {
-        Self {
-            function_name: "".to_string(),
-            command: Vec::new(),
-            options: Default::default(),
-            lazy_expand: false,
-            is_dynamic: false,
-            is_branch: false,
-        }
-    }
-}
-
-pub fn describe(tasks: &[Task]) {
+fn describe(tasks: &[Task]) {
     // TODO
 
     println!("Task count: {}", tasks.len());
 }
 
-pub fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     let hash = hash_dag(
         &serde_json::to_string(&*tasks).unwrap(),
         &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
@@ -260,7 +208,7 @@ pub fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     print!("{hash}");
 }
 
-pub fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
@@ -268,7 +216,7 @@ pub fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     print!("{graph}");
 }
 
-pub fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
@@ -276,7 +224,7 @@ pub fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     print!("{}", serde_json::to_string_pretty(&graph).unwrap());
 }
 
-pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
