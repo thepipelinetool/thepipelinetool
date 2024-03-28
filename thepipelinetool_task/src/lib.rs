@@ -3,8 +3,8 @@ use std::{
     ffi::OsStr,
     fs,
     io::{BufRead, BufReader},
-    path::PathBuf,
-    process::{Command, ExitStatus, Stdio},
+    path::{Path, PathBuf},
+    process::{Command, CommandArgs, ExitStatus, Stdio},
     thread,
     time::Duration,
 };
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{value_from_file, value_to_file};
+use thepipelinetool_utils::{spawn, value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -78,6 +78,7 @@ impl Task {
             .to_string();
 
         let start = Utc::now();
+        // dbg!("{:#?}", Path::new(&executable_path));
         let mut cmd = self.create_command(&executable_path, use_timeout);
 
         self.command_timeout(&mut cmd, &executable_path, use_timeout, &timeout_as_secs);
@@ -94,7 +95,7 @@ impl Task {
             value_to_file(resolved_args, &in_path);
             cmd.args([&in_path, &out_path]);
 
-            let (status, timed_out) = self.spawn(cmd, handle_stdout_log, handle_stderr_log);
+            let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
             if status.success() {
                 (status, timed_out, value_from_file(&out_path).unwrap())
             } else {
@@ -102,7 +103,7 @@ impl Task {
             }
         } else {
             cmd.arg(&resolved_args_str);
-            let (status, timed_out) = self.spawn(cmd, handle_stdout_log, handle_stderr_log);
+            let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
             if status.success() {
                 let last_line = take_last_stdout_line();
                 (status, timed_out, serde_json::from_str(&last_line).unwrap())
@@ -134,10 +135,23 @@ impl Task {
     where
         P: AsRef<OsStr>,
     {
+        // dbg!(use_timeout);
         if use_timeout {
             Command::new("timeout")
         } else {
-            Command::new(executable_path)
+            let mut command = Command::new(executable_path);
+            // let strs: String = Path::new(executable_path).as_os_str().to_str().unwrap().to_string();
+            let args: Vec<String> = env::args().collect();
+            // args.next();
+            let dag_name = &args[1];
+            
+            // if str.ends_with("tptctl") {
+                command.arg(dag_name);
+            // }
+            // let k = command.get_args().collect::<Vec<OsStr>>();
+            // dbg!(strs);
+            // dbg!(dag_name);
+            command
         }
     }
 
@@ -158,42 +172,4 @@ impl Task {
         command.args(["run", "function", &self.function_name]);
     }
 
-    fn spawn(
-        &self,
-        mut cmd: Command,
-        handle_stdout_log: Box<dyn Fn(String) + Send>,
-        handle_stderr_log: Box<dyn Fn(String) + Send>,
-    ) -> (ExitStatus, bool) {
-        let mut child = cmd
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("failed to start command");
-
-        let stdout = child.stdout.take().expect("failed to take stdout");
-        let stderr = child.stderr.take().expect("failed to take stderr");
-
-        let stdout_handle = thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                handle_stdout_log(line);
-            }
-        });
-
-        let stderr_handle = thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                let line = format!("{}\n", line.expect("failed to read line from stdout"));
-                handle_stderr_log(line);
-            }
-        });
-
-        let status = child.wait().expect("failed to wait on child");
-        let timed_out = matches!(status.code(), Some(124));
-        stdout_handle.join().expect("stdout thread panicked");
-        stderr_handle.join().expect("stderr thread panicked");
-
-        (status, timed_out)
-    }
 }

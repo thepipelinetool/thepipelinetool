@@ -1,8 +1,8 @@
 use std::{
     fs::File,
-    io::{Error, Read, Write},
-    path::Path,
-    process,
+    io::{BufRead, BufReader, Error, Read, Write},
+    path::{Path, PathBuf},
+    process::{self, Command, ExitStatus, Stdio}, thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -82,4 +82,76 @@ pub fn to_base62(mut num: u64) -> String {
 
     chars.truncate(7); // Ensure length is 7
     chars.iter().collect()
+}
+
+
+pub fn spawn(
+    mut cmd: Command,
+    handle_stdout_log: Box<dyn Fn(String) + Send>,
+    handle_stderr_log: Box<dyn Fn(String) + Send>,
+) -> (ExitStatus, bool) {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to start command");
+
+    let stdout = child.stdout.take().expect("failed to take stdout");
+    let stderr = child.stderr.take().expect("failed to take stderr");
+
+    let stdout_handle = thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            let line = format!("{}\n", line.expect("failed to read line from stdout"));
+            handle_stdout_log(line);
+        }
+    });
+
+    let stderr_handle = thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            let line = format!("{}\n", line.expect("failed to read line from stdout"));
+            handle_stderr_log(line);
+        }
+    });
+
+    let status = child.wait().expect("failed to wait on child");
+    let timed_out = matches!(status.code(), Some(124));
+    stdout_handle.join().expect("stdout thread panicked");
+    stderr_handle.join().expect("stderr thread panicked");
+
+    (status, timed_out)
+}
+
+#[derive(PartialEq)]
+pub enum DagType {
+    Binary,
+    YAML,
+}
+
+pub fn get_dag_type_by_path(path: PathBuf) -> DagType {
+    if let Some(ext) = path.extension() {
+        match ext.to_str().unwrap() {
+            "yaml" => {
+                return DagType::YAML;
+            }
+            _ => {}
+        }
+    }
+    DagType::Binary
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::DagType;
+
+    use super::get_dag_type_by_path;
+
+    #[test]
+    fn test_get_dag_type_by_path() {
+        assert!(get_dag_type_by_path(Path::new("hello").to_path_buf()) == DagType::Binary);
+        assert!(get_dag_type_by_path(Path::new("hello.yaml").to_path_buf()) == DagType::YAML);
+    }
 }
