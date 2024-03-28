@@ -19,7 +19,7 @@ use crate::Runner;
 pub trait BlanketRunner {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
 
-    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String;
+    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String; // TODO move to cli
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
@@ -30,13 +30,6 @@ pub trait BlanketRunner {
         queued_task: &OrderedQueuedTask,
         dag_path: P,
     );
-    fn get_circular_dependencies(
-        &self,
-        run_id: usize,
-        start_node: usize,
-        visited: &mut HashSet<usize>,
-        path: &mut Vec<usize>,
-    ) -> Option<Vec<usize>>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
     fn run_task<P: AsRef<OsStr>>(
         &mut self,
@@ -499,35 +492,6 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);
-    }
-
-    fn get_circular_dependencies(
-        &self,
-        run_id: usize,
-        start_node: usize,
-        visited: &mut HashSet<usize>,
-        path: &mut Vec<usize>,
-    ) -> Option<Vec<usize>> {
-        visited.insert(start_node);
-        path.push(start_node);
-
-        for neighbor in self.get_upstream(run_id, start_node) {
-            if !visited.contains(&neighbor) {
-                if let Some(cycle) = self.get_circular_dependencies(run_id, neighbor, visited, path)
-                {
-                    return Some(cycle);
-                }
-            } else if path.contains(&neighbor) {
-                // Circular dependency detected
-                let mut cycle = path.clone();
-                cycle.push(neighbor);
-                return Some(cycle);
-            }
-        }
-
-        path.pop();
-        visited.remove(&start_node);
-        None
     }
 
     fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value> {

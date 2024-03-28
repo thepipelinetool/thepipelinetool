@@ -1,0 +1,7 @@
+tasks:
+  produce_data:
+    args: ["echo", "{{taska}}"]
+  print_data:
+    args: ["echo", "{{produce_data}}"]
+  taska:
+    args: ["echo", "{{print_data}}"]

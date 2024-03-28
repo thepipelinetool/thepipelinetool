@@ -5,7 +5,7 @@ use thepipelinetool::prelude::*;
 #[dag]
 fn main() {
     let a = add_task(
-        run_command,
+        bash_operator,
         json!(["bash", "-c", "sleep 3 && echo hello"]),
         &TaskOptions {
             timeout: Some(Duration::new(1, 0)),
@@ -15,7 +15,7 @@ fn main() {
         },
     );
     let b = add_task(
-        run_command,
+        bash_operator,
         json!(["echo", a.value()]),
         &TaskOptions::default(),
     );

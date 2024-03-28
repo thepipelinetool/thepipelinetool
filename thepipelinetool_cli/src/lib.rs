@@ -1,20 +1,24 @@
 use std::{
     cmp::max,
     collections::HashSet,
-    env
+    env,
+    process::{self},
 };
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, ArgMatches, Command as CliCommand};
 use thepipelinetool::dev::*;
-use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::{run_in_memory, InMemoryRunner}, Runner};
-
+use thepipelinetool_runner::{
+    blanket::BlanketRunner,
+    in_memory::{run_in_memory, InMemoryRunner},
+    Runner,
+};
 
 pub fn create_commands() -> CliCommand {
     command!()
         .about("DAG CLI Tool")
         .subcommand(CliCommand::new("describe").about("Describes the DAG"))
-        // .subcommand(CliCommand::new("options").about("Displays options as JSON"))
+        .subcommand(CliCommand::new("check").about("Check for circular depencencies"))
         .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
         .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
         .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
@@ -100,6 +104,7 @@ pub fn process_subcommands(
         }
         "hash" => display_hash(tasks, edges),
         "tree" => display_tree(tasks, edges),
+        "check" => check_circular_dependencies(tasks, edges),
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             if let Some(subcommand) = matches.subcommand_name() {
@@ -120,6 +125,7 @@ pub fn process_subcommands(
                             any => any.parse::<usize>().unwrap(),
                         };
 
+                        check_circular_dependencies(tasks, edges);
                         run_in_memory(&tasks, &edges, dag_path.to_string(), num_threads);
                     }
                     "function" => run_function(matches),
@@ -159,6 +165,65 @@ fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
 
     let graph = runner.get_graphite_graph(0);
     print!("{}", serde_json::to_string_pretty(&graph).unwrap());
+}
+
+fn check_circular_dependencies(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+    if let Some(cycle_tasks) = get_circular_dependencies(tasks.len(), edges) {
+        eprintln!(
+            "cycle detected: {}",
+            cycle_tasks
+                .iter()
+                .map(|i| format!("({}_{})", tasks[*i].name.to_string(), i))
+                .collect::<Vec<String>>()
+                .join("-->")
+        );
+        process::exit(1);
+    }
+    println!("no circular dependencies found");
+}
+
+fn get_circular_dependencies(
+    tasks_len: usize,
+    edges: &HashSet<(usize, usize)>,
+) -> Option<Vec<usize>> {
+    for task in 0..tasks_len {
+        let mut visited_tasks = HashSet::new();
+        let mut cycle_tasks = vec![];
+
+        if let Some(_) =
+            _get_circular_dependencies(edges, task, &mut visited_tasks, &mut cycle_tasks)
+        {
+            return Some(cycle_tasks);
+        }
+    }
+    None
+}
+
+fn get_upstream(id: usize, edges: &HashSet<(usize, usize)>) -> Vec<usize> {
+    edges.iter().filter(|e| e.1 == id).map(|e| e.0).collect()
+}
+
+fn _get_circular_dependencies(
+    edges: &HashSet<(usize, usize)>,
+    current: usize,
+    visited_tasks: &mut HashSet<usize>,
+    cycle_tasks: &mut Vec<usize>,
+) -> Option<Vec<usize>> {
+    visited_tasks.insert(current);
+    cycle_tasks.push(current);
+
+    for neighbor in get_upstream(current, edges) {
+        if !visited_tasks.contains(&neighbor) {
+            return _get_circular_dependencies(edges, neighbor, visited_tasks, cycle_tasks);
+        } else if cycle_tasks.contains(&neighbor) {
+            cycle_tasks.push(neighbor);
+            return Some(cycle_tasks.to_vec());
+        }
+    }
+
+    cycle_tasks.pop();
+    visited_tasks.remove(&current);
+    None
 }
 
 fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {

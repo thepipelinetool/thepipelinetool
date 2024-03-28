@@ -61,20 +61,13 @@ pub fn expand<F, T, G, const N: usize>(
     options: &TaskOptions,
 ) -> [TaskRef<TaskRefInner<G>>; N]
 where
-    T: Serialize + DeserializeOwned,
-    G: Serialize,
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
     let function_name = function_name_as_string(&function).to_string();
 
-    let wrapped_function = move |value: Value| -> Value {
-        // Deserialize the Value into T
-        let input: T = serde_json::from_value(value).unwrap();
-        // Call the original function
-        let output: G = function(input);
-        // Serialize the G type back into Value
-        serde_json::to_value(output).unwrap()
-    };
+    let wrapped_function = wrap_function(function);
     {
         get_functions()
             .write()
@@ -90,6 +83,7 @@ where
                 id,
                 Task {
                     id,
+                    name: function_name.to_string(),
                     function_name: function_name.clone(),
                     template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
                     options: *options,
@@ -160,8 +154,8 @@ pub fn add_task_with_ref<F, T, G>(
     options: &TaskOptions,
 ) -> TaskRef<G>
 where
-    T: Serialize + DeserializeOwned,
-    G: Serialize,
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
     let id = get_tasks().read().unwrap().len();
@@ -172,6 +166,7 @@ where
             id,
             Task {
                 id,
+                name: function_name.to_string(),
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
                 options: *options,
@@ -182,26 +177,21 @@ where
         );
     }
 
-    let wrapped_function = move |value: Value| -> Value {
-        // Deserialize the Value into T
-        let input: T = serde_json::from_value(value).unwrap();
-        // Call the original function
-        let output: G = function(input);
-        // Serialize the G type back into Value
-        serde_json::to_value(output).unwrap()
-    };
+    let wrapped_function = wrap_function(function);
     {
         get_functions()
             .write()
             .unwrap()
             .insert(function_name, Box::new(wrapped_function));
     }
-    TaskRef(TaskRefInner {
-        task_ids: HashSet::from([id]),
-        key: None,
 
-        _marker: std::marker::PhantomData,
-    })
+    task_ref
+        >> TaskRef(TaskRefInner {
+            task_ids: HashSet::from([id]),
+            key: None,
+
+            _marker: std::marker::PhantomData,
+        })
 }
 
 /// Adds a new task to the task management system.
@@ -240,8 +230,8 @@ where
 /// ```
 pub fn add_task<F, T, G>(function: F, template_args: T, options: &TaskOptions) -> TaskRef<G>
 where
-    T: Serialize + DeserializeOwned,
-    G: Serialize,
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
     let id = get_tasks().read().unwrap().len();
@@ -252,6 +242,7 @@ where
             id,
             Task {
                 id,
+                name: function_name.to_string(),
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
                 options: *options,
@@ -262,14 +253,52 @@ where
         );
     }
 
-    let wrapped_function = move |value: Value| -> Value {
-        // Deserialize the Value into T
-        let input: T = serde_json::from_value(value).unwrap();
-        // Call the original function
-        let output: G = function(input);
-        // Serialize the G type back into Value
-        serde_json::to_value(output).unwrap()
-    };
+    let wrapped_function = wrap_function(function);
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name, Box::new(wrapped_function));
+    }
+    TaskRef(TaskRefInner {
+        task_ids: HashSet::from([id]),
+        key: None,
+
+        _marker: std::marker::PhantomData,
+    })
+}
+
+pub fn add_named_task<F, T, G>(
+    function: F,
+    template_args: T,
+    options: &TaskOptions,
+    name: &str,
+) -> TaskRef<G>
+where
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
+    F: Fn(T) -> G + 'static + Sync + Send,
+{
+    let id = get_tasks().read().unwrap().len();
+
+    let function_name = function_name_as_string(&function).to_string();
+    {
+        get_tasks().write().unwrap().insert(
+            id,
+            Task {
+                id,
+                name: name.to_string(),
+                function_name: function_name.to_string(),
+                template_args: serde_json::to_value(template_args).unwrap(),
+                options: *options,
+                lazy_expand: false,
+                is_dynamic: false,
+                is_branch: false,
+            },
+        );
+    }
+
+    let wrapped_function = wrap_function(function);
     {
         get_functions()
             .write()
@@ -334,10 +363,10 @@ pub fn branch<F, K, T, L, J, R, M>(
     options: &TaskOptions,
 ) -> (TaskRef<J>, TaskRef<M>)
 where
-    T: Serialize + DeserializeOwned,
-    K: Serialize + DeserializeOwned,
-    J: Serialize,
-    M: Serialize,
+    T: Serialize + DeserializeOwned + 'static,
+    K: Serialize + DeserializeOwned + 'static,
+    J: Serialize + 'static,
+    M: Serialize + 'static,
     F: Fn(K) -> Branch<T> + 'static + Sync + Send,
     L: Fn(T) -> J + 'static + Sync + Send,
     R: Fn(T) -> M + 'static + Sync + Send,
@@ -350,6 +379,7 @@ where
             id,
             Task {
                 id,
+                name: function_name.to_string(),
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
                 options: *options,
@@ -360,14 +390,15 @@ where
         );
     }
 
-    let wrapped_function = move |value: Value| -> Value {
-        // Deserialize the Value into T
-        let input: K = serde_json::from_value(value).unwrap();
-        // Call the original function
-        let output: Branch<T> = function(input);
-        // Serialize the G type back into Value
-        serde_json::to_value(output).unwrap()
-    };
+    let wrapped_function = wrap_function(function);
+    // move |value: Value| -> Value {
+    //     // Deserialize the Value into T
+    //     let input: K = serde_json::from_value(value).unwrap();
+    //     // Call the original function
+    //     let output: Branch<T> = function(input);
+    //     // Serialize the G type back into Value
+    //     serde_json::to_value(output).unwrap()
+    // };
     {
         get_functions()
             .write()
@@ -433,9 +464,9 @@ pub fn expand_lazy<K, F, T, G>(
     options: &TaskOptions,
 ) -> TaskRef<Vec<G>>
 where
-    K: Serialize + DeserializeOwned,
+    K: Serialize + DeserializeOwned + 'static,
     T: Serialize + DeserializeOwned + IntoIterator<Item = K>,
-    G: Serialize,
+    G: Serialize + 'static,
     F: Fn(K) -> G + 'static + Sync + Send,
 {
     let id = get_tasks().read().unwrap().len();
@@ -446,6 +477,7 @@ where
             id,
             Task {
                 id,
+                name: function_name.to_string(),
                 function_name: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
                 options: *options,
@@ -456,58 +488,41 @@ where
         );
     }
 
-    let wrapped_function = move |value: Value| -> Value {
-        // Deserialize the Value into T
-        let input: K = serde_json::from_value(value).unwrap();
-        // Call the original function
-        let output: G = function(input);
-        // Serialize the G type back into Value
-        serde_json::to_value(output).unwrap()
-    };
+    let wrapped_function = wrap_function(function);
+    // move |value: Value| -> Value {
+    //     // Deserialize the Value into T
+    //     let input: K = serde_json::from_value(value).unwrap();
+    //     // Call the original function
+    //     let output: G = function(input);
+    //     // Serialize the G type back into Value
+    //     serde_json::to_value(output).unwrap()
+    // };
     {
         let mut functions = get_functions().write().unwrap();
         functions.insert(function_name.clone(), Box::new(wrapped_function));
         functions.insert(function_name_as_string(collector), Box::new(collector));
     }
 
-    TaskRef(TaskRefInner {
-        task_ids: HashSet::from([id]),
-        key: None,
-        _marker: std::marker::PhantomData,
-    })
+    task_ref
+        >> TaskRef(TaskRefInner {
+            task_ids: HashSet::from([id]),
+            key: None,
+            _marker: std::marker::PhantomData,
+        })
 }
 
-// /// Adds a command task to the task management system.
-// ///
-// /// This function takes a JSON `args` value representing an array of command arguments
-// /// and a reference to `TaskOptions`. It registers the command task in the system and
-// /// returns a reference to the newly added task.
-// ///
-// /// # Arguments
-// ///
-// /// * `args` - A JSON `Value` representing an array of command arguments. The array
-// ///   should contain the command and its arguments as strings.
-// /// * `options` - A reference to the `TaskOptions` struct, containing configuration
-// ///   options for the task.
-// ///
-// /// # Returns
-// ///
-// /// Returns `TaskRef<Value>`, a reference to the created command task.
-// ///
-// /// # Examples
-// ///
-// /// ```rust
-// /// use thepipelinetool::prelude::*;
-// ///
-// /// fn main() {
-// ///     // Define command arguments as a JSON array.
-// ///     let command_args: Value = json!(["ls", "-l"]);
-// //////
-// ///     // Add a command task using the `add_command` function.
-// ///     let command_task = add_command(command_args, &TaskOptions::default());
-// /// }
-// /// ```
-// pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
-//     assert!(args.is_array());
-//     add_task(run_command, args, options)
-// }
+pub fn wrap_function<K, T, F>(function: F) -> impl Fn(Value) -> Value
+where
+    T: Serialize,
+    K: Serialize + DeserializeOwned,
+    F: Fn(K) -> T + 'static + Sync + Send,
+{
+    move |value: Value| -> Value {
+        // Deserialize the Value into T
+        let input: K = serde_json::from_value(value).unwrap();
+        // Call the original function
+        let output: T = function(input);
+        // Serialize the G type back into Value
+        serde_json::to_value(output).unwrap()
+    }
+}

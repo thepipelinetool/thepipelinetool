@@ -1,0 +1,5 @@
+tasks:
+  produce_data:
+    args: ["pwd"]
+  print_data:
+    args: ["echo", "{{produce_data}}"]

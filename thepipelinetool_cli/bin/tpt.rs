@@ -8,7 +8,7 @@ use clap::Arg;
 use serde_json::json;
 use thepipelinetool::dev::*;
 use thepipelinetool_cli::{create_commands, process_subcommands};
-use thepipelinetool_reader::yaml::read_from_yaml;
+use thepipelinetool_reader::yaml::{read_from_yaml, Operator};
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
@@ -21,7 +21,7 @@ fn main() {
 
     match get_dag_type_by_path(dag_path.to_path_buf()) {
         DagType::Binary => {
-            if args[2..4] == ["run", "function"] {
+            if args.len() > 4 && args[2..4] == ["run", "function"] {
                 let mut cmd = Command::new(dag_path);
                 cmd.args(&mut args[2..]);
                 let (exit_status, _) = spawn(
@@ -39,28 +39,47 @@ fn main() {
             };
 
             if load_tasks {
-                let tasks_from_json: Vec<Task> =
-                    serde_json::from_str(run_command(json!([dag_name, "tasks"])).as_str().unwrap())
-                        .unwrap();
+                let tasks_from_json: Vec<Task> = serde_json::from_str(
+                    run_bash_commmand(json!([dag_name, "tasks"]), true)
+                        .as_str()
+                        .unwrap(),
+                )
+                .unwrap();
 
-                for t in tasks_from_json {
-                    get_tasks().write().unwrap().insert(t.id, t);
+                for task in tasks_from_json {
+                    get_tasks().write().unwrap().insert(task.id, task);
                 }
             }
 
             if load_edges {
-                let edges_from_json: Vec<(usize, usize)> =
-                    serde_json::from_str(run_command(json!([dag_name, "edges"])).as_str().unwrap())
-                        .unwrap();
+                let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
+                    run_bash_commmand(json!([dag_name, "edges"]), true)
+                        .as_str()
+                        .unwrap(),
+                )
+                .unwrap();
 
-                for e in edges_from_json {
-                    get_edges().write().unwrap().insert(e);
+                for edge in edges_from_json {
+                    get_edges().write().unwrap().insert(edge);
                 }
             }
         }
         DagType::YAML => {
-            for template_args in read_from_yaml(dag_path) {
-                add_task(run_command, template_args, &TaskOptions::default());
+            let (template_tasks, edges) = read_from_yaml(dag_path);
+            for template_task in template_tasks {
+                match template_task.operator {
+                    Operator::Bash => {
+                        add_named_task(
+                            bash_operator,
+                            template_task.args,
+                            &template_task.options,
+                            &template_task.name,
+                        );
+                    }
+                }
+            }
+            for edge in edges {
+                get_edges().write().unwrap().insert(edge);
             }
         }
     }

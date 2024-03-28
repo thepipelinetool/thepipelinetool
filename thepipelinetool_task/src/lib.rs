@@ -33,6 +33,7 @@ fn get_save_to_file() -> bool {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Task {
     pub id: usize,
+    pub name: String,
     pub function_name: String,
     pub template_args: Value,
     pub options: TaskOptions,
@@ -159,5 +160,5 @@ impl Task {
 
 pub fn get_tptctl_path() -> String {
     // TODO
-    return "/home/dirk/Documents/thepipelinetool/target/debug/tptctl".into();
+    return "/home/dirk/Documents/thepipelinetool/target/debug/tpt".into();
 }

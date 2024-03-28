@@ -221,6 +221,7 @@ impl Runner for InMemoryRunner {
         let new_id = nodes.len();
         nodes.push(Task {
             id: new_id,
+            name: function_name.to_owned(),
             function_name: function_name.to_owned(),
             template_args: template_args.to_owned(),
             options: options.to_owned(),
@@ -296,31 +297,10 @@ pub fn run_in_memory(
     dag_path: String,
     num_threads: usize,
 ) {
-    // dbg!(1);
-    // let tasks = get_tasks().read().unwrap();
-    // let edges = get_edges().read().unwrap();
-
     let mut runner = InMemoryRunner::new(&tasks.to_vec(), &edges);
-
     let run_id = runner.enqueue_run("", "", Utc::now());
-    // dbg!(1);
-
-    let default_tasks = runner.get_default_tasks();
-    // check for circular dependencies
-    for task in &default_tasks {
-        let mut visited = HashSet::new();
-        let mut path = vec![];
-        let circular_dependencies =
-            runner.get_circular_dependencies(run_id, task.id, &mut visited, &mut path);
-
-        if let Some(deps) = circular_dependencies {
-            panic!("{:?}", deps);
-        }
-    }
-    // dbg!(1);
 
     let (tx, rx) = channel();
-
     let mut thread_count = 0;
 
     for _ in 0..num_threads {
@@ -344,19 +324,14 @@ pub fn run_in_memory(
             break;
         }
     }
-    // dbg!(1);
-    // let dag_path_2 = Path::new(dag_name.clone());
 
     for _ in rx.iter() {
         thread_count -= 1;
-        // dbg!(2);
-        // let dag_path = Path::new(dag_name);
         let dag_path = dag_path.clone();
 
         let mut runner = runner.clone();
         if let Some(queued_task) = runner.pop_priority_queue() {
             let tx = tx.clone();
-            // dbg!(2);
 
             thread::spawn(move || {
                 let dag_path = Path::new(&dag_path);

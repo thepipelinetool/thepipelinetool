@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub const UPSTREAM_TASK_ID_KEY: &str = "upstream_task_id";
 pub const UPSTREAM_TASK_RESULT_KEY: &str = "key";
@@ -157,4 +157,29 @@ mod tests {
         assert!(get_dag_type_by_path(Path::new("hello").to_path_buf()) == DagType::Binary);
         assert!(get_dag_type_by_path(Path::new("hello.yaml").to_path_buf()) == DagType::YAML);
     }
+}
+
+pub fn run_bash_commmand(args: Value, silent: bool) -> Value {
+    let mut args: Vec<&str> = args
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    let output = Command::new(args[0])
+        .args(&mut args[1..])
+        .output()
+        .unwrap_or_else(|_| panic!("failed to run command:\n{}\n\n", args.join(" ")));
+    let result_raw = String::from_utf8_lossy(&output.stdout);
+    let err_raw = String::from_utf8_lossy(&output.stderr);
+
+    if !silent {
+        print!("{}", result_raw);
+    }
+    if !output.status.success() {
+        eprint!("{}", err_raw);
+        panic!("failed to run command:\n{}\n\n", args.join(" "));
+    }
+
+    json!(result_raw.to_string().trim_end())
 }

@@ -16,7 +16,24 @@ pub fn get_tasks() -> &'static StaticTasks {
 }
 
 pub fn get_functions() -> &'static StaticFunctions {
-    FUNCTIONS.get_or_init(StaticFunctions::default)
+    // load built-in operators
+    
+    FUNCTIONS.get_or_init(|| {
+        
+        let functions: RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>> =
+            RwLock::new(HashMap::new());
+
+        for operator in vec![bash_operator] {
+            let function_name = function_name_as_string(&operator).to_string();
+            let wrapped_function = wrap_function(operator);
+
+            functions
+                .write()
+                .unwrap()
+                .insert(function_name, Box::new(wrapped_function));
+        }
+        functions
+    })
 }
 
 pub fn get_edges() -> &'static StaticEdges {
