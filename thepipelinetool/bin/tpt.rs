@@ -1,8 +1,7 @@
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     env,
-    fs::File,
     path::Path,
     process::{self, Command},
 };

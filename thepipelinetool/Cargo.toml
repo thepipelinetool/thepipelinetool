@@ -25,5 +25,5 @@ rand = "0.8"
 polars = { version = "0.38.3", features = [ "lazy", "serde" ] }
 
 [[bin]]
-name = "tptctl"
-path = "bin/tptctl.rs"
+name = "tpt"
+path = "bin/tpt.rs"
