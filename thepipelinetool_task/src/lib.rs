@@ -133,17 +133,9 @@ impl Task {
             Command::new("timeout")
         } else {
             let mut command = Command::new(executable_path);
-            // let strs: String = Path::new(executable_path).as_os_str().to_str().unwrap().to_string();
             let args: Vec<String> = env::args().collect();
-            // args.next();
             let dag_name = &args[1];
-
-            // if str.ends_with("tptctl") {
             command.arg(dag_name);
-            // }
-            // let k = command.get_args().collect::<Vec<OsStr>>();
-            // dbg!(strs);
-            // dbg!(dag_name);
             command
         }
     }
@@ -159,7 +151,10 @@ impl Task {
     {
         if use_timeout {
             command.args(["-k", timeout_as_secs, timeout_as_secs]);
-            command.arg(executable_path);
+            command.arg(executable_path); // TODO add dag name
+            let args: Vec<String> = env::args().collect();
+            let dag_name = &args[1];
+            command.arg(dag_name);
         }
 
         command.args(["run", "function", &self.function_name]);
