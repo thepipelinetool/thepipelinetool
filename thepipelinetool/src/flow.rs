@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
 use serde::Serialize;
-use thepipelinetool_task::task_ref_inner::TaskRefInner;
 
-use crate::{get_edges, TaskRef};
+use crate::{prelude::*, statics::*};
 
 pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut last: usize = 0;

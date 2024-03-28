@@ -1,13 +1,12 @@
-use std::path::Path;
-use thepipelinetool_utils::execute_function_using_json_str_args;
-
 use std::env;
+use std::path::Path;
 
 use clap::{arg, command, ArgMatches, Command as CliCommand};
 
-use thepipelinetool_utils::execute_function_using_json_files;
-
-use crate::*;
+use crate::{
+    dev::{execute_function_using_json_files, execute_function_using_json_str_args},
+    statics::*,
+};
 
 pub fn display_tasks() {
     let tasks = get_tasks().read().unwrap();
@@ -80,25 +79,6 @@ fn create_commands() -> CliCommand {
         .subcommand_required(true)
 }
 
-fn process_commands(matches: &ArgMatches) {
-    if let Some(subcommand) = matches.subcommand_name() {
-        match subcommand {
-            "tasks" => display_tasks(),
-            "edges" => display_edges(),
-            "run" => {
-                let matches = matches.subcommand_matches("run").unwrap();
-                if let Some(subcommand) = matches.subcommand_name() {
-                    match subcommand {
-                        "function" => run_function(matches),
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
 /// Parses command-line arguments and executes various tasks in the DAG CLI tool.
 ///
 /// This function parses command-line arguments using the `command!` macro and executes
@@ -134,5 +114,18 @@ fn process_commands(matches: &ArgMatches) {
 pub fn parse_cli() {
     let command = create_commands();
     let matches = command.get_matches();
-    process_commands(&matches);
+    match matches.subcommand_name().unwrap() {
+        "tasks" => display_tasks(),
+        "edges" => display_edges(),
+        "run" => {
+            let matches = matches.subcommand_matches("run").unwrap();
+            if let Some(subcommand) = matches.subcommand_name() {
+                match subcommand {
+                    "function" => run_function(matches),
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
 }

@@ -1,6 +1,8 @@
 use std::{
     collections::{BinaryHeap, HashMap, HashSet},
-    sync::Arc,
+    path::Path,
+    sync::{mpsc::channel, Arc},
+    thread,
 };
 
 use chrono::{DateTime, Utc};
@@ -11,7 +13,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
-use crate::Runner;
+use crate::{blanket::BlanketRunner, Runner};
 
 pub struct InMemoryRunner {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
@@ -286,4 +288,94 @@ impl Runner for InMemoryRunner {
         let task_logs = self.task_logs.clone();
         Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
     }
+}
+
+pub fn run_in_memory(
+    tasks: &[Task],
+    edges: &HashSet<(usize, usize)>,
+    dag_path: String,
+    num_threads: usize,
+) {
+    // dbg!(1);
+    // let tasks = get_tasks().read().unwrap();
+    // let edges = get_edges().read().unwrap();
+
+    let mut runner = InMemoryRunner::new(&tasks.to_vec(), &edges);
+
+    let run_id = runner.enqueue_run("", "", Utc::now());
+    // dbg!(1);
+
+    let default_tasks = runner.get_default_tasks();
+    // check for circular dependencies
+    for task in &default_tasks {
+        let mut visited = HashSet::new();
+        let mut path = vec![];
+        let circular_dependencies =
+            runner.get_circular_dependencies(run_id, task.id, &mut visited, &mut path);
+
+        if let Some(deps) = circular_dependencies {
+            panic!("{:?}", deps);
+        }
+    }
+    // dbg!(1);
+
+    let (tx, rx) = channel();
+
+    let mut thread_count = 0;
+
+    for _ in 0..num_threads {
+        let mut runner = runner.clone();
+        let tx = tx.clone();
+        let dag_path = dag_path.clone();
+
+        if let Some(queued_task) = runner.pop_priority_queue() {
+            thread::spawn(move || {
+                let dag_path = Path::new(&dag_path);
+
+                runner.work(run_id, &queued_task, dag_path);
+                tx.send(()).unwrap();
+            });
+
+            thread_count += 1;
+            if thread_count >= num_threads {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    // dbg!(1);
+    // let dag_path_2 = Path::new(dag_name.clone());
+
+    for _ in rx.iter() {
+        thread_count -= 1;
+        // dbg!(2);
+        // let dag_path = Path::new(dag_name);
+        let dag_path = dag_path.clone();
+
+        let mut runner = runner.clone();
+        if let Some(queued_task) = runner.pop_priority_queue() {
+            let tx = tx.clone();
+            // dbg!(2);
+
+            thread::spawn(move || {
+                let dag_path = Path::new(&dag_path);
+
+                runner.work(run_id, &queued_task, dag_path);
+                tx.send(()).unwrap();
+            });
+
+            thread_count += 1;
+
+            if thread_count >= num_threads {
+                continue;
+            }
+        }
+        if thread_count == 0 {
+            drop(tx);
+            break;
+        }
+    }
+
+    // dbg!(1);
 }

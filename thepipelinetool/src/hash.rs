@@ -1,6 +1,6 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use thepipelinetool_utils::to_base62;
+use crate::dev::*;
 
 pub fn hash_dag(nodes: &str, edges: &[(usize, usize)]) -> String {
     let mut hasher = DefaultHasher::new();

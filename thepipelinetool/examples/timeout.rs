@@ -4,7 +4,8 @@ use thepipelinetool::prelude::*;
 
 #[dag]
 fn main() {
-    let a = add_command(
+    let a = add_task(
+        run_command,
         json!(["bash", "-c", "sleep 3 && echo hello"]),
         &TaskOptions {
             timeout: Some(Duration::new(2, 0)),
@@ -12,7 +13,11 @@ fn main() {
             ..Default::default()
         },
     );
-    let b = add_command(json!(["echo", a.value()]), &TaskOptions::default());
+    let b = add_task(
+        run_command,
+        json!(["echo", a.value()]),
+        &TaskOptions::default(),
+    );
 
     let _c = vec![a, b];
 }

@@ -2,12 +2,16 @@ use std::collections::HashSet;
 
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
-use thepipelinetool_task::{
-    branch::Branch, task_options::TaskOptions, task_ref_inner::TaskRefInner, Task,
-};
-use thepipelinetool_utils::{collector, function_name_as_string};
+// use thepipelinetool_task::{
+//     branch::Branch, task_options::TaskOptions, task_ref_inner::TaskRefInner, Task,
+// };
+// use thepipelinetool_utils::{collector, function_name_as_string};
 
-use crate::{get_functions, get_tasks, operators::run_command, TaskRef};
+use crate::{
+    // prelude::*,
+    dev::*,
+    statics::{get_functions, get_tasks},
+};
 
 /// Expands a template using a provided function and template arguments.
 ///
@@ -473,37 +477,37 @@ where
     })
 }
 
-/// Adds a command task to the task management system.
-///
-/// This function takes a JSON `args` value representing an array of command arguments
-/// and a reference to `TaskOptions`. It registers the command task in the system and
-/// returns a reference to the newly added task.
-///
-/// # Arguments
-///
-/// * `args` - A JSON `Value` representing an array of command arguments. The array
-///   should contain the command and its arguments as strings.
-/// * `options` - A reference to the `TaskOptions` struct, containing configuration
-///   options for the task.
-///
-/// # Returns
-///
-/// Returns `TaskRef<Value>`, a reference to the created command task.
-///
-/// # Examples
-///
-/// ```rust
-/// use thepipelinetool::prelude::*;
-///
-/// fn main() {
-///     // Define command arguments as a JSON array.
-///     let command_args: Value = json!(["ls", "-l"]);
-//////
-///     // Add a command task using the `add_command` function.
-///     let command_task = add_command(command_args, &TaskOptions::default());
-/// }
-/// ```
-pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
-    assert!(args.is_array());
-    add_task(run_command, args, options)
-}
+// /// Adds a command task to the task management system.
+// ///
+// /// This function takes a JSON `args` value representing an array of command arguments
+// /// and a reference to `TaskOptions`. It registers the command task in the system and
+// /// returns a reference to the newly added task.
+// ///
+// /// # Arguments
+// ///
+// /// * `args` - A JSON `Value` representing an array of command arguments. The array
+// ///   should contain the command and its arguments as strings.
+// /// * `options` - A reference to the `TaskOptions` struct, containing configuration
+// ///   options for the task.
+// ///
+// /// # Returns
+// ///
+// /// Returns `TaskRef<Value>`, a reference to the created command task.
+// ///
+// /// # Examples
+// ///
+// /// ```rust
+// /// use thepipelinetool::prelude::*;
+// ///
+// /// fn main() {
+// ///     // Define command arguments as a JSON array.
+// ///     let command_args: Value = json!(["ls", "-l"]);
+// //////
+// ///     // Add a command task using the `add_command` function.
+// ///     let command_task = add_command(command_args, &TaskOptions::default());
+// /// }
+// /// ```
+// pub fn add_command(args: Value, options: &TaskOptions) -> TaskRef<Value> {
+//     assert!(args.is_array());
+//     add_task(run_command, args, options)
+// }

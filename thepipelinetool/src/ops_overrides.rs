@@ -3,9 +3,9 @@ use std::{
     ops::{BitOr, Shl, Shr},
 };
 
+use crate::dev::*;
 use serde::Serialize;
 use serde_json::Value;
-use thepipelinetool_task::task_ref_inner::TaskRefInner;
 
 use crate::{
     flow::{par, seq},
