@@ -71,12 +71,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         let task_statuses: Vec<(String, TaskStatus)> = self
             .get_all_tasks(dag_run_id)
             .iter()
-            .map(|t| {
-                (
-                    t.name.clone(),
-                    self.get_task_status(dag_run_id, t.id),
-                )
-            })
+            .map(|t| (t.name.clone(), self.get_task_status(dag_run_id, t.id)))
             .collect();
 
         let mut out = "".to_string();

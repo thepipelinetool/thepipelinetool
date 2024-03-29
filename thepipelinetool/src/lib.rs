@@ -6,7 +6,6 @@ mod cli;
 mod flow;
 mod functions;
 mod hash;
-mod operators;
 mod ops_overrides;
 mod statics;
 
@@ -17,8 +16,8 @@ pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
 
 pub mod prelude {
     pub use crate::cli::parse_cli;
-    pub use crate::operators::*;
     pub use crate::{functions::*, TaskRef, TaskRefInner};
+    pub use thepipelinetool_operators::*;
 
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};

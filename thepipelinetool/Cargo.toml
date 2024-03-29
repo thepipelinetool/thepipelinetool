@@ -12,6 +12,7 @@ repository = "https://github.com/thepipelinetool/thepipelinetool"
 chrono = { version = "0.4.31", features = [ "serde" ] }
 serde_json = "1.0"
 thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.11" }
+thepipelinetool_operators = { path = "../thepipelinetool_operators", version = "0.1.2" }
 thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
 thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.1.0" }
 serde = "1.0.189"

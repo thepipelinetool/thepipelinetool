@@ -5,7 +5,6 @@ use std::{
 };
 
 use clap::Arg;
-use serde_json::json;
 use thepipelinetool::dev::*;
 use thepipelinetool_cli::{
     create_commands, process_subcommands,
@@ -42,7 +41,7 @@ fn main() {
 
             if load_tasks {
                 let tasks_from_json: Vec<Task> = serde_json::from_str(
-                    run_bash_commmand(json!([dag_name, "tasks"]), true)
+                    run_bash_commmand(&vec![dag_name, "tasks"], true)
                         .as_str()
                         .unwrap(),
                 )
@@ -55,7 +54,7 @@ fn main() {
 
             if load_edges {
                 let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
-                    run_bash_commmand(json!([dag_name, "edges"]), true)
+                    run_bash_commmand(&vec![dag_name, "edges"], true)
                         .as_str()
                         .unwrap(),
                 )

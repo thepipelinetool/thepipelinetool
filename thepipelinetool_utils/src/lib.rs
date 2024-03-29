@@ -159,15 +159,15 @@ mod tests {
     }
 }
 
-pub fn run_bash_commmand(args: Value, silent: bool) -> Value {
-    let mut args: Vec<&str> = args
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    let output = Command::new(args[0])
-        .args(&mut args[1..])
+pub fn run_bash_commmand(args: &Vec<&str>, silent: bool) -> Value {
+    // let mut args: Vec<&str> = args
+    //     .as_array()
+    //     .unwrap()
+    //     .iter()
+    //     .map(|v| v.as_str().unwrap())
+    //     .collect();
+    let output = Command::new(args[0].to_string())
+        .args(&mut (args.clone()[1..]))
         .output()
         .unwrap_or_else(|_| panic!("failed to run command:\n{}\n\n", args.join(" ")));
     let result_raw = String::from_utf8_lossy(&output.stdout);
