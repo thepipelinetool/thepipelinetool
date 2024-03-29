@@ -15,7 +15,6 @@ pub struct TaskTemplate {
 
     // #[serde(default)]
     // pub function_name: String,
-
     #[serde(default)]
     pub args: Value,
 
@@ -122,35 +121,40 @@ fn create_template_args(
 ) -> Value {
     let mut arg = serde_json::to_string(&args).unwrap();
 
-    let left = arg.find("{{");
-    let right = arg.find("}}");
+    loop {
+        let left = arg.find("{{");
+        let right = arg.find("}}");
 
-    match (left, right) {
-        (Some(left), Some(right)) => {
-            let chunks: Vec<&str> = arg[(left + 2)..right].trim().split(".").collect();
+        match (left, right) {
+            (Some(left), Some(right)) => {
+                let chunks: Vec<&str> = arg[(left + 2)..right].trim().split(".").collect();
 
-            let mut template_args = json!({});
-            let task_name = chunks[0];
+                let mut template_args = json!({});
+                let task_name = chunks[0];
 
-            let upstream_id = *task_id_by_name
-                .get(task_name)
-                .expect(&format!("missing task {task_name}"));
+                let upstream_id = *task_id_by_name
+                    .get(task_name)
+                    .expect(&format!("missing task {task_name}"));
 
-            template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
+                template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
 
-            if chunks.len() > 1 {
-                template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+                if chunks.len() > 1 {
+                    template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+                }
+
+                edges.insert((upstream_id, task_id));
+
+                arg.replace_range(
+                    (left - 1)..(right + 3),
+                    &serde_json::to_string(&template_args).unwrap(),
+                );
             }
-
-            edges.insert((upstream_id, task_id));
-
-            arg.replace_range(
-                (left - 1)..(right + 3),
-                &serde_json::to_string(&template_args).unwrap(),
-            );
+            _ => {
+                break;
+            }
         }
-        _ => {}
     }
+
     serde_json::from_str(&arg).unwrap()
 }
 
@@ -170,7 +174,10 @@ mod tests {
 
         task_id_by_name.insert("t1".into(), 0);
 
-        assert_eq!("", serde_json::to_string(&json!(["echo", {"upstream_id": 0}])).unwrap());
+        // assert_eq!(
+        //     "",
+        //     serde_json::to_string(&json!(["echo", {"upstream_id": 0}])).unwrap()
+        // );
 
         assert_eq!(
             json!({

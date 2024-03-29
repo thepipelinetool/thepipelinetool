@@ -7,3 +7,12 @@ tasks:
     args: ["echo", "{{produce_data}}"]
     depends_on:
       - middle_task
+  produce_data2:
+    args: ["date", "-Ins"]
+    depends_on:
+      - middle_task    
+  print_data2:
+    args:
+      - echo
+      - "{{print_data}}"
+      - "{{produce_data2}}"
