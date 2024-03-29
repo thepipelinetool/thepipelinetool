@@ -160,21 +160,25 @@ mod tests {
 }
 
 pub fn run_bash_commmand(args: &Vec<&str>, silent: bool) -> Value {
-    let output = Command::new(args[0].to_string())
-        .args(&mut (args.clone()[1..]))
-        .output()
-        .unwrap_or_else(|_| panic!("failed to run command:\n{}\n\n", args.join(" ")));
-    let result_raw = String::from_utf8_lossy(&output.stdout);
-    let err_raw = String::from_utf8_lossy(&output.stderr);
+    let mut res = json!([]);
+    for args in args.split(|s| *s == "&&") {
+        let output = Command::new(args[0].to_string())
+            .args(&args[1..])
+            .output()
+            .unwrap_or_else(|_| panic!("failed to run command:\n{}\n\n", args.join(" ")));
+        let result_raw = String::from_utf8_lossy(&output.stdout);
+        let err_raw = String::from_utf8_lossy(&output.stderr);
 
-    if !silent {
-        print!("{}", result_raw);
+        if !silent {
+            print!("{}", result_raw);
+        }
+
+        if !output.status.success() {
+            eprint!("{}", err_raw);
+            panic!("failed to run command:\n{}\n\n", args.join(" "));
+        }
+
+        res = json!(result_raw.to_string().trim_end())
     }
-
-    if !output.status.success() {
-        eprint!("{}", err_raw);
-        panic!("failed to run command:\n{}\n\n", args.join(" "));
-    }
-
-    json!(result_raw.to_string().trim_end())
+    res
 }

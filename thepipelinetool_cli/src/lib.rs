@@ -1,8 +1,5 @@
 use std::{
-    cmp::max,
-    collections::HashSet,
-    env,
-    process::{self},
+    cmp::max, collections::HashSet, env, path::Path, process
 };
 
 use chrono::Utc;
@@ -84,7 +81,8 @@ pub fn create_commands() -> CliCommand {
 }
 
 pub fn process_subcommands(
-    dag_path: &str,
+    dag_path: &Path,
+    dag_name: &str,
     subcommand_name: &str,
     tasks: &[Task],
     edges: &HashSet<(usize, usize)>,
@@ -105,7 +103,7 @@ pub fn process_subcommands(
             }
         }
         "hash" => display_hash(tasks, edges),
-        "tree" => display_tree(tasks, edges),
+        "tree" => display_tree(tasks, edges, dag_path),
         "check" => check_circular_dependencies(tasks, edges),
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
@@ -128,7 +126,7 @@ pub fn process_subcommands(
                         };
 
                         check_circular_dependencies(tasks, edges);
-                        run_in_memory(&tasks, &edges, dag_path.to_string(), num_threads);
+                        run_in_memory(&tasks, &edges, dag_name.to_string(), num_threads);
                     }
                     "function" => run_function(matches),
                     _ => {}
@@ -228,7 +226,7 @@ fn _get_circular_dependencies(
     None
 }
 
-fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
     let mut runner = InMemoryRunner::new(&tasks, &edges);
     let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
@@ -238,7 +236,7 @@ fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
         .map(|t| t.id)
         .collect::<Vec<usize>>();
 
-    let mut output = "DAG\n".to_string();
+    let mut output = format!("{}\n", dag_path.file_name().unwrap().to_str().unwrap());
     let mut task_ids_in_order: Vec<usize> = vec![];
 
     for (index, child) in tasks.iter().enumerate() {
