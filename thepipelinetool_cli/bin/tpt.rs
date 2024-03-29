@@ -8,7 +8,7 @@ use clap::Arg;
 use thepipelinetool::dev::*;
 use thepipelinetool_cli::{
     create_commands, process_subcommands,
-    yaml::{read_from_yaml, Operator},
+    yaml::read_from_yaml,
 };
 
 fn main() {
@@ -77,6 +77,14 @@ fn main() {
                             &template_task.name,
                         );
                     }
+                    // Operator::Papermill => {
+                    //     add_named_task(
+                    //         papermill_operator,
+                    //         serde_json::from_value(template_task.args).unwrap(),
+                    //         &template_task.options,
+                    //         &template_task.name,
+                    //     );
+                    // }
                 }
             }
             for edge in edges {

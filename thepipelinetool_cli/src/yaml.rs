@@ -6,7 +6,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use thepipelinetool::dev::{TaskOptions, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
+use thepipelinetool::dev::{Operator, TaskOptions, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TaskTemplate {
@@ -32,18 +32,6 @@ pub struct TaskTemplate {
 
     #[serde(default)]
     pub depends_on: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum Operator {
-    Bash,
-}
-
-impl Default for Operator {
-    fn default() -> Self {
-        Operator::Bash
-    }
 }
 
 impl Default for TaskTemplate {
@@ -119,15 +107,15 @@ fn create_template_args(
     task_id_by_name: &HashMap<String, usize>,
     edges: &mut HashSet<(usize, usize)>,
 ) -> Value {
-    let mut arg = serde_json::to_string(&args).unwrap();
+    let args = &mut args.as_array().unwrap();
+    let mut temp_args = vec![];
 
-    loop {
-        let left = arg.find("{{");
-        let right = arg.find("}}");
-
-        match (left, right) {
-            (Some(left), Some(right)) => {
-                let chunks: Vec<&str> = arg[(left + 2)..right].trim().split(".").collect();
+    for i in 0..args.len() {
+        if args[i].is_string() {
+            let arg = args[i].as_str().unwrap().trim();
+            
+            if arg.starts_with("{{") && arg.ends_with("}}") {
+                let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split(".").collect();
 
                 let mut template_args = json!({});
                 let task_name = chunks[0];
@@ -141,21 +129,50 @@ fn create_template_args(
                 if chunks.len() > 1 {
                     template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
                 }
-
                 edges.insert((upstream_id, task_id));
 
-                arg.replace_range(
-                    (left - 1)..(right + 3),
-                    &serde_json::to_string(&template_args).unwrap(),
-                );
+                temp_args.push(template_args);
+            } else {
+                temp_args.push(args[i].clone());
+
             }
-            _ => {
-                break;
-            }
+        } else {
+            temp_args.push(args[i].clone());
         }
+
+        // dbg!((&left, &right));
+
+        // match (left, right) {
+        //     (Some(left), Some(right)) => {
+        //         let chunks: Vec<&str> = arg[(left + 2)..right].trim().split(".").collect();
+
+        //         let mut template_args = json!({});
+        //         let task_name = chunks[0];
+
+        //         let upstream_id = *task_id_by_name
+        //             .get(task_name)
+        //             .expect(&format!("missing task {task_name}"));
+
+        //         template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
+
+        //         if chunks.len() > 1 {
+        //             template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+        //         }
+
+        //         edges.insert((upstream_id, task_id));
+
+        //         arg.replace_range(
+        //             (left - 1)..(right + 3),
+        //             &serde_json::to_string(&template_args).unwrap(),
+        //         );
+        //     }
+        //     _ => {
+        //         break;
+        //     }
+        // }
     }
 
-    serde_json::from_str(&arg).unwrap()
+    json!(temp_args)
 }
 
 #[cfg(test)]

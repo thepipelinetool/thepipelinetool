@@ -160,12 +160,6 @@ mod tests {
 }
 
 pub fn run_bash_commmand(args: &Vec<&str>, silent: bool) -> Value {
-    // let mut args: Vec<&str> = args
-    //     .as_array()
-    //     .unwrap()
-    //     .iter()
-    //     .map(|v| v.as_str().unwrap())
-    //     .collect();
     let output = Command::new(args[0].to_string())
         .args(&mut (args.clone()[1..]))
         .output()
