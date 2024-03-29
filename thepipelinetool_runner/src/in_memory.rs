@@ -314,6 +314,8 @@ pub fn run_in_memory(
             thread::spawn(move || {
                 let dag_path = Path::new(&dag_path);
 
+                // TODO set env run_id
+
                 runner.work(run_id, &queued_task, dag_path);
                 tx.send(()).unwrap();
             });
@@ -337,6 +339,7 @@ pub fn run_in_memory(
 
             thread::spawn(move || {
                 let dag_path = Path::new(&dag_path);
+                // TODO set env run_id
 
                 runner.work(run_id, &queued_task, dag_path);
                 tx.send(()).unwrap();
