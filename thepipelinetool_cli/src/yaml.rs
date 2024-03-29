@@ -174,25 +174,39 @@ mod tests {
 
         task_id_by_name.insert("t1".into(), 0);
 
-        // assert_eq!(
-        //     "",
-        //     serde_json::to_string(&json!(["echo", {"upstream_id": 0}])).unwrap()
-        // );
-
         assert_eq!(
             json!({
                 UPSTREAM_TASK_ID_KEY: 0
             }),
-            create_template_args(1, &json!(["echo", "{{t1}}"]), &task_id_by_name, &mut edges)
+            create_template_args(1, &json!("{{  t1 }}"), &task_id_by_name, &mut edges)
         );
         assert_eq!(
             json!({
                 UPSTREAM_TASK_ID_KEY: 0,
                 UPSTREAM_TASK_RESULT_KEY: "test"
             }),
+            create_template_args(1, &json!("{{t1.test}}"), &task_id_by_name, &mut edges)
+        );
+
+        assert_eq!(
+            json!(["echo", {
+                UPSTREAM_TASK_ID_KEY: 0
+            }]),
             create_template_args(
                 1,
-                &json!(["echo", "{{t1.test}}"]),
+                &json!(["echo", "{{ t1  }}"]),
+                &task_id_by_name,
+                &mut edges
+            )
+        );
+        assert_eq!(
+            json!({"data": {
+                UPSTREAM_TASK_ID_KEY: 0,
+                UPSTREAM_TASK_RESULT_KEY: "test"
+            }}),
+            create_template_args(
+                1,
+                &json!({"data": "{{ t1.test   }}"}),
                 &task_id_by_name,
                 &mut edges
             )
