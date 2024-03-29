@@ -34,7 +34,7 @@ fn get_save_to_file() -> bool {
 pub struct Task {
     pub id: usize,
     pub name: String,
-    pub function_name: String,
+    pub function: String,
     pub template_args: Value,
     pub options: TaskOptions,
     pub lazy_expand: bool,
@@ -61,7 +61,7 @@ impl Task {
             thread::sleep(self.options.retry_delay);
         }
         let task_id: usize = self.id;
-        let function_name = &self.function_name;
+        let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
         let use_timeout = self.options.timeout.is_some();
         let timeout_as_secs = self
@@ -113,7 +113,8 @@ impl Task {
             result,
             attempt,
             max_attempts: self.options.max_attempts,
-            function_name: function_name.to_string(),
+            name: self.name.clone(),
+            function: function_name.clone(),
             resolved_args_str,
             success: status.success(),
             started: start.to_rfc3339(),
@@ -154,7 +155,7 @@ impl Task {
             command.arg(dag_path);
         }
 
-        command.args(["run", "function", &self.function_name]);
+        command.args(["run", "function", &self.function]);
     }
 }
 

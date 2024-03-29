@@ -1,5 +1,9 @@
 tasks:
   produce_data:
-    args: ["pwd"]
+    args: ["date", "-Ins"]
+  middle_task:
+    args: ["sleep", "3"]
   print_data:
     args: ["echo", "{{produce_data}}"]
+    depends_on:
+      - middle_task

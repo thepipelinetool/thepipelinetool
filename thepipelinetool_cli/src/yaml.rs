@@ -13,8 +13,8 @@ pub struct TaskTemplate {
     #[serde(default)]
     pub name: String,
 
-    #[serde(default)]
-    pub function_name: String,
+    // #[serde(default)]
+    // pub function_name: String,
 
     #[serde(default)]
     pub args: Value,
@@ -30,6 +30,9 @@ pub struct TaskTemplate {
 
     #[serde(default)]
     pub operator: Operator,
+
+    #[serde(default)]
+    pub depends_on: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -48,12 +51,13 @@ impl Default for TaskTemplate {
     fn default() -> Self {
         Self {
             name: "".to_string(),
-            function_name: "".to_string(),
-            args: Value::Null,
+            // function_name: "".to_string(),
+            args: json!([]),
             options: Default::default(),
             lazy_expand: false,
             is_branch: false,
             operator: Operator::default(),
+            depends_on: Vec::new(),
         }
     }
 }
@@ -81,32 +85,50 @@ pub fn read_from_yaml(dag_path: &Path) -> (Vec<TaskTemplate>, HashSet<(usize, us
 
     let mut edges: HashSet<(usize, usize)> = HashSet::new();
 
-    for (id, template_task) in template_tasks.iter_mut().enumerate() {
+    for template_task in template_tasks.iter_mut() {
+        let id = *task_id_by_name.get(&template_task.name).unwrap();
         // TODO check for non-array args
-        template_task.args = template_task
-            .args
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|f| create_template_args(id, &f.as_str().unwrap(), &task_id_by_name, &mut edges))
-            .collect();
+        template_task.args =
+            create_template_args(id, &template_task.args, &task_id_by_name, &mut edges);
+        // serde_json::to_string(&template_task.args)
+
+        // template_task
+        //     .args
+        //     .as_array()
+        //     .unwrap()
+        //     .iter()
+        //     .map(|f| create_template_args(id, &f.as_str().unwrap(), &task_id_by_name, &mut edges))
+        //     .collect();
+
+        for dependency in template_task.depends_on.iter() {
+            edges.insert((
+                *task_id_by_name
+                    .get(dependency)
+                    .expect(&format!("upstream task '{dependency}' missing")),
+                id,
+            ));
+        }
     }
 
     (template_tasks, edges)
 }
 
+// TODO check for multiple matches, rework
 fn create_template_args(
     task_id: usize,
-    arg: &str,
+    args: &Value,
     task_id_by_name: &HashMap<String, usize>,
     edges: &mut HashSet<(usize, usize)>,
 ) -> Value {
+    let mut arg = serde_json::to_string(&args).unwrap();
+
     let left = arg.find("{{");
     let right = arg.find("}}");
 
     match (left, right) {
         (Some(left), Some(right)) => {
             let chunks: Vec<&str> = arg[(left + 2)..right].trim().split(".").collect();
+
             let mut template_args = json!({});
             let task_name = chunks[0];
 
@@ -122,12 +144,14 @@ fn create_template_args(
 
             edges.insert((upstream_id, task_id));
 
-            return template_args;
+            arg.replace_range(
+                (left - 1)..(right + 3),
+                &serde_json::to_string(&template_args).unwrap(),
+            );
         }
-        _ => {
-            return arg.into();
-        }
+        _ => {}
     }
+    serde_json::from_str(&arg).unwrap()
 }
 
 #[cfg(test)]
@@ -146,31 +170,25 @@ mod tests {
 
         task_id_by_name.insert("t1".into(), 0);
 
+        assert_eq!("", serde_json::to_string(&json!(["echo", {"upstream_id": 0}])).unwrap());
+
         assert_eq!(
             json!({
                 UPSTREAM_TASK_ID_KEY: 0
             }),
-            create_template_args(1, "{{t1}}", &task_id_by_name, &mut edges)
+            create_template_args(1, &json!(["echo", "{{t1}}"]), &task_id_by_name, &mut edges)
         );
         assert_eq!(
             json!({
                 UPSTREAM_TASK_ID_KEY: 0,
                 UPSTREAM_TASK_RESULT_KEY: "test"
             }),
-            create_template_args(1, "{{t1.test}}", &task_id_by_name, &mut edges)
-        );
-        assert_eq!(
-            json!({
-                UPSTREAM_TASK_ID_KEY: 0
-            }),
-            create_template_args(1, "{{  t1   }}", &task_id_by_name, &mut edges)
-        );
-        assert_eq!(
-            json!({
-                UPSTREAM_TASK_ID_KEY: 0,
-                UPSTREAM_TASK_RESULT_KEY: "test"
-            }),
-            create_template_args(1, "{{   t1.test   }}", &task_id_by_name, &mut edges)
+            create_template_args(
+                1,
+                &json!(["echo", "{{t1.test}}"]),
+                &task_id_by_name,
+                &mut edges
+            )
         );
     }
 }

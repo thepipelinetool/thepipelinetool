@@ -80,6 +80,7 @@ pub trait Runner {
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         run_id: usize,
+        name: &str,
         function_name: &str,
         template_args: &Value,
         options: &TaskOptions,

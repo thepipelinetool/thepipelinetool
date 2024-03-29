@@ -73,7 +73,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .iter()
             .map(|t| {
                 (
-                    t.function_name.clone(),
+                    t.name.clone(),
                     self.get_task_status(dag_run_id, t.id),
                 )
             })
@@ -82,9 +82,9 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         let mut out = "".to_string();
         out += "flowchart TD\n";
 
-        for (task_id, (function_name, task_status)) in task_statuses.iter().enumerate() {
+        for (task_id, (task_name, task_status)) in task_statuses.iter().enumerate() {
             let styling = get_styling_for_status(task_status);
-            out += &format!("  id{task_id}({function_name}_{task_id})\n");
+            out += &format!("  id{task_id}({task_name}_{task_id})\n");
             out += &format!("  style id{task_id} {styling}\n");
 
             for edge_id in self.get_upstream(dag_run_id, task_id) {
@@ -120,7 +120,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         for task in &default_tasks {
             self.append_new_task_and_set_status_to_pending(
                 run_id,
-                &task.function_name,
+                &task.name,
+                &task.function,
                 &task.template_args,
                 &task.options,
                 task.lazy_expand,
@@ -239,7 +240,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             for res in resolution_result.as_array().unwrap() {
                 let new_id = self.append_new_task_and_set_status_to_pending(
                     run_id,
-                    &task.function_name,
+                    &task.name,
+                    &task.function,
                     res,
                     &task.options,
                     false,
@@ -256,6 +258,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
 
                 let collector_id = self.append_new_task_and_set_status_to_pending(
                     run_id,
+                    &task.name,
                     &function_name,
                     &json!(lazy_ids
                         .iter()
@@ -320,7 +323,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 result: Value::Null,
                 attempt,
                 max_attempts: task.options.max_attempts,
-                function_name: task.function_name.clone(),
+                name: task.name.clone(),
+                function: task.function.clone(),
                 success: true,
                 resolved_args_str: "".into(),
                 started: start.to_rfc3339(),
@@ -486,7 +490,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 task.id,
                 ordered_queued_task.queued_task.attempt,
                 task.options.max_attempts,
-                task.function_name.clone(),
+                task.name,
+                task.function,
                 resolution_result.to_string(),
                 task.is_branch,
             ),
@@ -501,7 +506,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .map(|task| {
                 (
                     task.id,
-                    task.function_name.clone(),
+                    task.name.clone(),
                     self.get_task_status(run_id, task.id),
                 )
             })
@@ -509,8 +514,8 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
 
         task_statuses
             .iter()
-            .map(|(task_id, function_name, task_status)| {
-                let name = format!("{function_name}_{task_id}");
+            .map(|(task_id, task_name, task_status)| {
+                let name = format!("{task_name}_{task_id}");
                 let next = self
                     .get_downstream(run_id, *task_id)
                     .iter()
@@ -631,7 +636,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         let mut output = format!(
             "{}{}_{}\n",
             prefix,
-            self.get_task_by_id(run_id, task_id).function_name,
+            self.get_task_by_id(run_id, task_id).function,
             task_id,
         );
 

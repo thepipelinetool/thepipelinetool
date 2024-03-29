@@ -210,6 +210,7 @@ impl Runner for InMemoryRunner {
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         _run_id: usize,
+        name: &str,
         function_name: &str,
         template_args: &Value,
         options: &TaskOptions,
@@ -221,8 +222,8 @@ impl Runner for InMemoryRunner {
         let new_id = nodes.len();
         nodes.push(Task {
             id: new_id,
-            name: function_name.to_owned(),
-            function_name: function_name.to_owned(),
+            name: name.to_owned(),
+            function: function_name.to_owned(),
             template_args: template_args.to_owned(),
             options: options.to_owned(),
             lazy_expand,

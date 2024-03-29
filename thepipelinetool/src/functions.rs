@@ -84,7 +84,7 @@ where
                 Task {
                     id,
                     name: function_name.to_string(),
-                    function_name: function_name.clone(),
+                    function: function_name.clone(),
                     template_args: serde_json::to_value(&template_args_vec[i]).unwrap(),
                     options: *options,
                     lazy_expand: false,
@@ -167,7 +167,7 @@ where
             Task {
                 id,
                 name: function_name.to_string(),
-                function_name: function_name.to_string(),
+                function: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
                 options: *options,
                 lazy_expand: false,
@@ -243,7 +243,7 @@ where
             Task {
                 id,
                 name: function_name.to_string(),
-                function_name: function_name.to_string(),
+                function: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
                 options: *options,
                 lazy_expand: false,
@@ -288,7 +288,7 @@ where
             Task {
                 id,
                 name: name.to_string(),
-                function_name: function_name.to_string(),
+                function: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
                 options: *options,
                 lazy_expand: false,
@@ -380,7 +380,7 @@ where
             Task {
                 id,
                 name: function_name.to_string(),
-                function_name: function_name.to_string(),
+                function: function_name.to_string(),
                 template_args: serde_json::to_value(template_args).unwrap(),
                 options: *options,
                 lazy_expand: false,
@@ -478,7 +478,7 @@ where
             Task {
                 id,
                 name: function_name.to_string(),
-                function_name: function_name.to_string(),
+                function: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
                 options: *options,
                 lazy_expand: true,

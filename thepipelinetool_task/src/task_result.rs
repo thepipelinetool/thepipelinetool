@@ -8,7 +8,8 @@ pub struct TaskResult {
     pub result: Value,
     pub attempt: usize,
     pub max_attempts: isize,
-    pub function_name: String,
+    pub name: String,
+    pub function: String,
     pub success: bool,
     pub resolved_args_str: String,
     pub started: String,
@@ -30,6 +31,7 @@ impl TaskResult {
         task_id: usize,
         attempt: usize,
         max_attempts: isize,
+        name: String,
         function_name: String,
         premature_failure_error_str: String,
         is_branch: bool,
@@ -41,7 +43,8 @@ impl TaskResult {
             result: Value::Null,
             attempt,
             max_attempts,
-            function_name,
+            name,
+            function: function_name,
             success: false,
             resolved_args_str: "".into(),
             started: start.to_rfc3339(),
@@ -58,7 +61,8 @@ impl TaskResult {
         println!("TASK RUN");
         println!("id:\t\t{}", self.task_id);
         println!("attempt:\t{}/{}", self.attempt, self.max_attempts);
-        println!("function_name:\t{}", self.function_name);
+        println!("name:\t\t{}", self.name);
+        println!("function:\t{}", self.function);
         println!(
             "template_args:\t{}",
             serde_json::to_string_pretty(&template_args).unwrap()
