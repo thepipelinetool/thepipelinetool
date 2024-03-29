@@ -18,6 +18,7 @@ use crate::Runner;
 
 pub trait BlanketRunner {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
+    fn get_run_status(&mut self, run_id: usize) -> i32;
 
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String; // TODO move to cli
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
@@ -59,6 +60,17 @@ pub trait BlanketRunner {
 }
 
 impl<U: Runner + Send + Sync> BlanketRunner for U {
+    fn get_run_status(&mut self, run_id: usize) -> i32 {
+        if self
+            .get_all_tasks(run_id)
+            .iter()
+            .all(|t| self.get_task_status(run_id, t.id) == TaskStatus::Success)
+        {
+            0
+        } else {
+            -1
+        }
+    }
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool {
         // TODO implement more trigger rules, e.g. run on upstream failure(s)
 

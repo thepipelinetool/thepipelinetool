@@ -126,7 +126,9 @@ pub fn process_subcommands(
                         };
 
                         check_circular_dependencies(tasks, edges);
-                        run_in_memory(&tasks, &edges, dag_name.to_string(), num_threads);
+                        let success = run_in_memory(&tasks, &edges, dag_name.to_string(), num_threads);
+
+                        process::exit(success);
                     }
                     "function" => run_function(matches),
                     _ => {}

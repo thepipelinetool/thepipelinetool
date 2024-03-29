@@ -290,6 +290,7 @@ impl Runner for InMemoryRunner {
         let task_logs = self.task_logs.clone();
         Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
     }
+    
 }
 
 pub fn run_in_memory(
@@ -297,7 +298,7 @@ pub fn run_in_memory(
     edges: &HashSet<(usize, usize)>,
     dag_path: String,
     num_threads: usize,
-) {
+ ) -> i32 {
     let mut runner = InMemoryRunner::new(&tasks.to_vec(), &edges);
     let run_id = runner.enqueue_run("", "", Utc::now());
 
@@ -352,6 +353,8 @@ pub fn run_in_memory(
             break;
         }
     }
+
+    return runner.get_run_status(run_id);
 
     // dbg!(1);
 }
