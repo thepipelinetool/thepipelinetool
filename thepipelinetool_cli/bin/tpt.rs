@@ -95,5 +95,5 @@ fn main() {
 
     let tasks = get_tasks().read().unwrap();
     let edges = get_edges().read().unwrap();
-    process_subcommands(&dag_path, &dag_name, subcommand_name, &tasks, &edges, &matches);
+    process_subcommands(dag_path, dag_name, subcommand_name, &tasks, &edges, &matches);
 }

@@ -120,9 +120,8 @@ pub fn parse_cli() {
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             if let Some(subcommand) = matches.subcommand_name() {
-                match subcommand {
-                    "function" => run_function(matches),
-                    _ => {}
+                if subcommand == "function" {
+                    run_function(matches)
                 }
             }
         }

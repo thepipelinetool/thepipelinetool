@@ -299,7 +299,7 @@ pub fn run_in_memory(
     dag_path: String,
     num_threads: usize,
  ) -> i32 {
-    let mut runner = InMemoryRunner::new(&tasks.to_vec(), &edges);
+    let mut runner = InMemoryRunner::new(tasks, edges);
     let run_id = runner.enqueue_run("", "", Utc::now());
 
     let (tx, rx) = channel();
@@ -354,7 +354,7 @@ pub fn run_in_memory(
         }
     }
 
-    return runner.get_run_status(run_id);
+    runner.get_run_status(run_id)
 
     // dbg!(1);
 }

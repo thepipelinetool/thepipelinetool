@@ -1,6 +1,4 @@
-use std::{
-    cmp::max, collections::HashSet, env, path::Path, process
-};
+use std::{cmp::max, collections::HashSet, env, path::Path, process};
 
 use chrono::Utc;
 use clap::{arg, command, value_parser, ArgMatches, Command as CliCommand};
@@ -126,7 +124,8 @@ pub fn process_subcommands(
                         };
 
                         check_circular_dependencies(tasks, edges);
-                        let success = run_in_memory(&tasks, &edges, dag_name.to_string(), num_threads);
+                        let success =
+                            run_in_memory(tasks, edges, dag_name.to_string(), num_threads);
 
                         process::exit(success);
                     }
@@ -147,14 +146,14 @@ fn describe(tasks: &[Task]) {
 
 fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     let hash = hash_dag(
-        &serde_json::to_string(&*tasks).unwrap(),
+        &serde_json::to_string(tasks).unwrap(),
         &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
     );
     print!("{hash}");
 }
 
 fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    let mut runner = InMemoryRunner::new(&tasks, &edges);
+    let mut runner = InMemoryRunner::new(tasks, edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
     let graph = runner.get_mermaid_graph(0);
@@ -162,7 +161,7 @@ fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
 }
 
 fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    let mut runner = InMemoryRunner::new(&tasks, &edges);
+    let mut runner = InMemoryRunner::new(tasks, edges);
     runner.enqueue_run("in_memory", "", Utc::now());
 
     let graph = runner.get_graphite_graph(0);
@@ -175,7 +174,7 @@ fn check_circular_dependencies(tasks: &[Task], edges: &HashSet<(usize, usize)>) 
             "cycle detected: {}",
             cycle_tasks
                 .iter()
-                .map(|i| format!("({}_{})", tasks[*i].name.to_string(), i))
+                .map(|i| format!("({}_{})", tasks[*i].name, i))
                 .collect::<Vec<String>>()
                 .join("-->")
         );
@@ -192,8 +191,13 @@ fn get_circular_dependencies(
         let mut visited_tasks = HashSet::new();
         let mut cycle_tasks = vec![];
 
-        if let Some(_) =
-            _get_circular_dependencies(edges, task, &mut visited_tasks, &mut cycle_tasks)
+        if _get_circular_dependencies(
+            edges,
+            task,
+            &mut visited_tasks,
+            &mut cycle_tasks, //
+        )
+        .is_some()
         {
             return Some(cycle_tasks);
         }
@@ -229,7 +233,7 @@ fn _get_circular_dependencies(
 }
 
 fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
-    let mut runner = InMemoryRunner::new(&tasks, &edges);
+    let mut runner = InMemoryRunner::new(tasks, edges);
     let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
         .get_default_tasks()

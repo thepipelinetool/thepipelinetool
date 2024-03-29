@@ -91,7 +91,7 @@ pub fn read_from_yaml(dag_path: &Path) -> (Vec<TaskTemplate>, HashSet<(usize, us
             edges.insert((
                 *task_id_by_name
                     .get(dependency)
-                    .expect(&format!("upstream task '{dependency}' missing")),
+                    .unwrap_or_else(|| panic!("upstream task '{dependency}' missing")),
                 id,
             ));
         }
@@ -115,14 +115,14 @@ fn create_template_args(
             let arg = args[i].as_str().unwrap().trim();
             
             if arg.starts_with("{{") && arg.ends_with("}}") {
-                let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split(".").collect();
+                let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
 
                 let mut template_args = json!({});
                 let task_name = chunks[0];
 
                 let upstream_id = *task_id_by_name
                     .get(task_name)
-                    .expect(&format!("missing task {task_name}"));
+                    .unwrap_or_else(|| panic!("missing task {task_name}"));
 
                 template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
 

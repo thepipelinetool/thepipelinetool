@@ -23,7 +23,7 @@ pub fn get_functions() -> &'static StaticFunctions {
         let functions: RwLock<HashMap<String, Box<dyn Fn(Value) -> Value + Sync + Send>>> =
             RwLock::new(HashMap::new());
 
-        for operator in vec![bash_operator] {
+        for operator in [bash_operator] {
             let function_name = function_name_as_string(&operator).to_string();
             let wrapped_function = wrap_function(operator);
 

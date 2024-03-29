@@ -159,10 +159,10 @@ mod tests {
     }
 }
 
-pub fn run_bash_commmand(args: &Vec<&str>, silent: bool) -> Value {
+pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
     let mut res = json!([]);
     for args in args.split(|s| *s == "&&") {
-        let output = Command::new(args[0].to_string())
+        let output = Command::new(args[0])
             .args(&args[1..])
             .output()
             .unwrap_or_else(|_| panic!("failed to run command:\n{}\n\n", args.join(" ")));

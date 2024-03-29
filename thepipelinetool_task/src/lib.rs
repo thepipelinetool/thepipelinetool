@@ -161,5 +161,5 @@ impl Task {
 
 pub fn get_tptctl_path() -> String {
     // TODO
-    return "/home/dirk/Documents/thepipelinetool/target/debug/tpt".into();
+    "/home/dirk/Documents/thepipelinetool/target/debug/tpt".into()
 }
