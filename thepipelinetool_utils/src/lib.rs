@@ -170,6 +170,7 @@ pub fn run_bash_commmand(args: &Vec<&str>, silent: bool) -> Value {
     if !silent {
         print!("{}", result_raw);
     }
+
     if !output.status.success() {
         eprint!("{}", err_raw);
         panic!("failed to run command:\n{}\n\n", args.join(" "));

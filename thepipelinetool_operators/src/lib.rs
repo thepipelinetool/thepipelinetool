@@ -1,5 +1,4 @@
 pub mod bash;
-pub mod papermill;
 
 pub use bash::bash_operator;
 use serde::{Deserialize, Serialize};
@@ -9,7 +8,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub enum Operator {
     Bash,
-    // Papermill,
 }
 
 impl Default for Operator {

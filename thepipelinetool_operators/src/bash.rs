@@ -20,8 +20,9 @@ pub fn bash_operator(args: Value) -> Value {
     //     None => e.to_string(),
     // })
     // .collect();
+    println!("bash_operator$ {}", args.join(" "));
     run_bash_commmand(
         &args.iter().map(|f| f.as_str()).collect::<Vec<&str>>(),
-        false,
+        true,
     )
 }
