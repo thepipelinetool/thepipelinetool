@@ -4,9 +4,7 @@ use chrono::Utc;
 use clap::{arg, command, value_parser, ArgMatches, Command as CliCommand};
 use thepipelinetool::dev::*;
 use thepipelinetool_runner::{
-    blanket::BlanketRunner,
-    in_memory::{run_in_memory, InMemoryRunner},
-    Runner,
+    blanket::BlanketRunner, in_memory::{run_in_memory, InMemoryRunner}, options::{self, DagOptions}, Runner
 };
 
 pub mod yaml;
@@ -21,8 +19,10 @@ pub fn create_commands() -> CliCommand {
                 .arg_required_else_help(true)
                 .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
                 .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
-                .subcommand(CliCommand::new("hash").about("Displays hash as JSON")),
-        )
+                .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
+                .subcommand(CliCommand::new("options").about("Displays options as JSON")),
+
+            )
         .subcommand(CliCommand::new("check").about("Check for circular depencencies"))
         .subcommand(
             CliCommand::new("graph")
@@ -89,6 +89,7 @@ pub fn process_subcommands(
     subcommand_name: &str,
     tasks: &[Task],
     edges: &HashSet<(usize, usize)>,
+    options: &DagOptions,
     matches: &ArgMatches,
 ) {
     match subcommand_name {
@@ -99,6 +100,7 @@ pub fn process_subcommands(
                     "tasks" => display_tasks(),
                     "edges" => display_edges(),
                     "hash" => display_hash(tasks, edges),
+                    "options" => display_options(options),
                     _ => {}
                 }
             }
@@ -157,6 +159,10 @@ fn describe(tasks: &[Task]) {
     // TODO
 
     println!("Task count: {}", tasks.len());
+}
+
+fn display_options(options: &DagOptions) {
+    println!("{}", serde_json::to_string_pretty(options).unwrap());
 }
 
 fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
@@ -275,4 +281,28 @@ fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path
         ));
     }
     println!("{}", output);
+}
+
+pub fn load_from_binary(dag_name: &str) {
+    let tasks_from_json: Vec<Task> = serde_json::from_str(
+        run_bash_commmand(&vec![dag_name, "describe", "tasks"], true)
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+
+    for task in tasks_from_json {
+        get_tasks().write().unwrap().insert(task.id, task);
+    }
+
+    let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
+        run_bash_commmand(&vec![dag_name, "describe", "edges"], true)
+            .as_str()
+            .unwrap(),
+    )
+    .unwrap();
+
+    for edge in edges_from_json {
+        get_edges().write().unwrap().insert(edge);
+    }
 }

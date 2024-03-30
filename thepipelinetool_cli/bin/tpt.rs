@@ -1,12 +1,14 @@
 use std::{
     env,
+    fs::File,
     path::Path,
     process::{self, Command},
 };
 
 use clap::Arg;
 use thepipelinetool::dev::*;
-use thepipelinetool_cli::{create_commands, process_subcommands, yaml::read_from_yaml};
+use thepipelinetool_cli::{create_commands, load_from_binary, process_subcommands, yaml::read_from_yaml};
+use thepipelinetool_runner::options::DagOptions;
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
@@ -30,29 +32,12 @@ fn main() {
                 process::exit(exit_status.code().unwrap());
             }
 
-            let tasks_from_json: Vec<Task> = serde_json::from_str(
-                run_bash_commmand(&vec![dag_name, "describe", "tasks"], true)
-                    .as_str()
-                    .unwrap(),
-            )
-            .unwrap();
-
-            for task in tasks_from_json {
-                get_tasks().write().unwrap().insert(task.id, task);
-            }
-
-            let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
-                run_bash_commmand(&vec![dag_name, "describe", "edges"], true)
-                    .as_str()
-                    .unwrap(),
-            )
-            .unwrap();
-
-            for edge in edges_from_json {
-                get_edges().write().unwrap().insert(edge);
-            }
+            load_from_binary(dag_name);
         }
         DagType::YAML => {
+            // TODO read from flag to enable load_from_binary
+            // load_from_binary(dag_name);
+
             let (template_tasks, edges) = read_from_yaml(dag_path);
             for template_task in template_tasks {
                 match template_task.operator {
@@ -78,6 +63,32 @@ fn main() {
             }
         }
     }
+    let options: DagOptions = match File::open(dag_path.with_extension("yaml")) {
+        Ok(file) => match serde_yaml::from_reader(file) {
+            Ok(res) => res,
+            Err(_) => DagOptions::default(),
+        },
+        Err(_) => DagOptions::default(),
+    };
+
+    // {
+    //     let default = DagOptions::default();
+
+    //     let open_file_result = File::open(dag_path.with_extension("yaml"));
+
+    //     if open_file_result.is_err() {
+    //         return default;
+    //     }
+    //     let file = open_file_result.unwrap();
+
+    //     let read_result = serde_yaml::from_reader(file);
+
+    //     if read_result.is_err() {
+    //         return default;
+    //     }
+
+    //     read_result.unwrap()
+    // };
 
     let tasks = get_tasks().read().unwrap();
     let edges = get_edges().read().unwrap();
@@ -87,6 +98,7 @@ fn main() {
         subcommand_name,
         &tasks,
         &edges,
+        &options,
         &matches,
     );
 }

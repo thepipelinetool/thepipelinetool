@@ -1,3 +1,5 @@
+
+schedule: "0 0 12 * *"
 tasks:
   random_a:
     args: ["sleep", "1s", "&&", "shuf", "-i1-10", "-n1"]
