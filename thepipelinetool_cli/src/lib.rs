@@ -14,11 +14,16 @@ pub mod yaml;
 pub fn create_commands() -> CliCommand {
     command!()
         .about("DAG CLI Tool")
-        .subcommand(CliCommand::new("describe").about("Describes the DAG"))
+        // .subcommand(CliCommand::new("describe").about("Describes the DAG"))
+        .subcommand(
+            CliCommand::new("describe")
+                .about("Run complete DAG or function by name")
+                .arg_required_else_help(true)
+                .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
+                .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
+                .subcommand(CliCommand::new("hash").about("Displays hash as JSON")),
+        )
         .subcommand(CliCommand::new("check").about("Check for circular depencencies"))
-        .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
-        .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
-        .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
         .subcommand(
             CliCommand::new("graph")
                 .about("Displays graph")
@@ -87,9 +92,20 @@ pub fn process_subcommands(
     matches: &ArgMatches,
 ) {
     match subcommand_name {
-        "describe" => describe(tasks),
-        "tasks" => display_tasks(),
-        "edges" => display_edges(),
+        "describe" => {
+            let matches = matches.subcommand_matches("describe").unwrap();
+            if let Some(subcommand) = matches.subcommand_name() {
+                match subcommand {
+                    "tasks" => display_tasks(),
+                    "edges" => display_edges(),
+                    "hash" => display_hash(tasks, edges),
+                    _ => {}
+                }
+            }
+        }
+        // "describe" => describe(tasks),
+        // "tasks" => display_tasks(),
+        // "edges" => display_edges(),
         "graph" => {
             let matches = matches.subcommand_matches("graph").unwrap();
             if let Some(subcommand) = matches.get_one::<String>("graph_type") {
@@ -100,7 +116,6 @@ pub fn process_subcommands(
                 }
             }
         }
-        "hash" => display_hash(tasks, edges),
         "tree" => display_tree(tasks, edges, dag_path),
         "check" => check_circular_dependencies(tasks, edges),
         "run" => {

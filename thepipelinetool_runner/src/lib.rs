@@ -9,6 +9,7 @@ use thepipelinetool_task::{
 
 pub mod blanket;
 pub mod in_memory;
+pub mod options;
 
 pub trait Runner {
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask);

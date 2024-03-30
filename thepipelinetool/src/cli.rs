@@ -46,8 +46,13 @@ pub fn run_function(matches: &ArgMatches) {
 fn create_commands() -> CliCommand {
     command!()
         .about("DAG CLI Tool")
-        .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
-        .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
+        .subcommand(
+            CliCommand::new("describe")
+                .about("Run complete DAG or function by name")
+                .arg_required_else_help(true)
+                .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
+                .subcommand(CliCommand::new("edges").about("Displays edges as JSON")),
+        )
         .subcommand(
             CliCommand::new("run")
                 .about("Run complete DAG or function by name")
@@ -115,8 +120,17 @@ pub fn parse_cli() {
     let command = create_commands();
     let matches = command.get_matches();
     match matches.subcommand_name().unwrap() {
-        "tasks" => display_tasks(),
-        "edges" => display_edges(),
+        "describe" => {
+            let matches = matches.subcommand_matches("describe").unwrap();
+            if let Some(subcommand) = matches.subcommand_name() {
+                match subcommand {
+                    "tasks" => display_tasks(),
+                    "edges" => display_edges(),
+                    _ => {}
+                }
+            }
+        }
+
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             if let Some(subcommand) = matches.subcommand_name() {

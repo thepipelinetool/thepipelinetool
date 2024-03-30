@@ -6,10 +6,7 @@ use std::{
 
 use clap::Arg;
 use thepipelinetool::dev::*;
-use thepipelinetool_cli::{
-    create_commands, process_subcommands,
-    yaml::read_from_yaml,
-};
+use thepipelinetool_cli::{create_commands, process_subcommands, yaml::read_from_yaml};
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
@@ -33,36 +30,26 @@ fn main() {
                 process::exit(exit_status.code().unwrap());
             }
 
-            let (load_tasks, load_edges) = match subcommand_name {
-                "tasks" => (true, false),
-                "edges" => (false, true),
-                _ => (true, true),
-            };
+            let tasks_from_json: Vec<Task> = serde_json::from_str(
+                run_bash_commmand(&vec![dag_name, "describe", "tasks"], true)
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
 
-            if load_tasks {
-                let tasks_from_json: Vec<Task> = serde_json::from_str(
-                    run_bash_commmand(&vec![dag_name, "tasks"], true)
-                        .as_str()
-                        .unwrap(),
-                )
-                .unwrap();
-
-                for task in tasks_from_json {
-                    get_tasks().write().unwrap().insert(task.id, task);
-                }
+            for task in tasks_from_json {
+                get_tasks().write().unwrap().insert(task.id, task);
             }
 
-            if load_edges {
-                let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
-                    run_bash_commmand(&vec![dag_name, "edges"], true)
-                        .as_str()
-                        .unwrap(),
-                )
-                .unwrap();
+            let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
+                run_bash_commmand(&vec![dag_name, "describe", "edges"], true)
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
 
-                for edge in edges_from_json {
-                    get_edges().write().unwrap().insert(edge);
-                }
+            for edge in edges_from_json {
+                get_edges().write().unwrap().insert(edge);
             }
         }
         DagType::YAML => {
@@ -76,15 +63,14 @@ fn main() {
                             &template_task.options,
                             &template_task.name,
                         );
-                    }
-                    // Operator::Papermill => {
-                    //     add_named_task(
-                    //         papermill_operator,
-                    //         serde_json::from_value(template_task.args).unwrap(),
-                    //         &template_task.options,
-                    //         &template_task.name,
-                    //     );
-                    // }
+                    } // Operator::Papermill => {
+                      //     add_named_task(
+                      //         papermill_operator,
+                      //         serde_json::from_value(template_task.args).unwrap(),
+                      //         &template_task.options,
+                      //         &template_task.name,
+                      //     );
+                      // }
                 }
             }
             for edge in edges {
@@ -95,5 +81,12 @@ fn main() {
 
     let tasks = get_tasks().read().unwrap();
     let edges = get_edges().read().unwrap();
-    process_subcommands(dag_path, dag_name, subcommand_name, &tasks, &edges, &matches);
+    process_subcommands(
+        dag_path,
+        dag_name,
+        subcommand_name,
+        &tasks,
+        &edges,
+        &matches,
+    );
 }
