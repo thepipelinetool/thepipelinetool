@@ -9,5 +9,6 @@ members = [
     "thepipelinetool_proc_macro",
     "thepipelinetool_cli",
     "thepipelinetool_operators",
+    "thepipelinetool_server",
 ]
 resolver = "2"

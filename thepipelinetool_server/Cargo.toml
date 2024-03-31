@@ -1,0 +1,45 @@
+[package]
+name = "thepipelinetool_server"
+version = "0.1.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.7.5"
+tokio = { version = "1.36.0", features = ["full"] }
+serde_json = "1.0"
+serde = { version = "1.0.152", features = ["derive"] }
+timed = "0.2.1"
+
+thepipelinetool = { path = "../thepipelinetool", version = "0.1.216" }
+thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.1.2" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
+log = "0.4.20"
+env_logger = "0.10.0"
+deadpool = { version = "0.10.0", features = ["managed", "rt_tokio_1"] }
+deadpool-redis = "0.13"
+redis = { version = "=0.23.3", features = ["tokio-comp"] }
+parking_lot = "0.12.1"
+
+# server deps
+tower-http = { version = "0.5.1", features = [ "cors", "trace", "compression-gzip", "fs" ] }
+saffron = { git = "https://github.com/cloudflare/saffron.git" }
+chrono = { version = "0.4.31", features = [ "serde" ] }
+
+kube = { version = "0.87.1", features = ["runtime", "derive", "ws" ] }
+k8s-openapi = { version = "0.20.0", features = ["latest"] }
+futures = "0.3.17"
+anyhow = "1.0.44"
+
+[[bin]]
+name = "server"
+path = "bin/server.rs"
+
+[[bin]]
+name = "worker"
+path = "bin/worker.rs"
+
+[[bin]]
+name = "kube"
+path = "bin/kube.rs"
