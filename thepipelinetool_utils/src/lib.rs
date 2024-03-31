@@ -1,5 +1,10 @@
 use std::{
-    ffi::OsStr, fs::File, io::{BufRead, BufReader, Error, Read, Write}, path::{Path, PathBuf}, process::{self, Command, ExitStatus, Stdio}, thread
+    ffi::OsStr,
+    fs::File,
+    io::{BufRead, BufReader, Error, Read, Write},
+    path::{Path, PathBuf},
+    process::{self, Command, ExitStatus, Stdio},
+    thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -178,7 +183,6 @@ pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
     }
     res
 }
-
 
 pub fn create_command<P>(dag_path: &P, use_timeout: bool, tpt_path: &P) -> Command
 where

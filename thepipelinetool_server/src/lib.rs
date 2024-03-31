@@ -15,9 +15,9 @@ use crate::statics::{_get_hash, _get_options};
 pub mod catchup;
 pub mod check_timeout;
 pub mod redis_runner;
+pub mod routes;
 pub mod scheduler;
 pub mod statics;
-pub mod routes;
 
 pub fn get_dags_dir() -> String {
     env::var("DAGS_DIR")
@@ -199,17 +199,14 @@ pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
     RedisRunner::get_recent_runs(dag_name, pool).await
 }
 
-
-
 pub fn tpt_installed() -> bool {
-    match String::from_utf8_lossy(&Command::new("which").arg("tpt").output().unwrap().stdout)
-        .to_string()
-        .as_str()
-        .trim()
-    {
-        "" => false,
-        _ => true,
-    }
+    !matches!(
+        String::from_utf8_lossy(&Command::new("which").arg("tpt").output().unwrap().stdout)
+            .to_string()
+            .as_str()
+            .trim(),
+        ""
+    )
 }
 
 #[cfg(test)]

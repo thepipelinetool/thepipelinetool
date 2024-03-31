@@ -1,5 +1,9 @@
 use std::{
-    collections::{BinaryHeap, HashMap, HashSet}, env, path::Path, sync::{mpsc::channel, Arc}, thread
+    collections::{BinaryHeap, HashMap, HashSet},
+    env,
+    path::Path,
+    sync::{mpsc::channel, Arc},
+    thread,
 };
 
 use chrono::{DateTime, Utc};

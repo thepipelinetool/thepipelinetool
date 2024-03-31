@@ -283,7 +283,7 @@ fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path
 
 pub fn load_from_binary(dag_name: &str) {
     let tasks_from_json: Vec<Task> = serde_json::from_str(
-        run_bash_commmand(&vec![dag_name, "describe", "tasks"], true)
+        run_bash_commmand(&[dag_name, "describe", "tasks"], true)
             .as_str()
             .unwrap(),
     )
@@ -294,7 +294,7 @@ pub fn load_from_binary(dag_name: &str) {
     }
 
     let edges_from_json: Vec<(usize, usize)> = serde_json::from_str(
-        run_bash_commmand(&vec![dag_name, "describe", "edges"], true)
+        run_bash_commmand(&[dag_name, "describe", "edges"], true)
             .as_str()
             .unwrap(),
     )

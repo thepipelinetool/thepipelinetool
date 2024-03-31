@@ -213,21 +213,6 @@ where
 /// # Returns
 ///
 /// Returns `TaskRef<G>`, a reference to the created task.
-///
-/// # Examples
-///
-/// ```
-/// use thepipelinetool::prelude::*;
-///
-/// #[dag]
-/// fn main() {
-///     let task_ref = add_task(
-///         |arg: i32| arg + 1,     // function
-///         5,                      // template_args
-///         &TaskOptions::default() // options
-///     );
-/// }
-/// ```
 pub fn add_task<F, T, G>(function: F, template_args: T, options: &TaskOptions) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned + 'static,
@@ -338,23 +323,6 @@ where
 /// # Returns
 ///
 /// Returns a tuple of two `TaskRef` instances, one for each branch (`left` and `right`).
-///
-/// # Examples
-///
-/// ```
-/// use thepipelinetool::prelude::*;
-///
-/// #[dag]
-/// fn main() {
-///     let (left_ref, right_ref) = branch(
-///         |arg: i32| if arg > 10 { Branch::Left(arg) } else { Branch::Right(arg) },
-///         5,
-///         |left_arg| left_arg + 1,
-///         |right_arg| right_arg - 1,
-///         &TaskOptions::default()
-///     );
-/// }
-/// ```
 pub fn branch<F, K, T, L, J, R, M>(
     function: F,
     template_args: K,

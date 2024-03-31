@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs::File,
-    path::Path,
-};
+use std::{collections::HashMap, fs::File, path::Path};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

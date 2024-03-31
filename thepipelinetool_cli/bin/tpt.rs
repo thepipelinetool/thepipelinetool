@@ -54,11 +54,5 @@ fn main() {
         Err(_) => DagOptions::default(),
     };
 
-    process_subcommands(
-        dag_path,
-        dag_name,
-        subcommand_name,
-        &options,
-        &matches,
-    );
+    process_subcommands(dag_path, dag_name, subcommand_name, &options, &matches);
 }

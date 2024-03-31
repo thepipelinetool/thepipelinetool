@@ -1,10 +1,10 @@
 use axum::{http::Method, Router};
 use chrono::Utc;
+use std::path::PathBuf;
 use thepipelinetool_server::catchup::spawn_catchup;
 use thepipelinetool_server::check_timeout::spawn_check_timeout;
 use thepipelinetool_server::scheduler::spawn_scheduler;
 use thepipelinetool_server::{get_redis_pool, routes::*, tpt_installed};
-use std::path::PathBuf;
 use tokio::net::TcpListener;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
@@ -17,7 +17,7 @@ use axum::routing::get;
 async fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
-    
+
     assert!(tpt_installed());
 
     println!("connecting to redis...");
