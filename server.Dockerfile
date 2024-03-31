@@ -25,7 +25,7 @@ WORKDIR /server
 # RUN rm -r temp
 # RUN rm web.zip
 
-COPY --from=web_builder /app/thepipelinetool_ui/build/web static/
+COPY --from=web_builder /app/build/web static/
 
 COPY --from=server_builder /usr/local/cargo/bin/server /usr/local/bin/server
 
