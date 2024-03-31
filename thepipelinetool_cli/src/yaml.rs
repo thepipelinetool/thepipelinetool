@@ -1,12 +1,15 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs::File,
     path::Path,
 };
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use thepipelinetool::dev::{Operator, TaskOptions, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
+use thepipelinetool::dev::{
+    add_named_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions,
+    UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TaskTemplate {
@@ -49,55 +52,58 @@ impl Default for TaskTemplate {
     }
 }
 
-pub fn read_from_yaml(dag_path: &Path) -> (Vec<TaskTemplate>, HashSet<(usize, usize)>) {
+pub fn read_from_yaml(dag_path: &Path) {
     let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();
 
-    if !value.as_object().unwrap().contains_key("tasks") {
-        panic!("invalid yaml (missing tasks)");
-    }
-    let tasks = value["tasks"].as_object().unwrap();
-    let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
+    if value.as_object().unwrap().contains_key("tasks") {
+        let tasks = value["tasks"].as_object().unwrap();
+        let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
+        let base_id = get_tasks().read().unwrap().len();
 
-    let mut template_tasks: Vec<TaskTemplate> = tasks
-        .iter()
-        .enumerate()
-        .map(|(i, (k, v))| {
-            task_id_by_name.insert(k.to_string(), i);
+        let mut template_tasks: Vec<TaskTemplate> = tasks
+            .iter()
+            .enumerate()
+            .map(|(i, (k, v))| {
+                task_id_by_name.insert(k.to_string(), base_id + i);
 
-            let mut template: TaskTemplate = serde_json::from_value(v.clone()).unwrap();
-            template.name = k.to_string();
-            template
-        })
-        .collect();
+                let mut template: TaskTemplate = serde_json::from_value(v.clone()).unwrap();
+                template.name = k.to_string();
+                template
+            })
+            .collect();
 
-    let mut edges: HashSet<(usize, usize)> = HashSet::new();
+        for template_task in template_tasks.iter_mut() {
+            let id = *task_id_by_name.get(&template_task.name).unwrap();
+            let template_args = create_template_args(id, &template_task.args, &task_id_by_name);
 
-    for template_task in template_tasks.iter_mut() {
-        let id = *task_id_by_name.get(&template_task.name).unwrap();
-        // TODO check for non-array args
-        template_task.args =
-            create_template_args(id, &template_task.args, &task_id_by_name, &mut edges);
-        // serde_json::to_string(&template_task.args)
+            for dependency in template_task.depends_on.iter() {
+                get_edges().write().unwrap().insert((
+                    *task_id_by_name
+                        .get(dependency)
+                        .unwrap_or_else(|| panic!("upstream task '{dependency}' missing")),
+                    id,
+                ));
+            }
 
-        // template_task
-        //     .args
-        //     .as_array()
-        //     .unwrap()
-        //     .iter()
-        //     .map(|f| create_template_args(id, &f.as_str().unwrap(), &task_id_by_name, &mut edges))
-        //     .collect();
-
-        for dependency in template_task.depends_on.iter() {
-            edges.insert((
-                *task_id_by_name
-                    .get(dependency)
-                    .unwrap_or_else(|| panic!("upstream task '{dependency}' missing")),
-                id,
-            ));
+            match template_task.operator {
+                Operator::Bash => {
+                    add_named_task(
+                        bash_operator,
+                        template_args,
+                        &template_task.options,
+                        &template_task.name,
+                    );
+                } // Operator::Papermill => {
+                  //     add_named_task(
+                  //         papermill_operator,
+                  //         serde_json::from_value(template_task.args).unwrap(),
+                  //         &template_task.options,
+                  //         &template_task.name,
+                  //     );
+                  // }
+            }
         }
     }
-
-    (template_tasks, edges)
 }
 
 // TODO check for multiple matches, rework
@@ -105,7 +111,6 @@ fn create_template_args(
     task_id: usize,
     args: &Value,
     task_id_by_name: &HashMap<String, usize>,
-    edges: &mut HashSet<(usize, usize)>,
 ) -> Value {
     let args = &mut args.as_array().unwrap();
     let mut temp_args = vec![];
@@ -113,7 +118,7 @@ fn create_template_args(
     for i in 0..args.len() {
         if args[i].is_string() {
             let arg = args[i].as_str().unwrap().trim();
-            
+
             if arg.starts_with("{{") && arg.ends_with("}}") {
                 let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
 
@@ -129,12 +134,11 @@ fn create_template_args(
                 if chunks.len() > 1 {
                     template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
                 }
-                edges.insert((upstream_id, task_id));
+                get_edges().write().unwrap().insert((upstream_id, task_id));
 
                 temp_args.push(template_args);
             } else {
                 temp_args.push(args[i].clone());
-
             }
         } else {
             temp_args.push(args[i].clone());
@@ -177,7 +181,7 @@ fn create_template_args(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     use serde_json::json;
     use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
@@ -187,7 +191,6 @@ mod tests {
     #[test]
     fn test_resolve_template_args() {
         let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
-        let mut edges: HashSet<(usize, usize)> = HashSet::new();
 
         task_id_by_name.insert("t1".into(), 0);
 
@@ -195,38 +198,38 @@ mod tests {
             json!({
                 UPSTREAM_TASK_ID_KEY: 0
             }),
-            create_template_args(1, &json!("{{  t1 }}"), &task_id_by_name, &mut edges)
+            create_template_args(1, &json!("{{  t1 }}"), &task_id_by_name)
         );
         assert_eq!(
             json!({
                 UPSTREAM_TASK_ID_KEY: 0,
                 UPSTREAM_TASK_RESULT_KEY: "test"
             }),
-            create_template_args(1, &json!("{{t1.test}}"), &task_id_by_name, &mut edges)
+            create_template_args(1, &json!("{{t1.test}}"), &task_id_by_name)
         );
 
         assert_eq!(
             json!(["echo", {
                 UPSTREAM_TASK_ID_KEY: 0
             }]),
-            create_template_args(
-                1,
-                &json!(["echo", "{{ t1  }}"]),
-                &task_id_by_name,
-                &mut edges
-            )
+            create_template_args(1, &json!(["echo", "{{ t1  }}"]), &task_id_by_name,)
         );
         assert_eq!(
             json!({"data": {
                 UPSTREAM_TASK_ID_KEY: 0,
                 UPSTREAM_TASK_RESULT_KEY: "test"
             }}),
-            create_template_args(
-                1,
-                &json!({"data": "{{ t1.test   }}"}),
-                &task_id_by_name,
-                &mut edges
-            )
+            create_template_args(1, &json!({"data": "{{ t1.test   }}"}), &task_id_by_name,)
         );
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::path::Path;
+
+    #[test]
+    fn test() {
+        assert!(Path::new("simple.yaml").with_extension("") == Path::new("simple"));
     }
 }

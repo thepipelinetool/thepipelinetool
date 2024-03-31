@@ -1,8 +1,5 @@
 use std::{
-    collections::{BinaryHeap, HashMap, HashSet},
-    path::Path,
-    sync::{mpsc::channel, Arc},
-    thread,
+    collections::{BinaryHeap, HashMap, HashSet}, env, path::Path, sync::{mpsc::channel, Arc}, thread
 };
 
 use chrono::{DateTime, Utc};
@@ -313,7 +310,7 @@ pub fn run_in_memory(
 
         if let Some(queued_task) = runner.pop_priority_queue() {
             thread::spawn(move || {
-                // TODO set env run_id
+                env::set_var("run_id", run_id.to_string());
 
                 runner.work(
                     run_id,
@@ -343,7 +340,7 @@ pub fn run_in_memory(
             let tx = tx.clone();
 
             thread::spawn(move || {
-                // TODO set env run_id
+                env::set_var("run_id", run_id.to_string());
 
                 runner.work(
                     run_id,

@@ -25,7 +25,8 @@ pub fn _get_default_tasks(dag_name: &str) -> Vec<Task> {
         .lock();
 
     if !tasks.contains_key(dag_name) {
-        let output = Command::new(_get_dag_path_by_name(dag_name))
+        let output = Command::new("tpt")
+            .arg(_get_dag_path_by_name(dag_name))
             .arg("describe")
             .arg("tasks")
             .output()
@@ -49,7 +50,8 @@ pub fn _get_hash(dag_name: &str) -> String {
     if !hashes.contains_key(dag_name) {
         let dags_dir = &get_dags_dir();
         let path: PathBuf = [dags_dir, dag_name].iter().collect();
-        let output = Command::new(path)
+        let output = Command::new("tpt")
+            .arg(path)
             .arg("describe")
             .arg("hash")
             .output()
@@ -71,7 +73,8 @@ pub fn _get_default_edges(dag_name: &str) -> HashSet<(usize, usize)> {
         .lock();
 
     if !edges.contains_key(dag_name) {
-        let output = Command::new(_get_dag_path_by_name(dag_name))
+        let output = Command::new("tpt")
+            .arg(_get_dag_path_by_name(dag_name))
             .arg("describe")
             .arg("edges")
             .output()

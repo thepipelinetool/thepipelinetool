@@ -1,11 +1,13 @@
-use std::{env, ffi::OsStr, fs, path::PathBuf, process::Command, thread, time::Duration};
+use std::{env, ffi::OsStr, fs, path::PathBuf, thread, time::Duration};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{spawn, value_from_file, value_to_file};
+use thepipelinetool_utils::{
+    command_timeout, create_command, spawn, value_from_file, value_to_file,
+};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -22,6 +24,7 @@ fn get_json_dir() -> String {
         .to_string()
 }
 
+// TODO move these
 fn get_save_to_file() -> bool {
     env::var("SAVE_TO_FILE")
         .unwrap_or("false".to_string())
@@ -56,11 +59,6 @@ impl Task {
     where
         P: AsRef<OsStr>,
     {
-        let save_to_file = get_save_to_file();
-
-        if attempt > 1 {
-            thread::sleep(self.options.retry_delay);
-        }
         let task_id: usize = self.id;
         let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
@@ -72,13 +70,17 @@ impl Task {
             .as_secs()
             .to_string();
 
-        let start = Utc::now();
-        // dbg!("{:#?}", Path::new(&executable_path));
-        let mut cmd = self.create_command(&dag_path, use_timeout, &tpt_path);
+        let mut cmd = create_command(&dag_path, use_timeout, &tpt_path);
+        command_timeout(
+            &mut cmd,
+            &dag_path,
+            use_timeout,
+            &timeout_as_secs,
+            &tpt_path,
+            &self.function,
+        );
 
-        self.command_timeout(&mut cmd, &dag_path, use_timeout, &timeout_as_secs, &tpt_path);
-
-        let (status, timed_out, result) = if save_to_file {
+        let out_path: Option<PathBuf> = if get_save_to_file() {
             let json_dir = get_json_dir();
             let out_path: PathBuf = [&json_dir, &format!("{function_name}_{task_id}_out.json")]
                 .iter()
@@ -89,25 +91,26 @@ impl Task {
             fs::create_dir_all(&json_dir).unwrap();
             value_to_file(resolved_args, &in_path);
             cmd.args([&in_path, &out_path]);
-
-            let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
-            if status.success() {
-                (status, timed_out, value_from_file(&out_path).unwrap())
-            } else {
-                (status, timed_out, Value::Null)
-            }
+            Some(out_path)
         } else {
             cmd.arg(&resolved_args_str);
-            let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
-            if status.success() {
-                let last_line = take_last_stdout_line();
-                (status, timed_out, serde_json::from_str(&last_line).unwrap())
-            } else {
-                (status, timed_out, Value::Null)
-            }
+            None
         };
+        if attempt > 1 {
+            thread::sleep(self.options.retry_delay);
+        }
+        let start = Utc::now();
+        let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
         let end = Utc::now();
-        let premature_failure_error_str = if timed_out { "timed out" } else { "" }.into();
+
+        let (success, result) = (
+            status.success(),
+            match (status.success(), get_save_to_file()) {
+                (true, true) => value_from_file(&out_path.unwrap()).unwrap(),
+                (true, false) => serde_json::from_str(&take_last_stdout_line()).unwrap(),
+                (false, _) => Value::Null,
+            },
+        );
 
         TaskResult {
             task_id,
@@ -117,46 +120,13 @@ impl Task {
             name: self.name.clone(),
             function: function_name.clone(),
             resolved_args_str,
-            success: status.success(),
+            success,
             started: start.to_rfc3339(),
             ended: end.to_rfc3339(),
             elapsed: end.timestamp() - start.timestamp(),
             premature_failure: false,
-            premature_failure_error_str,
+            premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
         }
-    }
-
-    fn create_command<P>(&self, dag_path: &P, use_timeout: bool, tpt_path: &P) -> Command
-    where
-        P: AsRef<OsStr>,
-    {
-        // dbg!(use_timeout);
-        if use_timeout {
-            Command::new("timeout")
-        } else {
-            let mut command = Command::new(tpt_path);
-            command.arg(dag_path);
-            command
-        }
-    }
-
-    fn command_timeout<P>(
-        &self,
-        command: &mut Command,
-        dag_path: &P,
-        use_timeout: bool,
-        timeout_as_secs: &str,
-        tpt_path: &P,
-    ) where
-        P: AsRef<OsStr>,
-    {
-        if use_timeout {
-            command.args(["-k", timeout_as_secs, timeout_as_secs]);
-            command.arg(tpt_path);
-            command.arg(dag_path);
-        }
-
-        command.args(["run", "function", &self.function]);
     }
 }

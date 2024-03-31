@@ -75,7 +75,7 @@ pub fn _get_dags() -> Vec<String> {
         Ok(entries) => entries
             .filter_map(|entry| {
                 let path = entry.unwrap().path();
-                if path.is_file() && path.extension().is_none() {
+                if path.is_file() {
                     Some(path)
                 } else {
                     None

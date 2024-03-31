@@ -1,9 +1,5 @@
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, Error, Read, Write},
-    path::{Path, PathBuf},
-    process::{self, Command, ExitStatus, Stdio},
-    thread,
+    ffi::OsStr, fs::File, io::{BufRead, BufReader, Error, Read, Write}, path::{Path, PathBuf}, process::{self, Command, ExitStatus, Stdio}, thread
 };
 
 use serde::{Deserialize, Serialize};
@@ -181,4 +177,38 @@ pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
         res = json!(result_raw.to_string().trim_end())
     }
     res
+}
+
+
+pub fn create_command<P>(dag_path: &P, use_timeout: bool, tpt_path: &P) -> Command
+where
+    P: AsRef<OsStr>,
+{
+    // dbg!(use_timeout);
+    if use_timeout {
+        Command::new("timeout")
+    } else {
+        let mut command = Command::new(tpt_path);
+        command.arg(dag_path);
+        command
+    }
+}
+
+pub fn command_timeout<P>(
+    command: &mut Command,
+    dag_path: &P,
+    use_timeout: bool,
+    timeout_as_secs: &str,
+    tpt_path: &P,
+    function: &str,
+) where
+    P: AsRef<OsStr>,
+{
+    if use_timeout {
+        command.args(["-k", timeout_as_secs, timeout_as_secs]);
+        command.arg(tpt_path);
+        command.arg(dag_path);
+    }
+
+    command.args(["run", "function", function]);
 }

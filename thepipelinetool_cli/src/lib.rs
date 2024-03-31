@@ -89,11 +89,12 @@ pub fn process_subcommands(
     dag_path: &Path,
     dag_name: &str,
     subcommand_name: &str,
-    tasks: &[Task],
-    edges: &HashSet<(usize, usize)>,
     options: &DagOptions,
     matches: &ArgMatches,
 ) {
+    let tasks = &get_tasks().read().unwrap();
+    let edges = &get_edges().read().unwrap();
+
     match subcommand_name {
         "describe" => {
             let matches = matches.subcommand_matches("describe").unwrap();
@@ -107,9 +108,6 @@ pub fn process_subcommands(
                 }
             }
         }
-        // "describe" => describe(tasks),
-        // "tasks" => display_tasks(),
-        // "edges" => display_edges(),
         "graph" => {
             let matches = matches.subcommand_matches("graph").unwrap();
             if let Some(subcommand) = matches.get_one::<String>("graph_type") {
@@ -125,7 +123,6 @@ pub fn process_subcommands(
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             if let Some(subcommand) = matches.subcommand_name() {
-                // dbg!(subcommand);
                 match subcommand {
                     "in_memory" => {
                         let num_threads = match matches
@@ -162,14 +159,8 @@ pub fn process_subcommands(
     }
 }
 
-fn describe(tasks: &[Task]) {
-    // TODO
-
-    println!("Task count: {}", tasks.len());
-}
-
 fn display_options(options: &DagOptions) {
-    println!("{}", serde_json::to_string_pretty(options).unwrap());
+    print!("{}", serde_json::to_string_pretty(options).unwrap());
 }
 
 fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
