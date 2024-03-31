@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{get_tptctl_path, spawn, value_from_file, value_to_file};
+use thepipelinetool_utils::{spawn, value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -51,6 +51,7 @@ impl Task {
         handle_stderr_log: Box<dyn Fn(String) + Send>,
         take_last_stdout_line: Box<dyn Fn() -> String + Send>,
         dag_path: P,
+        tpt_path: P,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
@@ -73,9 +74,9 @@ impl Task {
 
         let start = Utc::now();
         // dbg!("{:#?}", Path::new(&executable_path));
-        let mut cmd = self.create_command(&dag_path, use_timeout);
+        let mut cmd = self.create_command(&dag_path, use_timeout, &tpt_path);
 
-        self.command_timeout(&mut cmd, &dag_path, use_timeout, &timeout_as_secs);
+        self.command_timeout(&mut cmd, &dag_path, use_timeout, &timeout_as_secs, &tpt_path);
 
         let (status, timed_out, result) = if save_to_file {
             let json_dir = get_json_dir();
@@ -126,7 +127,7 @@ impl Task {
         }
     }
 
-    fn create_command<P>(&self, dag_path: &P, use_timeout: bool) -> Command
+    fn create_command<P>(&self, dag_path: &P, use_timeout: bool, tpt_path: &P) -> Command
     where
         P: AsRef<OsStr>,
     {
@@ -134,7 +135,7 @@ impl Task {
         if use_timeout {
             Command::new("timeout")
         } else {
-            let mut command = Command::new(get_tptctl_path());
+            let mut command = Command::new(tpt_path);
             command.arg(dag_path);
             command
         }
@@ -146,12 +147,13 @@ impl Task {
         dag_path: &P,
         use_timeout: bool,
         timeout_as_secs: &str,
+        tpt_path: &P,
     ) where
         P: AsRef<OsStr>,
     {
         if use_timeout {
             command.args(["-k", timeout_as_secs, timeout_as_secs]);
-            command.arg(get_tptctl_path());
+            command.arg(tpt_path);
             command.arg(dag_path);
         }
 

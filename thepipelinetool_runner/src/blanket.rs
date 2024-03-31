@@ -30,6 +30,7 @@ pub trait BlanketRunner {
         run_id: usize,
         queued_task: &OrderedQueuedTask,
         dag_path: P,
+        tpt_path: P,
     );
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
     fn run_task<P: AsRef<OsStr>>(
@@ -39,6 +40,7 @@ pub trait BlanketRunner {
         attempt: usize,
         resolution_result: &Value,
         dag_path: P,
+        tpt_path: P,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -239,6 +241,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         attempt: usize,
         resolution_result: &Value,
         dag_path: P,
+        tpt_path: P,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -350,6 +353,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.get_log_handle_closure(run_id, task.id, attempt),
             self.take_last_stdout_line(run_id, task.id, attempt),
             dag_path,
+            tpt_path,
         )
     }
 
@@ -473,6 +477,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
         dag_path: P,
+        tpt_path: P,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
@@ -492,6 +497,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
                 dag_path,
+                tpt_path,
             ),
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,

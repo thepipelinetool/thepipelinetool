@@ -290,15 +290,15 @@ impl Runner for InMemoryRunner {
         let task_logs = self.task_logs.clone();
         Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
     }
-    
 }
 
 pub fn run_in_memory(
     tasks: &[Task],
     edges: &HashSet<(usize, usize)>,
     dag_path: String,
+    tpt_path: String,
     num_threads: usize,
- ) -> i32 {
+) -> i32 {
     let mut runner = InMemoryRunner::new(tasks, edges);
     let run_id = runner.enqueue_run("", "", Utc::now());
 
@@ -309,14 +309,18 @@ pub fn run_in_memory(
         let mut runner = runner.clone();
         let tx = tx.clone();
         let dag_path = dag_path.clone();
+        let tpt_path = tpt_path.clone();
 
         if let Some(queued_task) = runner.pop_priority_queue() {
             thread::spawn(move || {
-                let dag_path = Path::new(&dag_path);
-
                 // TODO set env run_id
 
-                runner.work(run_id, &queued_task, dag_path);
+                runner.work(
+                    run_id,
+                    &queued_task,
+                    Path::new(&dag_path),
+                    Path::new(&tpt_path),
+                );
                 tx.send(()).unwrap();
             });
 
@@ -332,16 +336,21 @@ pub fn run_in_memory(
     for _ in rx.iter() {
         thread_count -= 1;
         let dag_path = dag_path.clone();
+        let tpt_path = tpt_path.clone();
 
         let mut runner = runner.clone();
         if let Some(queued_task) = runner.pop_priority_queue() {
             let tx = tx.clone();
 
             thread::spawn(move || {
-                let dag_path = Path::new(&dag_path);
                 // TODO set env run_id
 
-                runner.work(run_id, &queued_task, dag_path);
+                runner.work(
+                    run_id,
+                    &queued_task,
+                    Path::new(&dag_path),
+                    Path::new(&tpt_path),
+                );
                 tx.send(()).unwrap();
             });
 
