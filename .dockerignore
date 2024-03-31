@@ -1,0 +1,8 @@
+bin/
+target/
+.github/
+.vscode/
+scripts/
+.dockerignore
+.gitignore
+Cargo.lock
