@@ -8,14 +8,14 @@
   <a href="https://crates.io/crates/thepipelinetool" target="_blank">
     <img src="https://img.shields.io/crates/v/thepipelinetool" />
   </a>
-  <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/examples.yml" target="_blank">
-    <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/examples.yml/badge.svg" />
+  <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/build.yml" target="_blank">
+    <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/build.yml/badge.svg" />
   </a>
 </div>
 
 </br>
 
-`thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies. The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
+`thepipelinetool` organizes your Rust functions into a [Directed Acyclic Graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) structure, ensuring orderly execution according to their dependencies. The DAG is compiled into a CLI executable, which can then be used to list tasks/edges, run individual functions, and execute locally. Finally, deploy to [thepipelinetool_server](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
 ## Features
 - *Easy Usage* - Simply write normal rust code and let `thepipelinetool` handle execution order, concurrent execution, timeouts, and retries
