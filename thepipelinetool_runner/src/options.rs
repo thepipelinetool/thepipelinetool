@@ -24,7 +24,7 @@ pub struct DagOptions {
     pub timeout: Option<Duration>,
 
     #[serde(default)]
-    pub catchup: bool,
+    pub should_catchup: bool,
 }
 
 impl Default for DagOptions {
@@ -36,7 +36,7 @@ impl Default for DagOptions {
             max_attempts: 1,
             retry_delay: Duration::ZERO,
             timeout: None,
-            catchup: false,
+            should_catchup: false,
         }
     }
 }

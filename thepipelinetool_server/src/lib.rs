@@ -1,11 +1,11 @@
 use std::{env, fs, io::ErrorKind, path::PathBuf, process::Command};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use log::{debug, info};
 use redis_runner::{RedisRunner, Run};
-use saffron::Cron;
+use saffron::{Cron, CronTimesIter};
 use thepipelinetool::dev::*;
 use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
 use timed::timed;
@@ -152,7 +152,7 @@ pub fn _get_next_run(dag_name: &str) -> Vec<Value> {
                 let futures =
                     cron.clone()
                         .iter_from(if let Some(start_date) = options.start_date {
-                            if options.catchup || start_date > Utc::now() {
+                            if options.should_catchup || start_date > Utc::now() {
                                 start_date.into()
                             } else {
                                 Utc::now()
@@ -197,6 +197,65 @@ pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Vec<Run> {
 
 pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
     RedisRunner::get_recent_runs(dag_name, pool).await
+}
+
+pub async fn _trigger_run_from_schedules(
+    dag_name: &str,
+    server_start_date: DateTime<Utc>,
+    cron: &Cron,
+    logical_dates: CronTimesIter,
+    end_date: Option<DateTime<FixedOffset>>,
+    pool: Pool,
+) {
+    for logical_date in logical_dates {
+        if !cron.contains(logical_date) {
+            println!("Failed check! Cron does not contain {}.", logical_date);
+            break;
+        }
+        if logical_date >= server_start_date {
+            break;
+        }
+        if let Some(end_date) = end_date {
+            if logical_date > end_date {
+                break;
+            }
+        }
+        // check if date is already in db
+        if RedisRunner::contains_logical_date(
+            &dag_name,
+            &_get_hash(&dag_name),
+            logical_date,
+            pool.clone(),
+        )
+        .await
+        {
+            continue;
+        }
+
+        _trigger_run(&dag_name, logical_date, pool.clone()).await;
+        println!(
+            "scheduling catchup {dag_name} {}",
+            logical_date.format("%F %R")
+        );
+    }
+}
+
+fn _get_schedules_for_catchup(
+    cron: &Cron,
+    start_date: Option<DateTime<FixedOffset>>,
+    should_catchup: bool,
+    server_start_date: DateTime<Utc>,
+) -> CronTimesIter {
+    cron.clone()
+        .iter_from(if let Some(start_date) = start_date {
+            if should_catchup {
+                start_date.into()
+            } else {
+                server_start_date
+            }
+        } else {
+            server_start_date
+        })
 }
 
 pub fn tpt_installed() -> bool {

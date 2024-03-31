@@ -115,6 +115,8 @@ pub fn _get_options(dag_name: &str) -> DagOptions {
             dag_name.to_owned(),
             serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(),
         );
+        // TODO verify schedule string
+
         // dbg!(dag_options.get(dag_name).unwrap());
         // }
 

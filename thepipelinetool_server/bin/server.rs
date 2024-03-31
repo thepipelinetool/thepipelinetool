@@ -26,10 +26,10 @@ async fn main() {
     let now = Utc::now();
 
     println!("spawning catchup...");
-    spawn_catchup(&now, pool.clone());
+    spawn_catchup(now.clone(), pool.clone());
 
     println!("spawning scheduler...");
-    spawn_scheduler(&now, pool.clone());
+    spawn_scheduler(now.clone(), pool.clone());
 
     println!("spawning check_timeout...");
     spawn_check_timeout(pool.clone());
