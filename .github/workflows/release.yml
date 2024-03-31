@@ -5,10 +5,10 @@ on:
     tags:
       - '*'
 
-env:
-  # update with the name of the main binary
-  binary: web
-  add_binaries_to_github_release: true
+# env:
+#   # update with the name of the main binary
+#   binary: web
+#   add_binaries_to_github_release: true
 
 jobs:
   server:
@@ -69,49 +69,49 @@ jobs:
           tags: ghcr.io/thepipelinetool/worker:latest, ghcr.io/thepipelinetool/worker:${{ steps.get_version.outputs.tag }}
           cache-from: type=registry,ref=ghcr.io/thepipelinetool/worker:buildcache
           cache-to: type=registry,ref=ghcr.io/thepipelinetool/worker:buildcache,mode=max
-  web:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: thepipelinetool_ui        
-    steps:
-      - uses: actions/checkout@v3
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'beta' # or: 'beta', 'dev' or 'master'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:' # optional, change this to force refresh cache
-          cache-path: '${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:' # optional, change this to specify the cache path
-          architecture: x64 # optional, x64 or arm64
-      - run: flutter --version
-      - run: flutter pub get
-      - run: flutter build web --release
+  # web:
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       working-directory: thepipelinetool_ui        
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'beta' # or: 'beta', 'dev' or 'master'
+  #         cache: true
+  #         cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:' # optional, change this to force refresh cache
+  #         cache-path: '${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:' # optional, change this to specify the cache path
+  #         architecture: x64 # optional, x64 or arm64
+  #     - run: flutter --version
+  #     - run: flutter pub get
+  #     - run: flutter build web --release
 
-      - name: Package as a zip
-        working-directory: ./build/web
-        run: |
-          zip --recurse-paths ../../${{ env.binary }}.zip .
+  #     - name: Package as a zip
+  #       working-directory: ./build/web
+  #       run: |
+  #         zip --recurse-paths ../../${{ env.binary }}.zip .
 
-      - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          path: ${{ env.binary }}.zip
-          name: web
+  #     - name: Upload binaries to artifacts
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         path: ${{ env.binary }}.zip
+  #         name: web
 
-      - name: set release date
-        run: |
-          echo "RELEASE_DATE=$(date --rfc-3339=date)" >> ${GITHUB_ENV}
+  #     - name: set release date
+  #       run: |
+  #         echo "RELEASE_DATE=$(date --rfc-3339=date)" >> ${GITHUB_ENV}
 
 
-      - uses: little-core-labs/get-git-tag@v3.0.1
-        id: get_version
+  #     - uses: little-core-labs/get-git-tag@v3.0.1
+  #       id: get_version
 
-      - name: Upload binaries to release
-        if: ${{ env.add_binaries_to_github_release == 'true' }}
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ env.binary }}.zip
-          asset_name: ${{ env.binary }}.zip
-          tag: ${{ steps.get_version.outputs.tag }}
-          overwrite: true
+  #     - name: Upload binaries to release
+  #       if: ${{ env.add_binaries_to_github_release == 'true' }}
+  #       uses: svenstaro/upload-release-action@v2
+  #       with:
+  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
+  #         file: ${{ env.binary }}.zip
+  #         asset_name: ${{ env.binary }}.zip
+  #         tag: ${{ steps.get_version.outputs.tag }}
+  #         overwrite: true
