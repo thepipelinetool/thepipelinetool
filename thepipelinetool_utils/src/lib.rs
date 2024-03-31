@@ -182,3 +182,8 @@ pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
     }
     res
 }
+
+pub fn get_tptctl_path() -> String {
+    // TODO
+    "/home/dirk/Documents/thepipelinetool/target/debug/tpt".into()
+}

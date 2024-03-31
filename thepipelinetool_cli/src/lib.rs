@@ -4,7 +4,10 @@ use chrono::Utc;
 use clap::{arg, command, value_parser, ArgMatches, Command as CliCommand};
 use thepipelinetool::dev::*;
 use thepipelinetool_runner::{
-    blanket::BlanketRunner, in_memory::{run_in_memory, InMemoryRunner}, options::{self, DagOptions}, Runner
+    blanket::BlanketRunner,
+    in_memory::{run_in_memory, InMemoryRunner},
+    options::DagOptions,
+    Runner,
 };
 
 pub mod yaml;
@@ -21,8 +24,7 @@ pub fn create_commands() -> CliCommand {
                 .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
                 .subcommand(CliCommand::new("hash").about("Displays hash as JSON"))
                 .subcommand(CliCommand::new("options").about("Displays options as JSON")),
-
-            )
+        )
         .subcommand(CliCommand::new("check").about("Check for circular depencencies"))
         .subcommand(
             CliCommand::new("graph")
