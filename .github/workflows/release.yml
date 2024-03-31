@@ -71,6 +71,9 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/thepipelinetool/worker:buildcache,mode=max
   web:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: thepipelinetool_ui        
     steps:
       - uses: actions/checkout@v3
       - uses: subosito/flutter-action@v2
