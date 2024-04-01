@@ -2,7 +2,7 @@
 name = "thepipelinetool_operators"
 version = "0.1.2"
 edition = "2021"
-description = "readers used for thepipelinetool"
+description = "operators used for thepipelinetool"
 license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
