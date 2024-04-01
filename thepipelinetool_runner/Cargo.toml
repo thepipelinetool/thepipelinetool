@@ -1,6 +1,6 @@
 [package]
 name = "thepipelinetool_runner"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "runner package used for thepipelinetool"
 license = "MIT OR Apache-2.0"
@@ -8,8 +8,8 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.11" }
-thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.2" }
+thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.1.3" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.1.3" }
 serde_json = "1.0"
 serde = { version = "1.0.152", features = ["derive"] }
 
