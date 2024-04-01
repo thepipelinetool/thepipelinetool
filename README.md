@@ -11,6 +11,9 @@
   <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/build.yml" target="_blank">
     <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/build.yml/badge.svg" />
   </a>
+  <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/release.yml" target="_blank">
+    <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/release.yml/badge.svg" />
+  </a>  
 </div>
 
 </br>
