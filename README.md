@@ -1,4 +1,4 @@
-<h1 align=center>thepipelinetool</h1>
+<h1 align=center>tpt</h1>
 <!-- <h4 align="center"></h4> -->
 
 <div align="center">
@@ -21,10 +21,11 @@
 `tpt` runs ensures orderly pipeline orchestration according to task [dependencies](#usage). Pipelines can be [deployed](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
 
 ## Features
-- *Simple Usage* - Write YAML or Rust code and let `thepipelinetool` handle execution order, concurrent execution, timeouts, and retries
-- *Special Tasks* - Create multiple [Dynamic](#dynamic-tasks) tasks from upstream results or a control flow using [Branching](#branching-tasks) tasks
-- *Easy Testing* - Test both YAML and Rust code locally
-- *Safety and Reliability* - Rust's compile-time checks ensure code safety and prevent common bugs
+- write YAML or Rust code and let `tpt` handle execution order, parallelism, timeouts, and retries
+- create multiple [dynamic](#dynamic-tasks) tasks from upstream results or a control flow using [branching](#branching-tasks) tasks
+- easy testing
+  - test both YAML and Rust code locally
+  - rust's compile-time checks ensure code safety and prevent common bugs
 
 ## Contents
 - [Installation](#installation)
