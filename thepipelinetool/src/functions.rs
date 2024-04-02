@@ -219,41 +219,11 @@ where
     G: Serialize + 'static,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
-    let id = get_tasks().read().unwrap().len();
-
-    let function_name = function_name_as_string(&function).to_string();
-    {
-        get_tasks().write().unwrap().insert(
-            id,
-            Task {
-                id,
-                name: function_name.to_string(),
-                function: function_name.to_string(),
-                template_args: serde_json::to_value(template_args).unwrap(),
-                options: *options,
-                lazy_expand: false,
-                is_dynamic: false,
-                is_branch: false,
-            },
-        );
-    }
-
-    let wrapped_function = wrap_function(function);
-    {
-        get_functions()
-            .write()
-            .unwrap()
-            .insert(function_name, Box::new(wrapped_function));
-    }
-    TaskRef(TaskRefInner {
-        task_ids: HashSet::from([id]),
-        key: None,
-
-        _marker: std::marker::PhantomData,
-    })
+    let name = &function_name_as_string(&function).to_string();
+    _add_task(function, template_args, options, name)
 }
 
-pub fn add_named_task<F, T, G>(
+pub fn _add_task<F, T, G>(
     function: F,
     template_args: T,
     options: &TaskOptions,
@@ -288,7 +258,7 @@ where
         get_functions()
             .write()
             .unwrap()
-            .insert(function_name, Box::new(wrapped_function));
+            .insert(function_name.to_string(), Box::new(wrapped_function));
     }
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
@@ -437,6 +407,22 @@ where
     G: Serialize + 'static,
     F: Fn(K) -> G + 'static + Sync + Send,
 {
+    let name = &function_name_as_string(&function).to_string();
+    _expand_lazy(function, task_ref, options, name)
+}
+
+pub fn _expand_lazy<K, F, T, G>(
+    function: F,
+    task_ref: &TaskRef<T>,
+    options: &TaskOptions,
+    name: &str,
+) -> TaskRef<Vec<G>>
+where
+    K: Serialize + DeserializeOwned + 'static,
+    T: Serialize + DeserializeOwned + IntoIterator<Item = K>,
+    G: Serialize + 'static,
+    F: Fn(K) -> G + 'static + Sync + Send,
+{
     let id = get_tasks().read().unwrap().len();
 
     let function_name = function_name_as_string(&function).to_string();
@@ -445,7 +431,7 @@ where
             id,
             Task {
                 id,
-                name: function_name.to_string(),
+                name: name.to_string(),
                 function: function_name.to_string(),
                 template_args: serde_json::to_value(task_ref).unwrap(),
                 options: *options,
@@ -467,7 +453,7 @@ where
     // };
     {
         let mut functions = get_functions().write().unwrap();
-        functions.insert(function_name.clone(), Box::new(wrapped_function));
+        functions.insert(function_name.to_string(), Box::new(wrapped_function));
         functions.insert(function_name_as_string(collector), Box::new(collector));
     }
 

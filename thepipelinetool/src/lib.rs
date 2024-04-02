@@ -9,10 +9,22 @@ mod hash;
 mod ops_overrides;
 mod statics;
 
+use std::collections::HashSet;
+
 use serde::Serialize;
+use serde_json::Value;
 pub use thepipelinetool_task::task_ref_inner::TaskRefInner;
 
 pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
+
+pub fn _lazy_task_ref(id: usize) -> TaskRef<Vec<Value>> {
+    TaskRef(TaskRefInner {
+        task_ids: HashSet::from([id]),
+        key: None,
+
+        _marker: std::marker::PhantomData,
+    })
+}
 
 pub mod prelude {
     pub use crate::cli::parse_cli;

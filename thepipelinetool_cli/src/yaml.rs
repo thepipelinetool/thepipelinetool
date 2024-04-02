@@ -2,9 +2,12 @@ use std::{collections::HashMap, fs::File, path::Path};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use thepipelinetool::dev::{
-    add_named_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions,
-    UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+use thepipelinetool::{
+    dev::{
+        _add_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions, _expand_lazy,
+        UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+    },
+    _lazy_task_ref,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -72,31 +75,37 @@ pub fn read_from_yaml(dag_path: &Path) {
             let id = *task_id_by_name.get(&template_task.name).unwrap();
             let template_args = create_template_args(id, &template_task.args, &task_id_by_name);
 
-            for dependency in template_task.depends_on.iter() {
-                get_edges().write().unwrap().insert((
-                    *task_id_by_name
+            let depends_on: Vec<usize> = template_task
+                .depends_on
+                .iter()
+                .map(|dependency| {
+                    let upstream_id = *task_id_by_name
                         .get(dependency)
-                        .unwrap_or_else(|| panic!("upstream task '{dependency}' missing")),
-                    id,
-                ));
-            }
+                        .unwrap_or_else(|| panic!("upstream task '{dependency}' missing"));
+                    get_edges().write().unwrap().insert((upstream_id, id));
+                    upstream_id
+                })
+                .collect();
 
-            match template_task.operator {
-                Operator::Bash => {
-                    add_named_task(
+            match (&template_task.operator, template_task.lazy_expand) {
+                (Operator::Bash, false) => {
+                    _add_task(
                         bash_operator,
                         template_args,
                         &template_task.options,
                         &template_task.name,
                     );
-                } // Operator::Papermill => {
-                  //     add_named_task(
-                  //         papermill_operator,
-                  //         serde_json::from_value(template_task.args).unwrap(),
-                  //         &template_task.options,
-                  //         &template_task.name,
-                  //     );
-                  // }
+                }
+                (Operator::Bash, true) => {
+                    assert!(depends_on.len() == 1);
+                    todo!()
+                    // _expand_lazy(
+                    //     bash_operator,
+                    //     &_lazy_task_ref(depends_on[0]),
+                    //     &template_task.options,
+                    //     &template_task.name,
+                    // );
+                }
             }
         }
     }
@@ -123,13 +132,7 @@ fn create_template_args(
                 let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
                     *id
                 } else {
-                    get_tasks()
-                        .read()
-                        .unwrap()
-                        .iter()
-                        .find(|t| t.name == task_name)
-                        .unwrap_or_else(|| panic!("missing task {task_name}"))
-                        .id
+                    _get_task_id_by_name(task_name)
                 };
 
                 template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
@@ -149,6 +152,16 @@ fn create_template_args(
     }
 
     json!(temp_args)
+}
+
+fn _get_task_id_by_name(name: &str) -> usize {
+    get_tasks()
+        .read()
+        .unwrap()
+        .iter()
+        .find(|t| t.name == name)
+        .unwrap_or_else(|| panic!("missing task {name}"))
+        .id
 }
 
 // #[cfg(test)]

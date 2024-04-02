@@ -9,8 +9,6 @@ tasks:
     args: ["sleep", "1s", "&&", "shuf", "-i21-30", "-n1"]
   date:
     args: ["date"]
-  link:
-    args: ["echo", "{{print_data}}"]
   papermill:
     args:
       [
