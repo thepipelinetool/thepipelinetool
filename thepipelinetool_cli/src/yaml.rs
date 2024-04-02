@@ -5,9 +5,9 @@ use serde_json::{json, Value};
 use thepipelinetool::{
     _lazy_task_ref,
     dev::{
-        _add_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions,
-        _add_task_with_function_name, _expand_lazy, _expand_lazy_with_function_name, get_functions,
-        wrap_function, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+        bash_operator, get_edges, get_tasks, Operator, TaskOptions, _add_task_with_function_name,
+        _expand_lazy_with_function_name, _register_function_with_name, get_functions,
+        register_function, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
     },
 };
 use thepipelinetool_utils::{collector, function_name_as_string};
@@ -99,12 +99,11 @@ pub fn read_from_yaml(dag_path: &Path) {
             if let Some(operator) =
                 &serde_json::from_value::<Operator>(json!(template_task.operator)).ok()
             {
-                let mut functions = get_functions().write().unwrap();
-                functions.insert(
-                    template_task.operator.clone(),
-                    Box::new(wrap_function(match operator {
+                _register_function_with_name(
+                    match operator {
                         Operator::BashOperator => bash_operator,
-                    })),
+                    },
+                    &template_task.operator,
                 );
             }
 
@@ -117,11 +116,8 @@ pub fn read_from_yaml(dag_path: &Path) {
             if contains_key {
                 if template_task.lazy_expand {
                     assert!(depends_on.len() == 1);
-                    get_functions()
-                        .write()
-                        .unwrap()
-                        .insert(function_name_as_string(collector), Box::new(collector));
 
+                    register_function(collector);
                     _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
                         &_lazy_task_ref(depends_on[0]),
                         &template_task.options,
