@@ -2,7 +2,7 @@ use std::{
     ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
-    path::{Path, PathBuf},
+    path::Path,
     process::{self, Command, ExitStatus, Stdio},
     thread,
 };
@@ -64,31 +64,6 @@ pub fn collector(args: Value) -> Value {
     args
 }
 
-const BASE62: &[char] = &[
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
-    'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
-    'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-    'V', 'W', 'X', 'Y', 'Z',
-];
-
-pub fn to_base62(mut num: u64) -> String {
-    let mut chars = vec![];
-
-    while num > 0 {
-        chars.push(BASE62[(num % 62) as usize]);
-        num /= 62;
-    }
-
-    chars.reverse();
-
-    while chars.len() < 7 {
-        chars.push('0');
-    }
-
-    chars.truncate(7); // Ensure length is 7
-    chars.iter().collect()
-}
-
 pub fn spawn(
     mut cmd: Command,
     handle_stdout_log: Box<dyn Fn(String) + Send>,
@@ -125,39 +100,6 @@ pub fn spawn(
     stderr_handle.join().expect("stderr thread panicked");
 
     (status, timed_out)
-}
-
-#[derive(PartialEq)]
-pub enum DagType {
-    Binary,
-    YAML,
-}
-
-pub fn get_dag_type_by_path(path: PathBuf) -> DagType {
-    if let Some(ext) = path.extension() {
-        match ext.to_str().unwrap() {
-            "yaml" => {
-                return DagType::YAML;
-            }
-            _ => {}
-        }
-    }
-    DagType::Binary
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use crate::DagType;
-
-    use super::get_dag_type_by_path;
-
-    #[test]
-    fn test_get_dag_type_by_path() {
-        assert!(get_dag_type_by_path(Path::new("hello").to_path_buf()) == DagType::Binary);
-        assert!(get_dag_type_by_path(Path::new("hello.yaml").to_path_buf()) == DagType::YAML);
-    }
 }
 
 pub fn run_bash_commmand(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {

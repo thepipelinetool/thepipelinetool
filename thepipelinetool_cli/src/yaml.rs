@@ -3,15 +3,15 @@ use std::{collections::HashMap, fs::File, path::Path};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use thepipelinetool::{
+    _lazy_task_ref,
     dev::{
         _add_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions, _expand_lazy,
         UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
     },
-    _lazy_task_ref,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TaskTemplate {
+pub struct YamlTaskTemplate {
     #[serde(default)]
     pub name: String,
 
@@ -36,7 +36,7 @@ pub struct TaskTemplate {
     pub depends_on: Vec<String>,
 }
 
-impl Default for TaskTemplate {
+impl Default for YamlTaskTemplate {
     fn default() -> Self {
         Self {
             name: "".to_string(),
@@ -59,13 +59,14 @@ pub fn read_from_yaml(dag_path: &Path) {
         let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
         let base_id = get_tasks().read().unwrap().len();
 
-        let mut template_tasks: Vec<TaskTemplate> = tasks
+        let mut template_tasks: Vec<YamlTaskTemplate> = tasks
             .iter()
+            .rev()
             .enumerate()
             .map(|(i, (k, v))| {
                 task_id_by_name.insert(k.to_string(), base_id + i);
 
-                let mut template: TaskTemplate = serde_json::from_value(v.clone()).unwrap();
+                let mut template: YamlTaskTemplate = serde_json::from_value(v.clone()).unwrap();
                 template.name = k.to_string();
                 template
             })
@@ -118,16 +119,16 @@ fn create_template_args(
     task_id_by_name: &HashMap<String, usize>,
 ) -> Value {
     let mut temp_args = vec![];
-    
+
     if args.is_array() {
         let args = &mut args.as_array().unwrap();
         for i in 0..args.len() {
             if args[i].is_string() {
                 let arg = args[i].as_str().unwrap().trim();
-    
+
                 if arg.starts_with("{{") && arg.ends_with("}}") {
                     let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
-    
+
                     let mut template_args = json!({});
                     let task_name = chunks[0];
                     let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
@@ -135,14 +136,14 @@ fn create_template_args(
                     } else {
                         _get_task_id_by_name(task_name)
                     };
-    
+
                     template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
-    
+
                     if chunks.len() > 1 {
                         template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
                     }
                     get_edges().write().unwrap().insert((upstream_id, task_id));
-    
+
                     temp_args.push(template_args);
                 } else {
                     temp_args.push(args[i].clone());

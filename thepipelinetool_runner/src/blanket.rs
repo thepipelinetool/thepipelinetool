@@ -49,15 +49,6 @@ pub trait BlanketRunner {
         upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error>;
     fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value>;
-    fn get_tree(
-        &self,
-        run_id: usize,
-        task_id: usize,
-        depth: usize,
-        prefix: &str,
-        prev_is_last: Vec<bool>,
-        task_ids_in_order: &mut Vec<usize>,
-    ) -> String;
     fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask);
 }
 
@@ -634,50 +625,6 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 }
             }
         }
-    }
-
-    fn get_tree(
-        &self,
-        run_id: usize,
-        task_id: usize,
-        _depth: usize,
-        prefix: &str,
-        prev_is_last: Vec<bool>,
-        task_ids_in_order: &mut Vec<usize>,
-    ) -> String {
-        let children: Vec<usize> = self.get_downstream(run_id, task_id);
-        let mut output = format!(
-            "{}{}_{}\n",
-            prefix,
-            self.get_task_by_id(run_id, task_id).name,
-            task_id,
-        );
-
-        for (index, child) in children.iter().enumerate() {
-            let is_last = index == children.len() - 1;
-            let child_prefix = prev_is_last.iter().fold(String::new(), |acc, &last| {
-                if last {
-                    acc + "    "
-                } else {
-                    acc + "│   "
-                }
-            });
-
-            let connector = if is_last { "└── " } else { "├── " };
-            let mut new_prev_is_last = prev_is_last.clone();
-            new_prev_is_last.push(is_last);
-            task_ids_in_order.push(*child);
-            output.push_str(&self.get_tree(
-                run_id,
-                *child,
-                _depth + 1,
-                &format!("{}{}", child_prefix, connector),
-                new_prev_is_last,
-                task_ids_in_order,
-            ));
-        }
-
-        output
     }
 }
 

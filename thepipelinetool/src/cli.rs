@@ -101,22 +101,22 @@ pub fn parse_cli() {
     let matches = command.get_matches();
     match matches.subcommand_name().unwrap() {
         "describe" => {
-            let matches = matches.subcommand_matches("describe").unwrap();
-            if let Some(subcommand) = matches.subcommand_name() {
-                match subcommand {
-                    "tasks" => display_tasks(),
-                    "edges" => display_edges(),
-                    _ => {}
-                }
+            match matches
+                .subcommand_matches("describe")
+                .unwrap()
+                .subcommand_name()
+                .unwrap()
+            {
+                "tasks" => display_tasks(),
+                "edges" => display_edges(),
+                _ => {}
             }
         }
 
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
-            if let Some(subcommand) = matches.subcommand_name() {
-                if subcommand == "function" {
-                    run_function(matches)
-                }
+            if matches.subcommand_name().unwrap() == "function" {
+                run_function(&matches)
             }
         }
         _ => {}
