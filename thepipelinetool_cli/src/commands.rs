@@ -2,8 +2,7 @@ use clap::{arg, command, value_parser, Command as CliCommand};
 
 pub fn create_commands() -> CliCommand {
     command!()
-        .about("DAG CLI Tool")
-        // .subcommand(CliCommand::new("describe").about("Describes the DAG"))
+        .about("tpt")
         .subcommand(
             CliCommand::new("describe")
                 .about("Run complete DAG or function by name")
