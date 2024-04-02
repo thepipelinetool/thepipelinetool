@@ -18,7 +18,7 @@
 
 </br>
 
-Orchestrate your pipelines using `tpt`. [Deploy](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) them for scheduling, catchup, retries, and live monitoring with a modern web UI.
+Orchestrate your pipelines using `tpt`. [Deploy](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) them for scheduling, catchup, retries, and live monitoring.
 
 
 ## Features
