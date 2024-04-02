@@ -35,7 +35,10 @@ pub async fn get_runs(Path(dag_name): Path<String>, State(pool): State<Pool>) ->
 
 #[timed(duration(printer = "debug!"))]
 pub async fn get_next_run(Path(dag_name): Path<String>) -> Json<Value> {
-    json!(_get_next_run(&dag_name)).into()
+    // TODO handle error
+    let options = _get_options(&dag_name).unwrap();
+
+    json!(_get_next_run(&options)).into()
 }
 
 #[timed(duration(printer = "debug!"))]
@@ -78,11 +81,11 @@ pub async fn get_default_tasks(Path(dag_name): Path<String>) -> Json<Value> {
 }
 
 pub async fn get_default_task(Path((dag_name, task_id)): Path<(String, usize)>) -> Json<Value> {
-    json!(&_get_default_tasks(&dag_name)
-        .iter()
-        .find(|t| t.id == task_id)
-        .unwrap())
-    .into()
+    // TODO handle error
+
+    let default_tasks = _get_default_tasks(&dag_name).unwrap();
+
+    json!(&default_tasks.iter().find(|t| t.id == task_id).unwrap()).into()
 }
 
 pub async fn get_all_tasks(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
@@ -142,7 +145,7 @@ pub async fn get_dags(State(pool): State<Pool>) -> Json<Value> {
     for dag_name in _get_dags() {
         result.push(json!({
             "last_run": _get_last_run(&dag_name, pool.clone()).await,
-            "next_run":_get_next_run(&dag_name),
+            "next_run":_get_next_run(&_get_options(&dag_name).unwrap()),
             "options":_get_options(&dag_name),
             "dag_name": &dag_name,
         }));
@@ -158,7 +161,11 @@ pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) 
 pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
     let nodes = _get_default_tasks(&dag_name);
     let edges = _get_default_edges(&dag_name);
-    let mut runner = InMemoryRunner::new(&nodes, &edges);
+
+    // TODO handle error
+    assert!(!nodes.is_none() && !edges.is_none());
+
+    let mut runner = InMemoryRunner::new(&nodes.unwrap(), &edges.unwrap());
     runner.enqueue_run("in_memory", "", Utc::now());
 
     json!(runner.get_graphite_graph(0)).into()

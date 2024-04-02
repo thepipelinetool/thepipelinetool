@@ -19,14 +19,19 @@ static EDGES: OnceLock<Arc<Mutex<HashMap<String, HashSet<(usize, usize)>>>>> = O
 static DAG_OPTIONS: OnceLock<Arc<Mutex<HashMap<String, DagOptions>>>> = OnceLock::new();
 
 #[timed(duration(printer = "debug!"))]
-pub fn _get_default_tasks(dag_name: &str) -> Vec<Task> {
+pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
     let mut tasks = TASKS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !tasks.contains_key(dag_name) {
+        let dag_path = _get_dag_path_by_name(dag_name);
+        if dag_path.is_none() {
+            return None;
+        }
+
         let output = Command::new("tpt")
-            .arg(_get_dag_path_by_name(dag_name))
+            .arg(dag_path.unwrap())
             .arg("describe")
             .arg("tasks")
             .output()
@@ -38,7 +43,7 @@ pub fn _get_default_tasks(dag_name: &str) -> Vec<Task> {
         );
     }
 
-    tasks.get(dag_name).unwrap().clone()
+    Some(tasks.get(dag_name).unwrap().clone())
 }
 
 #[timed(duration(printer = "debug!"))]
@@ -67,14 +72,18 @@ pub fn _get_hash(dag_name: &str) -> String {
 }
 
 #[timed(duration(printer = "debug!"))]
-pub fn _get_default_edges(dag_name: &str) -> HashSet<(usize, usize)> {
+pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
     let mut edges = EDGES
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !edges.contains_key(dag_name) {
+        let dag_path = _get_dag_path_by_name(dag_name);
+        if dag_path.is_none() {
+            return None;
+        }
         let output = Command::new("tpt")
-            .arg(_get_dag_path_by_name(dag_name))
+            .arg(dag_path.unwrap())
             .arg("describe")
             .arg("edges")
             .output()
@@ -86,18 +95,23 @@ pub fn _get_default_edges(dag_name: &str) -> HashSet<(usize, usize)> {
         );
     }
 
-    edges.get(dag_name).unwrap().clone()
+    Some(edges.get(dag_name).unwrap().clone())
 }
 
 #[timed(duration(printer = "debug!"))]
-pub fn _get_options(dag_name: &str) -> DagOptions {
+pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
     let mut dag_options = DAG_OPTIONS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !dag_options.contains_key(dag_name) {
+        let dag_path = _get_dag_path_by_name(dag_name);
+        if dag_path.is_none() {
+            return None;
+        }
+
         let output = Command::new("tpt")
-            .arg(_get_dag_path_by_name(dag_name))
+            .arg(dag_path.unwrap())
             .arg("describe")
             .arg("options")
             .output()
@@ -123,7 +137,7 @@ pub fn _get_options(dag_name: &str) -> DagOptions {
         // dbg!(&String::from_utf8_lossy(&output.stdout));
     }
 
-    dag_options.get(dag_name).unwrap().clone()
+    Some(dag_options.get(dag_name).unwrap().clone())
 }
 
 // #[timed(duration(printer = "debug!"))]

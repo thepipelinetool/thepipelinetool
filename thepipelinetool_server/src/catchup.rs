@@ -3,7 +3,9 @@ use deadpool_redis::Pool;
 use saffron::Cron;
 use thepipelinetool_runner::options::DagOptions;
 
-use crate::{_get_dags, _get_schedules_for_catchup, _trigger_run_from_schedules, statics::_get_options};
+use crate::{
+    _get_dags, _get_schedules_for_catchup, _trigger_run_from_schedules, statics::_get_options,
+};
 
 pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
     tokio::spawn(async move {
@@ -11,7 +13,7 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
 
         for dag_name in _get_dags() {
             // tokio::spawn(async move {
-            let options: DagOptions = _get_options(&dag_name);
+            let options: DagOptions = _get_options(&dag_name).unwrap();
 
             if options.schedule.is_none() {
                 continue;

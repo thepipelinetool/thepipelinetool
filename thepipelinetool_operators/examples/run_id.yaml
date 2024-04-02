@@ -1,0 +1,3 @@
+tasks:
+  echo_run_id:
+    args: ["bash", "-c", "echo $run_id"]

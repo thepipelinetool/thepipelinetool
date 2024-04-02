@@ -15,7 +15,8 @@ pub fn spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) {
 
         loop {
             'inner: for dag_name in _get_dags() {
-                let options = _get_options(&dag_name);
+                let options = _get_options(&dag_name).unwrap();
+
                 let last_checked = **last_checked_name
                     .get(&dag_name)
                     .get_or_insert(&server_start_date);

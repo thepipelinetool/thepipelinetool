@@ -1,7 +1,10 @@
 use std::{env, path::Path, time::Duration};
 use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
 use thepipelinetool_server::{
-    _get_dag_path_by_name, get_redis_pool, redis_runner::RedisRunner, tpt_installed,
+    _get_dag_path_by_name, get_redis_pool,
+    redis_runner::RedisRunner,
+    statics::{_get_default_edges, _get_default_tasks},
+    tpt_installed,
 };
 use tokio::time::sleep;
 
@@ -20,15 +23,20 @@ async fn main() {
         if let Some(ordered_queued_task) = dummy.pop_priority_queue() {
             env::set_var("run_id", ordered_queued_task.queued_task.run_id.to_string());
 
-            let mut runner = RedisRunner::from_local_dag(
+            let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
+            let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
+
+            let mut runner = RedisRunner::from(
                 &ordered_queued_task.queued_task.dag_name,
+                nodes,
+                edges,
                 pool.clone(),
             );
 
             runner.work(
                 ordered_queued_task.queued_task.run_id,
                 &ordered_queued_task,
-                _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name),
+                _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
                 tpt_path.clone(),
             );
             runner.remove_from_temp_queue(&ordered_queued_task.queued_task);

@@ -7,10 +7,10 @@ use log::{debug, info};
 use redis_runner::{RedisRunner, Run};
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool::dev::*;
-use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
+use thepipelinetool_runner::{blanket::BlanketRunner, options::DagOptions, Runner};
 use timed::timed;
 
-use crate::statics::{_get_hash, _get_options};
+use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options};
 
 pub mod catchup;
 pub mod check_timeout;
@@ -31,9 +31,15 @@ fn get_redis_url() -> String {
         .to_string()
 }
 
-pub fn _get_dag_path_by_name(dag_name: &str) -> PathBuf {
+pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
     let dags_dir = &get_dags_dir();
-    [dags_dir, dag_name].iter().collect()
+    let path: PathBuf = [dags_dir, dag_name].iter().collect();
+
+    if !path.exists() {
+        return None;
+    }
+
+    Some(path)
 }
 
 #[timed(duration(printer = "debug!"))]
@@ -99,7 +105,15 @@ pub fn _get_dags() -> Vec<String> {
 pub async fn _trigger_run(dag_name: &str, logical_date: DateTime<Utc>, pool: Pool) -> usize {
     let hash = _get_hash(dag_name);
 
-    RedisRunner::from_local_dag(dag_name, pool.clone()).enqueue_run(dag_name, &hash, logical_date)
+    // TODO handle error
+    let nodes = _get_default_tasks(dag_name).unwrap();
+    let edges = _get_default_edges(dag_name).unwrap();
+
+    RedisRunner::from(dag_name, nodes.clone(), edges.clone(), pool.clone()).enqueue_run(
+        dag_name,
+        &hash,
+        logical_date,
+    )
 }
 
 // #[timed(duration(printer = "debug!"))]
@@ -129,11 +143,7 @@ pub fn get_redis_pool() -> Pool {
 //     };
 // }
 
-pub fn _get_next_run(dag_name: &str) -> Vec<Value> {
-    let options = _get_options(dag_name);
-
-    // info!("{:#?}", options);
-
+pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
     if let Some(schedule) = &options.schedule {
         match schedule.parse::<Cron>() {
             Ok(cron) => {
