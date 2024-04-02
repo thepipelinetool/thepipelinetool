@@ -18,13 +18,14 @@
 
 </br>
 
-`tpt` runs ensures orderly pipeline orchestration according to task [dependencies](#usage). Pipelines can be [deployed](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) to enjoy scheduling, catchup, retries, and live task monitoring with a modern web UI.
+Orchestrate your pipelines using `tpt`. [Deploy](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_server) them for scheduling, catchup, retries, and live monitoring with a modern web UI.
+
 
 ## Features
-- write YAML or Rust code and let `tpt` handle execution order, parallelism, timeouts, and retries
-- create multiple [dynamic](#dynamic-tasks) tasks from upstream results or a control flow using [branching](#branching-tasks) tasks
+- write your pipeline YAML or Rust code and let `tpt` handle execution order, parallelism, timeouts, and retries
+- create multiple [dynamic](#dynamic-tasks) tasks from upstream results or control flow using [branching](#branching-tasks) tasks
 - easy testing
-  - test both YAML and Rust code locally
+  - test both YAML and Rust pipelines locally
   - rust's compile-time checks ensure code safety and prevent common bugs
 
 ## Contents
@@ -43,13 +44,13 @@ cargo install thepipelinetool_cli
 
 ## Usage
 ```bash
-tpt your_dag run in_memory
+tpt [pipeline_file] <COMMAND>
 ```
 ## Examples
 Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
 
 ## Deployment
-To deploy DAGs, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
+The pipeline files must be placed inside `DAGS_DIR` for both the server and workers to access.
 Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
 
 ## Advanced
