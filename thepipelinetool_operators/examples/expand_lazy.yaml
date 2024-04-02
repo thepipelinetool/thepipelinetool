@@ -1,0 +1,13 @@
+
+schedule: "0 0 12 * *"
+tasks:
+  produce:
+    args: ["echo", '[["echo", "hello"], ["echo", "world"], ["echo", 123]]']
+  print:
+    depends_on:
+      - produce
+    lazy_expand: true
+  after:
+    args: ["echo", "{{print}}"]
+    depends_on:
+      - print

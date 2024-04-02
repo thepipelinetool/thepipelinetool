@@ -98,13 +98,13 @@ pub fn read_from_yaml(dag_path: &Path) {
                 }
                 (Operator::Bash, true) => {
                     assert!(depends_on.len() == 1);
-                    todo!()
-                    // _expand_lazy(
-                    //     bash_operator,
-                    //     &_lazy_task_ref(depends_on[0]),
-                    //     &template_task.options,
-                    //     &template_task.name,
-                    // );
+                    // todo!()
+                    _expand_lazy(
+                        bash_operator,
+                        &_lazy_task_ref(depends_on[0]),
+                        &template_task.options,
+                        &template_task.name,
+                    );
                 }
             }
         }
@@ -117,38 +117,43 @@ fn create_template_args(
     args: &Value,
     task_id_by_name: &HashMap<String, usize>,
 ) -> Value {
-    let args = &mut args.as_array().unwrap();
     let mut temp_args = vec![];
-
-    for i in 0..args.len() {
-        if args[i].is_string() {
-            let arg = args[i].as_str().unwrap().trim();
-
-            if arg.starts_with("{{") && arg.ends_with("}}") {
-                let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
-
-                let mut template_args = json!({});
-                let task_name = chunks[0];
-                let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
-                    *id
+    
+    if args.is_array() {
+        let args = &mut args.as_array().unwrap();
+        for i in 0..args.len() {
+            if args[i].is_string() {
+                let arg = args[i].as_str().unwrap().trim();
+    
+                if arg.starts_with("{{") && arg.ends_with("}}") {
+                    let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
+    
+                    let mut template_args = json!({});
+                    let task_name = chunks[0];
+                    let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
+                        *id
+                    } else {
+                        _get_task_id_by_name(task_name)
+                    };
+    
+                    template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
+    
+                    if chunks.len() > 1 {
+                        template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+                    }
+                    get_edges().write().unwrap().insert((upstream_id, task_id));
+    
+                    temp_args.push(template_args);
                 } else {
-                    _get_task_id_by_name(task_name)
-                };
-
-                template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
-
-                if chunks.len() > 1 {
-                    template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+                    temp_args.push(args[i].clone());
                 }
-                get_edges().write().unwrap().insert((upstream_id, task_id));
-
-                temp_args.push(template_args);
             } else {
                 temp_args.push(args[i].clone());
             }
-        } else {
-            temp_args.push(args[i].clone());
         }
+    } else if args.is_object() {
+        // TODO
+        todo!()
     }
 
     json!(temp_args)
