@@ -24,5 +24,6 @@ pub fn bash_operator(args: Value) -> Value {
     run_bash_commmand(
         &args.iter().map(|f| f.as_str()).collect::<Vec<&str>>(),
         true,
+        true,
     )
 }
