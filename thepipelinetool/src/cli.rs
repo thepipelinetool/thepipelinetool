@@ -37,7 +37,7 @@ pub fn run_function(matches: &ArgMatches) {
         }
     } else {
         panic!(
-            "no such 'function' {function_name}\navailable functions: {:#?}",
+            "no such function '{function_name}'\navailable functions: {:#?}",
             functions.keys().collect::<Vec<&String>>()
         )
     }

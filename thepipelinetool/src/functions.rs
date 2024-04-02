@@ -101,9 +101,30 @@ where
     G: Serialize + 'static,
     F: Fn(T) -> G + 'static + Sync + Send,
 {
+    let function_name = function_name_as_string(&function).to_string();
+
+    {
+        get_functions()
+            .write()
+            .unwrap()
+            .insert(function_name.to_string(), Box::new(wrap_function(function)));
+    }
+
+    _add_task_with_function_name::<T, G>(template_args, options, name, &function_name)
+}
+
+pub fn _add_task_with_function_name<T, G>(
+    template_args: Value,
+    options: &TaskOptions,
+    name: &str,
+    function_name: &str,
+) -> TaskRef<G>
+where
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
+{
     let id = get_tasks().read().unwrap().len();
 
-    let function_name = function_name_as_string(&function).to_string();
     {
         get_tasks().write().unwrap().insert(
             id,
@@ -118,13 +139,6 @@ where
                 is_branch: false,
             },
         );
-    }
-
-    {
-        get_functions()
-            .write()
-            .unwrap()
-            .insert(function_name.to_string(), Box::new(wrap_function(function)));
     }
     TaskRef(TaskRefInner {
         task_ids: HashSet::from([id]),
@@ -214,9 +228,29 @@ where
     G: Serialize + 'static,
     F: Fn(K) -> G + 'static + Sync + Send,
 {
+    let function_name = function_name_as_string(&function).to_string();
+    {
+        let mut functions = get_functions().write().unwrap();
+        functions.insert(function_name.to_string(), Box::new(wrap_function(function)));
+        functions.insert(function_name_as_string(collector), Box::new(collector));
+    }
+
+    _expand_lazy_with_function_name::<K, T, G>(task_ref, options, name, &function_name)
+}
+
+pub fn _expand_lazy_with_function_name<K, T, G>(
+    task_ref: &TaskRef<T>,
+    options: &TaskOptions,
+    name: &str,
+    function_name: &str,
+) -> TaskRef<Vec<G>>
+where
+    K: Serialize + DeserializeOwned + 'static,
+    T: Serialize + DeserializeOwned + IntoIterator<Item = K>,
+    G: Serialize + 'static,
+{
     let id = get_tasks().read().unwrap().len();
 
-    let function_name = function_name_as_string(&function).to_string();
     {
         get_tasks().write().unwrap().insert(
             id,
@@ -231,12 +265,6 @@ where
                 is_branch: false,
             },
         );
-    }
-
-    {
-        let mut functions = get_functions().write().unwrap();
-        functions.insert(function_name.to_string(), Box::new(wrap_function(function)));
-        functions.insert(function_name_as_string(collector), Box::new(collector));
     }
 
     task_ref

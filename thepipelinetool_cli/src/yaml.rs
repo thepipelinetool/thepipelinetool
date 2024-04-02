@@ -5,10 +5,12 @@ use serde_json::{json, Value};
 use thepipelinetool::{
     _lazy_task_ref,
     dev::{
-        _add_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions, _expand_lazy,
-        UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+        _add_task, bash_operator, get_edges, get_tasks, Operator, TaskOptions,
+        _add_task_with_function_name, _expand_lazy, _expand_lazy_with_function_name, get_functions,
+        wrap_function, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
     },
 };
+use thepipelinetool_utils::{collector, function_name_as_string};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct YamlTaskTemplate {
@@ -29,27 +31,31 @@ pub struct YamlTaskTemplate {
     #[serde(default)]
     pub is_branch: bool,
 
-    #[serde(default)]
-    pub operator: Operator,
+    #[serde(default = "default_operator")]
+    pub operator: String,
 
     #[serde(default)]
     pub depends_on: Vec<String>,
 }
 
-impl Default for YamlTaskTemplate {
-    fn default() -> Self {
-        Self {
-            name: "".to_string(),
-            // function_name: "".to_string(),
-            args: json!([]),
-            options: Default::default(),
-            lazy_expand: false,
-            is_branch: false,
-            operator: Operator::default(),
-            depends_on: Vec::new(),
-        }
-    }
+fn default_operator() -> String {
+    function_name_as_string(bash_operator).to_string()
 }
+
+// impl Default for YamlTaskTemplate {
+//     fn default() -> Self {
+//         Self {
+//             name: "".to_string(),
+//             // function_name: "".to_string(),
+//             args: json!([]),
+//             options: Default::default(),
+//             lazy_expand: false,
+//             is_branch: false,
+//             operator: ,
+//             depends_on: Vec::new(),
+//         }
+//     }
+// }
 
 pub fn read_from_yaml(dag_path: &Path) {
     let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();
@@ -76,6 +82,7 @@ pub fn read_from_yaml(dag_path: &Path) {
             let id = *task_id_by_name.get(&template_task.name).unwrap();
             let template_args = create_template_args(id, &template_task.args, &task_id_by_name);
 
+            // create edges
             let depends_on: Vec<usize> = template_task
                 .depends_on
                 .iter()
@@ -88,25 +95,57 @@ pub fn read_from_yaml(dag_path: &Path) {
                 })
                 .collect();
 
-            match (&template_task.operator, template_task.lazy_expand) {
-                (Operator::Bash, false) => {
-                    _add_task(
-                        bash_operator,
-                        template_args,
-                        &template_task.options,
-                        &template_task.name,
-                    );
-                }
-                (Operator::Bash, true) => {
+            // load operators
+            if let Some(operator) =
+                &serde_json::from_value::<Operator>(json!(template_task.operator)).ok()
+            {
+                let mut functions = get_functions().write().unwrap();
+                functions.insert(
+                    template_task.operator.clone(),
+                    Box::new(wrap_function(match operator {
+                        Operator::BashOperator => bash_operator,
+                    })),
+                );
+            }
+
+            let contains_key = get_functions()
+                .read()
+                .unwrap()
+                .contains_key(&template_task.operator);
+
+            // load tasks
+            if contains_key {
+                if template_task.lazy_expand {
                     assert!(depends_on.len() == 1);
-                    // todo!()
-                    _expand_lazy(
-                        bash_operator,
+                    get_functions()
+                        .write()
+                        .unwrap()
+                        .insert(function_name_as_string(collector), Box::new(collector));
+
+                    _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
                         &_lazy_task_ref(depends_on[0]),
                         &template_task.options,
                         &template_task.name,
+                        &template_task.operator,
+                    );
+                } else {
+                    _add_task_with_function_name::<Value, Value>(
+                        template_args,
+                        &template_task.options,
+                        &template_task.name,
+                        &template_task.operator,
                     );
                 }
+            } else {
+                let function_name = &template_task.operator;
+                panic!(
+                    "no such function '{function_name}'\navailable functions: {:#?}",
+                    get_functions()
+                        .read()
+                        .unwrap()
+                        .keys()
+                        .collect::<Vec<&String>>()
+                )
             }
         }
     }
