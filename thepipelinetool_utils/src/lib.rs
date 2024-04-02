@@ -160,7 +160,7 @@ mod tests {
     }
 }
 
-pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
+pub fn run_bash_commmand(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {
     let mut res = json!([]);
     for args in args.split(|s| *s == "&&") {
         let output = Command::new(args[0])
@@ -179,7 +179,12 @@ pub fn run_bash_commmand(args: &[&str], silent: bool) -> Value {
             panic!("failed to run command:\n{}\n\n", args.join(" "));
         }
 
-        res = json!(result_raw.to_string().trim_end())
+        if parse_output_as_json {
+            res = serde_json::from_str(result_raw.to_string().trim_end())
+                .unwrap_or_else(|_| json!(result_raw.to_string().trim_end()))
+        } else {
+            res = json!(result_raw.to_string().trim_end())
+        }
     }
     res
 }
