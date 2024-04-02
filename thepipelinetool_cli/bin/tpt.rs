@@ -26,6 +26,16 @@ fn main() {
         load_from_binary(binary_path.to_str().unwrap());
     }
 
+    // load built-in operators
+    // for operator in [bash_operator] {
+    //     let function_name = function_name_as_string(&operator).to_string();
+
+    //     get_functions()
+    //         .write()
+    //         .unwrap()
+    //         .insert(function_name, Box::new(wrap_function(operator)));
+    // }
+
     match get_dag_type_by_path(dag_path.to_path_buf()) {
         DagType::Binary => {
             if !binary_path.exists() {
