@@ -649,7 +649,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         let mut output = format!(
             "{}{}_{}\n",
             prefix,
-            self.get_task_by_id(run_id, task_id).function,
+            self.get_task_by_id(run_id, task_id).name,
             task_id,
         );
 
