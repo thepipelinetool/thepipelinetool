@@ -30,9 +30,3 @@ mod test {
         );
     }
 }
-
-// impl Default for Operator {
-//     fn default() -> Self {
-//         Operator::Bash
-//     }
-// }

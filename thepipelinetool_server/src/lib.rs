@@ -6,7 +6,7 @@ use deadpool_redis::{Config, Pool};
 use log::{debug, info};
 use redis_runner::{RedisRunner, Run};
 use saffron::{Cron, CronTimesIter};
-use thepipelinetool::dev::*;
+use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{blanket::BlanketRunner, options::DagOptions, Runner};
 use timed::timed;
 

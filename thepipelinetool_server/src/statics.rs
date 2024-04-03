@@ -7,7 +7,7 @@ use std::{
 
 use log::debug;
 use parking_lot::Mutex;
-use thepipelinetool::dev::Task;
+use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::options::DagOptions;
 use timed::timed;
 

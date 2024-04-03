@@ -1,14 +1,14 @@
 [workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 members = [
-    "thepipelinetool",
+    "thepipelinetool_core",
     "thepipelinetool_runner",
     "thepipelinetool_utils",
     "thepipelinetool_task",
     "thepipelinetool_proc_macro",
-    "thepipelinetool_cli",
+    "thepipelinetool",
     "thepipelinetool_operators",
     "thepipelinetool_server",
+    "examples",
 ]
 resolver = "2"

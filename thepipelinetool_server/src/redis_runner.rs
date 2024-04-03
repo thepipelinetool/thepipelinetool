@@ -5,7 +5,7 @@ use thepipelinetool_runner::Runner;
 
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
-use thepipelinetool::dev::*;
+use thepipelinetool_core::dev::*;
 
 use timed::timed;
 

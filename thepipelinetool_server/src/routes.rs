@@ -6,7 +6,7 @@ use axum::{
 };
 use chrono::Utc;
 use deadpool_redis::Pool;
-use thepipelinetool::dev::*;
+use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
 use timed::timed;
 

@@ -1,1 +1,1 @@
-cargo install --path thepipelinetool --examples --root . --force --no-track
+cargo install --path examples --examples --root . --force --no-track

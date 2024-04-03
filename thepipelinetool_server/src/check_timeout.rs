@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, FixedOffset, Utc};
 
 use deadpool_redis::Pool;
-use thepipelinetool::dev::TaskResult;
+use thepipelinetool_core::dev::TaskResult;
 use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
 use tokio::time::sleep;
 

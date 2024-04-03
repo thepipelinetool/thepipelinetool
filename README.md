@@ -68,7 +68,7 @@ cargo add thepipelinetool
 ```
 Add the following to `src/main.rs`
 ```rust 
-use thepipelinetool::prelude::*;
+use thepipelinetool_core::prelude::*;
 
 #[dag]
 fn main() {

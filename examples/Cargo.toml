@@ -1,0 +1,18 @@
+[package]
+name = "thepipelinetool_examples"
+version = "0.2.0"
+edition = "2021"
+description = "examples for thepipelinetool"
+license = "MIT OR Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thepipelinetool_core = { path = "../thepipelinetool_core", version = "0.2.0" }
+
+serde_json = "1.0"
+serde = "1.0.189"
+
+[dev-dependencies]
+rand = "0.8"
+polars = { version = "0.38.3", features = [ "lazy", "serde" ] }
