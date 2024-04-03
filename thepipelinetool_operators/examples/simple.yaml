@@ -9,6 +9,10 @@ tasks:
     args:  "sleep 1 && echo 2"
   date:
     args: "date"
+  echo:
+    args: "echo \"['hello', 'world']\""
+  papermill: # requires papermill ipykernel
+    args: papermill -p a {{random_a}} -p b {{random_b}} -p c {{random_c}} -p date {{date}} -p data {{echo}} ../notebooks/test.ipynb ../notebooks/test_out.ipynb
   # papermill:
   #   args:
   #     [
