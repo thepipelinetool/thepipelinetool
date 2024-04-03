@@ -2,12 +2,13 @@
 schedule: "0 0 12 * *"
 tasks:
   produce:
-    args: ["echo", '[["echo", "hello"], ["echo", "world"], ["echo", 123]]']
+    args: "echo '[\"hello\", \"world\"]'"
   print:
+    operator: print_operator
     depends_on:
       - produce
     lazy_expand: true
   after:
-    args: ["echo", "{{print}}"]
+    args: "echo {{print}}"
     depends_on:
       - print

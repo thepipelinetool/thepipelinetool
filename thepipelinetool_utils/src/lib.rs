@@ -102,7 +102,7 @@ pub fn spawn(
     (status, timed_out)
 }
 
-pub fn run_bash_commmand(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {
+pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {
     let mut res = json!([]);
     for args in args.split(|s| *s == "&&") {
         let output = Command::new(args[0])

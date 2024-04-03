@@ -1,4 +1,6 @@
 pub mod bash;
+pub mod params;
+pub mod print;
 
 pub use bash::bash_operator;
 use serde::{Deserialize, Serialize};
@@ -9,6 +11,8 @@ use serde::{Deserialize, Serialize};
 pub enum Operator {
     #[default]
     BashOperator,
+    ParamsOperator,
+    PrintOperator,
 }
 
 #[cfg(test)]

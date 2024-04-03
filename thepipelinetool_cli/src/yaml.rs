@@ -5,12 +5,12 @@ use serde_json::{json, Value};
 use thepipelinetool::{
     _lazy_task_ref,
     dev::{
-        bash_operator, get_edges, get_tasks, Operator, TaskOptions, _add_task_with_function_name,
-        _expand_lazy_with_function_name, _register_function_with_name, get_functions,
-        register_function, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+        bash_operator, get_edges, get_tasks, Operator, TaskOptions, _add_task_with_function_name, _expand_lazy_with_function_name, _register_function_with_name, get_functions, params::params_operator, print::print_operator, register_function, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY
     },
 };
 use thepipelinetool_utils::{collector, function_name_as_string};
+
+// use crate::create_template_args;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct YamlTaskTemplate {
@@ -80,7 +80,6 @@ pub fn read_from_yaml(dag_path: &Path) {
 
         for template_task in template_tasks.iter_mut() {
             let id = *task_id_by_name.get(&template_task.name).unwrap();
-            let template_args = create_template_args(id, &template_task.args, &task_id_by_name);
 
             // create edges
             let depends_on: Vec<usize> = template_task
@@ -96,12 +95,14 @@ pub fn read_from_yaml(dag_path: &Path) {
                 .collect();
 
             // load operators
-            if let Some(operator) =
-                &serde_json::from_value::<Operator>(json!(template_task.operator)).ok()
-            {
+            let operator = &serde_json::from_value::<Operator>(json!(template_task.operator)).ok();
+
+            if let Some(operator) = operator {
                 _register_function_with_name(
                     match operator {
                         Operator::BashOperator => bash_operator,
+                        Operator::ParamsOperator => params_operator,
+                        Operator::PrintOperator => print_operator,
                     },
                     &template_task.operator,
                 );
@@ -125,6 +126,13 @@ pub fn read_from_yaml(dag_path: &Path) {
                         &template_task.operator,
                     );
                 } else {
+                    let template_args = match operator {
+                        Some(Operator::BashOperator) => {
+                            create_bash_args(id, &template_task.args, &task_id_by_name)
+                        }
+                        _ => template_task.args.clone(),
+                    };
+
                     _add_task_with_function_name::<Value, Value>(
                         template_args,
                         &template_task.options,
@@ -147,54 +155,6 @@ pub fn read_from_yaml(dag_path: &Path) {
     }
 }
 
-// TODO check for multiple matches, rework
-fn create_template_args(
-    task_id: usize,
-    args: &Value,
-    task_id_by_name: &HashMap<String, usize>,
-) -> Value {
-    let mut temp_args = vec![];
-
-    if args.is_array() {
-        let args = &mut args.as_array().unwrap();
-        for i in 0..args.len() {
-            if args[i].is_string() {
-                let arg = args[i].as_str().unwrap().trim();
-
-                if arg.starts_with("{{") && arg.ends_with("}}") {
-                    let chunks: Vec<&str> = arg[2..(arg.len() - 2)].trim().split('.').collect();
-
-                    let mut template_args = json!({});
-                    let task_name = chunks[0];
-                    let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
-                        *id
-                    } else {
-                        _get_task_id_by_name(task_name)
-                    };
-
-                    template_args[UPSTREAM_TASK_ID_KEY] = upstream_id.into();
-
-                    if chunks.len() > 1 {
-                        template_args[UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
-                    }
-                    get_edges().write().unwrap().insert((upstream_id, task_id));
-
-                    temp_args.push(template_args);
-                } else {
-                    temp_args.push(args[i].clone());
-                }
-            } else {
-                temp_args.push(args[i].clone());
-            }
-        }
-    } else if args.is_object() {
-        // TODO
-        todo!()
-    }
-
-    json!(temp_args)
-}
-
 fn _get_task_id_by_name(name: &str) -> usize {
     get_tasks()
         .read()
@@ -205,27 +165,103 @@ fn _get_task_id_by_name(name: &str) -> usize {
         .id
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::collections::HashMap;
+// TODO check for multiple matches, rework
+fn create_bash_args(
+    task_id: usize,
+    args: &Value,
+    task_id_by_name: &HashMap<String, usize>,
+) -> Value {
+    let mut temp_args = json!({});
 
-//     use serde_json::json;
-//     use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
+    let mut args = args;
 
-//     use crate::yaml::create_template_args;
+    if args.is_array() {
+        args = &args.as_array().unwrap()[0];
+    }
 
-//     #[test]
-//     fn test_resolve_template_args() {
-//         let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
+    assert!(args.is_string());
 
-//         task_id_by_name.insert("t1".into(), 0);
+    let mut arg = args.as_str().unwrap().trim().to_string();
 
-//         assert_eq!(
-//             json!({
-//                 UPSTREAM_TASK_ID_KEY: 0
-//             }),
-//             create_template_args(1, &json!("{{  t1 }}"), &task_id_by_name)
-//         );
+    loop {
+        let (left, right) = (arg.find("{{"), arg.find("}}"));
+
+        if left.is_none() || right.is_none() {
+            break;
+        }
+        let (left, right) = (left.unwrap(), right.unwrap());
+
+        let chunks: Vec<&str> = arg[(left + 2)..(right)].trim().split('.').collect();
+
+        let task_name = chunks[0];
+        let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
+            *id
+        } else {
+            _get_task_id_by_name(task_name)
+        };
+
+        let to_replace = &arg[left..(right + 2)].to_string();
+
+        temp_args[to_replace] = json!({
+            UPSTREAM_TASK_ID_KEY: upstream_id
+        });
+
+        if chunks.len() > 1 {
+            temp_args[to_replace][UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
+        }
+        get_edges().write().unwrap().insert((upstream_id, task_id));
+        arg.replace_range(left..(right + 2), "");
+    }
+
+    temp_args["_original_command"] = args.as_str().unwrap().trim().to_string().into();
+
+    temp_args
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use serde_json::json;
+    use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
+
+    use crate::yaml::create_bash_args;
+
+    #[test]
+    fn test_create_bash_args() {
+        let mut task_id_by_name: HashMap<String, usize> = HashMap::new();
+
+        task_id_by_name.insert("t1".into(), 0);
+        task_id_by_name.insert("t2".into(), 1);
+        task_id_by_name.insert("t3".into(), 2);
+
+        assert_eq!(
+            json!({
+                "{{  t1 }}": { UPSTREAM_TASK_ID_KEY: 0 }
+            }),
+            create_bash_args(1, &json!("echo {{  t1 }}"), &task_id_by_name)
+        );
+        assert_eq!(
+            json!({
+                "{{  t1 }}": { UPSTREAM_TASK_ID_KEY: 0 },
+                "{{t2}}": { UPSTREAM_TASK_ID_KEY: 1 }
+            }),
+            create_bash_args(1, &json!("echo {{  t1 }}{{t2}}"), &task_id_by_name)
+        );
+        assert_eq!(
+            json!({
+                "{{  t1 }}": { UPSTREAM_TASK_ID_KEY: 0 },
+                "{{t2}}": { UPSTREAM_TASK_ID_KEY: 1 },
+                "{{t3.data}}": { UPSTREAM_TASK_ID_KEY: 2, UPSTREAM_TASK_RESULT_KEY: "data" }
+            }),
+            create_bash_args(
+                1,
+                &json!("echo {{  t1 }}{{t2}}{{t3.data}}"),
+                &task_id_by_name
+            )
+        );
+    }
+}
 //         assert_eq!(
 //             json!({
 //                 UPSTREAM_TASK_ID_KEY: 0,

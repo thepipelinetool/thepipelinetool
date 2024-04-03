@@ -2,29 +2,29 @@
 schedule: "0 0 12 * *"
 tasks:
   random_a:
-    args: ["sleep", "1s", "&&", "shuf", "-i1-10", "-n1"]
+    args: "sleep 1 && echo 0"
   random_b:
-    args: ["sleep", "1s", "&&", "shuf", "-i11-20", "-n1"]
+    args:  "sleep 1 && echo 1"
   random_c:
-    args: ["sleep", "1s", "&&", "shuf", "-i21-30", "-n1"]
+    args:  "sleep 1 && echo 2"
   date:
-    args: ["date"]
-  papermill:
-    args:
-      [
-        "papermill",
-        "-p",
-        "a",
-        "{{random_a}}",
-        "-p",
-        "b",
-        "{{random_b}}",
-        "-p",
-        "c",
-        "{{random_c}}",
-        "-p",
-        "date",
-        "{{date}}",
-        "../notebooks/test.ipynb",
-        "../notebooks/test_out.ipynb",
-      ]
+    args: "date"
+  # papermill:
+  #   args:
+  #     [
+  #       "papermill",
+  #       "-p",
+  #       "a",
+  #       "{{random_a}}",
+  #       "-p",
+  #       "b",
+  #       "{{random_b}}",
+  #       "-p",
+  #       "c",
+  #       "{{random_c}}",
+  #       "-p",
+  #       "date",
+  #       "{{date}}",
+  #       "../notebooks/test.ipynb",
+  #       "../notebooks/test_out.ipynb",
+  #     ]

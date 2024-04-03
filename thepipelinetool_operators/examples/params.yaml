@@ -1,0 +1,10 @@
+tasks:
+  params:
+    operator: params_operator
+    args:
+      url: www.google.com
+      url2: www.yelp.com
+  bash:
+    args:
+    - |
+      echo "hello"
