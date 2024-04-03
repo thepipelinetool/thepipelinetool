@@ -6,8 +6,9 @@ on:
       - '**'
     paths:
       - .github/workflows/build.yml
+      - examples/
       - thepipelinetool/**
-      - thepipelinetool_cli/**
+      - thepipelinetool_core/**
       - thepipelinetool_operators/**
       - thepipelinetool_proc_macro/**
       - thepipelinetool_runner/**
@@ -27,7 +28,7 @@ jobs:
           path: |
             ~/.cargo/
             target/
-          key: ${{ runner.os }}-cargo-runner-${{ hashFiles('runner/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable

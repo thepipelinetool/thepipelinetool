@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN cargo install --path thepipelinetool_cli --bin tpt
+RUN cargo install --path thepipelinetool --bin tpt
 RUN cargo install --path thepipelinetool_server --bin worker
 
 FROM rust:latest
