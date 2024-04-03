@@ -35,9 +35,7 @@ jobs:
       - run: cargo build
       - run: pwd
 
-      - run: rustup target add x86_64-unknown-linux-musl
-      - run: mkdir x86_64-unknown-linux-musl
-      - run: cargo install --path thepipelinetool --target x86_64-unknown-linux-musl --root x86_64-unknown-linux-musl
+      - run: cargo install --path thepipelinetool
 
       # - run: rustup target add aarch64-apple-darwin
       # - run: mkdir aarch64-apple-darwin
