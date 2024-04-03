@@ -33,6 +33,17 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target aarch64-apple-darwin
+
   server_image:
     runs-on: ubuntu-latest
     steps:
