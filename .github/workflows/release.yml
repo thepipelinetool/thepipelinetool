@@ -11,6 +11,37 @@ on:
 #   add_binaries_to_github_release: true
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build
+      - run: pwd
+
+      # - run: rustup target add x86_64-unknown-linux-musl
+      - run: cargo install --path thepipelinetool --root .
+
+      - uses: little-core-labs/get-git-tag@v3.0.1
+        id: get_version
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./bin/tpt
+          asset_name: tpt
+          tag: ${{ steps.get_version.outputs.tag }}
+          overwrite: true
+
   server:
     runs-on: ubuntu-latest
     steps:

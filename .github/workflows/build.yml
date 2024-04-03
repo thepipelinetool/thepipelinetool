@@ -39,9 +39,9 @@ jobs:
       - run: mkdir x86_64-unknown-linux-musl
       - run: cargo install --path thepipelinetool --target x86_64-unknown-linux-musl --root x86_64-unknown-linux-musl
 
-      - run: rustup target add aarch64-apple-darwin
-      - run: mkdir aarch64-apple-darwin
-      - run: cargo install --path thepipelinetool --target aarch64-apple-darwin --root aarch64-apple-darwin
+      # - run: rustup target add aarch64-apple-darwin
+      # - run: mkdir aarch64-apple-darwin
+      # - run: cargo install --path thepipelinetool --target aarch64-apple-darwin --root aarch64-apple-darwin
 
   server_image:
     runs-on: ubuntu-latest
