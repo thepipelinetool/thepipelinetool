@@ -38,6 +38,7 @@ jobs:
           toolchain: stable
           target: aarch64-apple-darwin
           override: true
+      - run: cargo update -p cc --precise 1.0.83
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
