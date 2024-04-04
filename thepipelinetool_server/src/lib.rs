@@ -232,8 +232,8 @@ pub async fn _trigger_run_from_schedules(
         }
         // check if date is already in db
         if RedisRunner::contains_logical_date(
-            &dag_name,
-            &_get_hash(&dag_name),
+            dag_name,
+            &_get_hash(dag_name),
             logical_date,
             pool.clone(),
         )
@@ -242,7 +242,7 @@ pub async fn _trigger_run_from_schedules(
             continue;
         }
 
-        _trigger_run(&dag_name, logical_date, pool.clone()).await;
+        _trigger_run(dag_name, logical_date, pool.clone()).await;
         println!(
             "scheduling catchup {dag_name} {}",
             logical_date.format("%F %R")

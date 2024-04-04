@@ -37,7 +37,7 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
                 server_start_date,
                 cron,
                 _get_schedules_for_catchup(
-                    &cron,
+                    cron,
                     options.start_date,
                     options.should_catchup,
                     server_start_date,

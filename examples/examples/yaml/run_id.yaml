@@ -1,7 +1,7 @@
 tasks:
   echo_run_id:
-    args: "echo $run_id"
+    script: "echo $run_id"
   date:
-    args: "date"
+    script: "date"
   echo_both:
-    args: "echo '{{echo_run_id}} {{date}}'"
+    script: "echo '{{echo_run_id}} {{date}}'"

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 
-use crate::{dev::*, statics::get_tasks};
+use crate::dev::*;
 
 pub fn expand<F, T, G, const N: usize>(
     function: F,

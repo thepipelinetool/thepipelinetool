@@ -1,5 +1,5 @@
 tasks:
   produce_data:
-    args: ["echo", "{{print_data}}"]
+    script: ["echo", "{{print_data}}"]
   print_data:
-    args: ["echo", "{{produce_data}}"]
+    script: ["echo", "{{produce_data}}"]

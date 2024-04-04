@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use serde::Serialize;
-
 use crate::{prelude::*, statics::*};
 
 pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {

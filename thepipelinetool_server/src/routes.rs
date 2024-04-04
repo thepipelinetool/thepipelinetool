@@ -4,15 +4,12 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use chrono::Utc;
-use deadpool_redis::Pool;
+
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
+use thepipelinetool_runner::in_memory::InMemoryRunner;
 use timed::timed;
 
-use crate::{redis_runner::RedisRunner, *};
-
-use self::statics::{_get_default_edges, _get_default_tasks};
+use crate::*;
 
 #[timed(duration(printer = "debug!"))]
 pub async fn ping() -> &'static str {
@@ -163,7 +160,7 @@ pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
     let edges = _get_default_edges(&dag_name);
 
     // TODO handle error
-    assert!(!nodes.is_none() && !edges.is_none());
+    assert!(nodes.is_some() && edges.is_some());
 
     let mut runner = InMemoryRunner::new(&nodes.unwrap(), &edges.unwrap());
     runner.enqueue_run("in_memory", "", Utc::now());

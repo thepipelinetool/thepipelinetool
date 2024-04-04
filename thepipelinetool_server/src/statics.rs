@@ -13,10 +13,15 @@ use timed::timed;
 
 use crate::{_get_dag_path_by_name, get_dags_dir};
 
-static TASKS: OnceLock<Arc<Mutex<HashMap<String, Vec<Task>>>>> = OnceLock::new();
-static HASHES: OnceLock<Arc<Mutex<HashMap<String, String>>>> = OnceLock::new();
-static EDGES: OnceLock<Arc<Mutex<HashMap<String, HashSet<(usize, usize)>>>>> = OnceLock::new();
-static DAG_OPTIONS: OnceLock<Arc<Mutex<HashMap<String, DagOptions>>>> = OnceLock::new();
+type StaticServerTasks = Arc<Mutex<HashMap<String, Vec<Task>>>>;
+type StaticServerHashes = Arc<Mutex<HashMap<String, String>>>;
+type StaticServerEdges = Arc<Mutex<HashMap<String, HashSet<(usize, usize)>>>>;
+type StaticServerDagOptions = Arc<Mutex<HashMap<String, DagOptions>>>;
+
+static TASKS: OnceLock<StaticServerTasks> = OnceLock::new();
+static HASHES: OnceLock<StaticServerHashes> = OnceLock::new();
+static EDGES: OnceLock<StaticServerEdges> = OnceLock::new();
+static DAG_OPTIONS: OnceLock<StaticServerDagOptions> = OnceLock::new();
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {

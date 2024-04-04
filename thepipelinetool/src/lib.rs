@@ -18,6 +18,7 @@ pub mod circular_dependencies;
 pub mod commands;
 pub mod graph;
 pub mod hash;
+pub mod template;
 pub mod tree;
 pub mod yaml;
 

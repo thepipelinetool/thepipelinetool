@@ -2,19 +2,19 @@
 schedule: "0 0 12 * *"
 tasks:
   random_a:
-    args: |-
+    script: |-
       sleep 1 && 
       echo 0
   random_b:
-    args:  "sleep 1 && echo 1"
+    script:  "sleep 1 && echo 1"
   random_c:
-    args:  "sleep 1 && echo 2"
+    script:  "sleep 1 && echo 2"
   date:
-    args: "date"
+    script: "date"
   echo:
-    args: "echo \"['hello', 'world']\""
-  papermill: # requires papermill ipykernel
-    args: papermill -p a {{random_a}} -p b {{random_b}} -p c {{random_c}} -p date {{date}} -p data {{echo}} ../notebooks/test.ipynb ../notebooks/test_out.ipynb
+    script: "echo \"['hello', 'world']\""
+  # papermill: # requires papermill ipykernel
+  #   script: papermill -p a {{random_a}} -p b {{random_b}} -p c {{random_c}} -p date {{date}} -p data {{echo}} ../notebooks/test.ipynb ../notebooks/test_out.ipynb
   # papermill:
   #   args:
   #     [

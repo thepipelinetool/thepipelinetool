@@ -116,7 +116,7 @@ pub fn parse_cli() {
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             if matches.subcommand_name().unwrap() == "function" {
-                run_function(&matches)
+                run_function(matches)
             }
         }
         _ => {}
