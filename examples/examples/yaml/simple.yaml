@@ -2,7 +2,9 @@
 schedule: "0 0 12 * *"
 tasks:
   random_a:
-    args: "sleep 1 && echo 0"
+    args: |-
+      sleep 1 && 
+      echo 0
   random_b:
     args:  "sleep 1 && echo 1"
   random_c:
