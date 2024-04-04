@@ -334,6 +334,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 premature_failure: false,
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
+                is_sensor: task.options.is_sensor,
             };
         }
 
@@ -498,6 +499,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 task.function,
                 resolution_result.to_string(),
                 task.is_branch,
+                task.options.is_sensor,
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);

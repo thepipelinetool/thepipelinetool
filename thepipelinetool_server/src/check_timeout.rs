@@ -26,6 +26,7 @@ pub fn spawn_check_timeout(pool: Pool) {
                             task.function.clone(),
                             "timed out".to_string(),
                             task.is_branch,
+                            task.options.is_sensor,
                         );
 
                         dummy.handle_task_result(queued_task.run_id, result, &queued_task);

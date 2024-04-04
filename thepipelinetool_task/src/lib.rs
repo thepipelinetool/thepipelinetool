@@ -127,6 +127,7 @@ impl Task {
             premature_failure: false,
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
+            is_sensor: self.options.is_sensor,
         }
     }
 }

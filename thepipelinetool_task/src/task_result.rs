@@ -7,7 +7,7 @@ pub struct TaskResult {
     pub task_id: usize,
     pub result: Value,
     pub attempt: usize,
-    pub max_attempts: isize,
+    pub max_attempts: usize,
     pub name: String,
     pub function: String,
     pub success: bool,
@@ -18,23 +18,26 @@ pub struct TaskResult {
     pub premature_failure: bool,
     pub premature_failure_error_str: String,
     pub is_branch: bool,
+    pub is_sensor: bool,
 }
 
 impl TaskResult {
     pub fn needs_retry(&self) -> bool {
+        // TODO check for timeout here?
         !self.premature_failure
             && !self.success
-            && (self.max_attempts == -1 || self.attempt < self.max_attempts as usize)
+            && (self.is_sensor || self.attempt < self.max_attempts as usize)
     }
 
     pub fn premature_error(
         task_id: usize,
         attempt: usize,
-        max_attempts: isize,
+        max_attempts: usize,
         name: String,
         function_name: String,
         premature_failure_error_str: String,
         is_branch: bool,
+        is_sensor: bool,
     ) -> Self {
         let start = Utc::now();
 
@@ -53,6 +56,7 @@ impl TaskResult {
             premature_failure: true,
             premature_failure_error_str,
             is_branch,
+            is_sensor,
         }
     }
 
