@@ -163,14 +163,14 @@ pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
     assert!(nodes.is_some() && edges.is_some());
 
     let mut runner = InMemoryRunner::new(&nodes.unwrap(), &edges.unwrap());
-    runner.enqueue_run("in_memory", "", Utc::now());
+    runner.enqueue_run("in_memory", "", Utc::now().into()); // TODO check correctness
 
     json!(runner.get_graphite_graph(0)).into()
 }
 
 pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<usize> {
     // json!(
-    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool).await })
+    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now().into(), pool).await }) // TODO check correctness
         .await
         .unwrap()
         .into()

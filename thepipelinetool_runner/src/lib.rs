@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde_json::Value;
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
@@ -16,7 +16,7 @@ pub trait Runner {
 
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
-    fn enqueue_task(&mut self, run_id: usize, task_id: usize);
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize, logical_date: DateTime<FixedOffset>);
 
     fn get_dag_name(&self) -> String;
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String;
@@ -72,7 +72,7 @@ pub trait Runner {
         &mut self,
         dag_name: &str,
         dag_hash: &str,
-        logical_date: DateTime<Utc>,
+        logical_date: DateTime<FixedOffset>,
     ) -> usize;
 
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize));

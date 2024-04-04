@@ -4,7 +4,7 @@ use std::{
     io::{Error, ErrorKind},
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use serde_json::{json, Value};
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_ref_inner::TaskRefInner,
@@ -23,14 +23,19 @@ pub trait BlanketRunner {
     fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String; // TODO move to cli
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
-    fn enqueue_run(&mut self, dag_name: &str, dag_hash: &str, logical_date: DateTime<Utc>)
-        -> usize;
+    fn enqueue_run(
+        &mut self,
+        dag_name: &str,
+        dag_hash: &str,
+        logical_date: DateTime<FixedOffset>,
+    ) -> usize;
     fn work<P: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
         dag_path: P,
         tpt_path: P,
+        logical_date: DateTime<FixedOffset>,
     );
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
     fn run_task<P: AsRef<OsStr>>(
@@ -41,6 +46,7 @@ pub trait BlanketRunner {
         resolution_result: &Value,
         dag_path: P,
         tpt_path: P,
+        logical_date: DateTime<FixedOffset>,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -113,7 +119,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         &mut self,
         dag_name: &str,
         dag_hash: &str,
-        logical_date: DateTime<Utc>,
+        logical_date: DateTime<FixedOffset>,
     ) -> usize {
         let run_id = self.create_new_run(dag_name, dag_hash, logical_date);
         let default_tasks = self.get_default_tasks();
@@ -141,7 +147,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .filter(|task| self.get_task_depth(run_id, task.id) == 0)
             .collect::<Vec<&Task>>()
         {
-            self.enqueue_task(run_id, task.id);
+            self.enqueue_task(run_id, task.id, logical_date);
         }
 
         run_id
@@ -178,7 +184,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 result.max_attempts
             );
             self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
-            self.enqueue_task(run_id, result.task_id);
+            self.enqueue_task(run_id, result.task_id, queued_task.queued_date);
             return;
         }
 
@@ -210,7 +216,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         self.remove_from_temp_queue(queued_task);
 
         if !result.premature_failure && self.task_needs_running(run_id, result.task_id) {
-            self.enqueue_task(run_id, result.task_id);
+            self.enqueue_task(run_id, result.task_id, queued_task.queued_date);
         } else {
             for downstream in self
                 .get_downstream(run_id, result.task_id)
@@ -220,7 +226,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 })
                 .collect::<Vec<&usize>>()
             {
-                self.enqueue_task(run_id, *downstream);
+                self.enqueue_task(run_id, *downstream, queued_task.queued_date);
             }
         }
     }
@@ -233,6 +239,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         resolution_result: &Value,
         dag_path: P,
         tpt_path: P,
+        logical_date: DateTime<FixedOffset>,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -308,13 +315,13 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
                     self.delete_task_depth(run_id, *d);
-                    self.enqueue_task(run_id, *d);
+                    self.enqueue_task(run_id, *d, logical_date);
                 }
 
-                self.enqueue_task(run_id, collector_id);
+                self.enqueue_task(run_id, collector_id, logical_date);
             }
             for lazy_id in &lazy_ids {
-                self.enqueue_task(run_id, *lazy_id);
+                self.enqueue_task(run_id, *lazy_id, logical_date);
             }
 
             let start = Utc::now();
@@ -335,6 +342,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
+                logical_date,
             };
         }
 
@@ -346,6 +354,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.take_last_stdout_line(run_id, task.id, attempt),
             dag_path,
             tpt_path,
+            logical_date,
         )
     }
 
@@ -470,13 +479,14 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         ordered_queued_task: &OrderedQueuedTask,
         dag_path: P,
         tpt_path: P,
+        logical_date: DateTime<FixedOffset>,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
             self.remove_from_temp_queue(&ordered_queued_task.queued_task);
-            self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id);
+            self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id, logical_date);
             return;
         }
 
@@ -490,6 +500,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 &resolution_result,
                 dag_path,
                 tpt_path,
+                logical_date,
             ),
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
@@ -500,6 +511,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
+                logical_date,
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);

@@ -102,7 +102,7 @@ pub fn _get_dags() -> Vec<String> {
 }
 
 #[timed(duration(printer = "debug!"))]
-pub async fn _trigger_run(dag_name: &str, logical_date: DateTime<Utc>, pool: Pool) -> usize {
+pub async fn _trigger_run(dag_name: &str, logical_date: DateTime<FixedOffset>, pool: Pool) -> usize {
     let hash = _get_hash(dag_name);
 
     // TODO handle error
@@ -242,7 +242,8 @@ pub async fn _trigger_run_from_schedules(
             continue;
         }
 
-        _trigger_run(dag_name, logical_date, pool.clone()).await;
+        // TODO check datetime.into() correctness
+        _trigger_run(dag_name, logical_date.into(), pool.clone()).await;
         println!(
             "scheduling catchup {dag_name} {}",
             logical_date.format("%F %R")

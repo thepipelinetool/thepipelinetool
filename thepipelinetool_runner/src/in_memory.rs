@@ -6,7 +6,7 @@ use std::{
     thread,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
 use thepipelinetool_task::{
@@ -115,7 +115,7 @@ impl Runner for InMemoryRunner {
         &mut self,
         _dag_name: &str,
         _dag_hash: &str,
-        _logical_date: DateTime<Utc>,
+        _logical_date: DateTime<FixedOffset>,
     ) -> usize {
         0
     }
@@ -262,7 +262,7 @@ impl Runner for InMemoryRunner {
         self.priority_queue.lock().pop()
     }
 
-    fn enqueue_task(&mut self, run_id: usize, task_id: usize) {
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize, logical_date: DateTime<FixedOffset>) {
         let depth = self.get_task_depth(run_id, task_id);
         let mut priority_queue = self.priority_queue.lock();
         priority_queue.retain(|x| x.queued_task.task_id != task_id);
@@ -274,7 +274,7 @@ impl Runner for InMemoryRunner {
                 task_id,
                 run_id,
                 dag_name: self.get_dag_name(),
-                queued_date: Utc::now().into(),
+                queued_date: logical_date,
                 attempt,
             },
         });
@@ -300,8 +300,9 @@ pub fn run_in_memory(
     tpt_path: String,
     num_threads: usize,
 ) -> i32 {
+    let logical_date: DateTime<FixedOffset> = Utc::now().into();
     let mut runner = InMemoryRunner::new(tasks, edges);
-    let run_id = runner.enqueue_run("", "", Utc::now());
+    let run_id = runner.enqueue_run("", "", Utc::now().into());
 
     let (tx, rx) = channel();
     let mut thread_count = 0;
@@ -321,6 +322,7 @@ pub fn run_in_memory(
                     &queued_task,
                     Path::new(&dag_path),
                     Path::new(&tpt_path),
+                    logical_date,
                 );
                 tx.send(()).unwrap();
             });
@@ -351,6 +353,7 @@ pub fn run_in_memory(
                     &queued_task,
                     Path::new(&dag_path),
                     Path::new(&tpt_path),
+                    logical_date,
                 );
                 tx.send(()).unwrap();
             });

@@ -27,6 +27,7 @@ pub fn spawn_check_timeout(pool: Pool) {
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
+                            queued_task.queued_date.into() // TODO is this correct?
                         );
 
                         dummy.handle_task_result(queued_task.run_id, result, &queued_task);

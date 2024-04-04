@@ -3,7 +3,7 @@ use log::debug;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_runner::Runner;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use std::str::FromStr;
 use thepipelinetool_core::dev::*;
 
@@ -294,7 +294,7 @@ impl Runner for RedisRunner {
         &mut self,
         dag_name: &str,
         _dag_hash: &str, // TODO
-        logical_date: DateTime<Utc>,
+        logical_date: DateTime<FixedOffset>,
     ) -> usize {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -311,7 +311,7 @@ impl Runner for RedisRunner {
                     .arg(
                         serde_json::to_string(&Run {
                             run_id,
-                            date: logical_date,
+                            date: logical_date.into(), // TODO check correctness
                         })
                         .unwrap(),
                     )
@@ -692,7 +692,7 @@ impl Runner for RedisRunner {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn enqueue_task(&mut self, run_id: usize, task_id: usize) {
+    fn enqueue_task(&mut self, run_id: usize, task_id: usize, logical_date: DateTime<FixedOffset>) {
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
 
         tokio::task::block_in_place(|| {
@@ -708,7 +708,7 @@ impl Runner for RedisRunner {
                             task_id,
                             run_id,
                             dag_name: self.get_dag_name(),
-                            queued_date: Utc::now().into(),
+                            queued_date: logical_date,
                             attempt,
                         })
                         .unwrap(),

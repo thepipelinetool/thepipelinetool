@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -19,6 +19,7 @@ pub struct TaskResult {
     pub premature_failure_error_str: String,
     pub is_branch: bool,
     pub is_sensor: bool,
+    pub logical_date: DateTime<FixedOffset>
 }
 
 impl TaskResult {
@@ -38,6 +39,7 @@ impl TaskResult {
         premature_failure_error_str: String,
         is_branch: bool,
         is_sensor: bool,
+        logical_date: DateTime<FixedOffset>,
     ) -> Self {
         let start = Utc::now();
 
@@ -57,6 +59,7 @@ impl TaskResult {
             premature_failure_error_str,
             is_branch,
             is_sensor,
+            logical_date,
         }
     }
 

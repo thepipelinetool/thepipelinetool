@@ -1,6 +1,6 @@
 use std::{env, ffi::OsStr, fs, path::PathBuf, thread, time::Duration};
 
-use chrono::Utc;
+use chrono::{DateTime, FixedOffset, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
@@ -55,6 +55,7 @@ impl Task {
         take_last_stdout_line: Box<dyn Fn() -> String + Send>,
         dag_path: P,
         tpt_path: P,
+        logical_date: DateTime<FixedOffset>,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
@@ -128,6 +129,7 @@ impl Task {
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
             is_sensor: self.options.is_sensor,
+            logical_date,
         }
     }
 }
