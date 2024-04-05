@@ -1,6 +1,6 @@
 [package]
 name = "thepipelinetool_server"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,9 +12,9 @@ serde_json = "1.0"
 serde = { version = "1.0.152", features = ["derive"] }
 timed = "0.2.1"
 
-thepipelinetool_core = { path = "../thepipelinetool_core", version = "0.2.1" }
-thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.2.1" }
-thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.1" }
+thepipelinetool_core = { path = "../thepipelinetool_core", version = "0.2.2" }
+thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.2.2" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.2" }
 log = "0.4.20"
 env_logger = "0.10.0"
 deadpool = { version = "0.11.0", features = ["managed", "rt_tokio_1"] }
