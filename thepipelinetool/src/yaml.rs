@@ -5,13 +5,16 @@ use thepipelinetool_core::{
     _lazy_task_ref,
     dev::{
         bash_operator, get_edges, get_tasks, Operator, _add_task_with_function_name,
-        _expand_lazy_with_function_name, _register_function_with_name, bash::TemplateBashTaskArgs,
-        get_functions, params::params_operator, print::print_operator, register_function,
+        _expand_lazy_with_function_name, _register_function_with_name,
+        function_with_name_exists, get_functions, params::params_operator, print::print_operator,
+        register_function,
     },
 };
 use thepipelinetool_utils::collector;
 
-use crate::template::{create_template_args_from_string, TemplateTask};
+use crate::template::{
+    create_template_args_by_operator, TemplateTask,
+};
 
 // use crate::create_template_args;
 
@@ -59,6 +62,7 @@ pub fn read_from_yaml(dag_path: &Path) {
                 .depends_on
                 .iter()
                 .map(|dependency| {
+                    // TODO be able to depend on tasks defined in rust pipeline?
                     let upstream_id = *task_id_by_name
                         .get(dependency)
                         .unwrap_or_else(|| panic!("upstream task '{dependency}' missing"));
@@ -67,12 +71,13 @@ pub fn read_from_yaml(dag_path: &Path) {
                 })
                 .collect();
 
-            // load operators
+            // try parse operator
             let operator = &serde_json::from_value::<Operator>(json!(template_task.operator)).ok();
 
-            if let Some(operator) = operator {
+            // register built-in operators if used
+            if let Some(built_in_operator) = operator {
                 _register_function_with_name(
-                    match operator {
+                    match built_in_operator {
                         Operator::BashOperator => bash_operator,
                         Operator::ParamsOperator => params_operator,
                         Operator::PrintOperator => print_operator,
@@ -81,60 +86,35 @@ pub fn read_from_yaml(dag_path: &Path) {
                 );
             }
 
-            let contains_key = get_functions()
-                .read()
-                .unwrap()
-                .contains_key(&template_task.operator);
-
-            // load tasks
-            if contains_key {
-                if template_task.lazy_expand {
-                    assert!(depends_on.len() == 1);
-
-                    register_function(collector);
-                    _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
-                        &_lazy_task_ref(depends_on[0]),
-                        &template_task.options,
-                        &template_task.name,
-                        &template_task.operator,
-                    );
-                } else {
-                    let default_args = json!({});
-
-                    // generate template args dependant on operator type
-                    let template_args = match operator {
-                        Some(Operator::BashOperator) => create_template_args_from_string(
-                            id,
-                            &serde_json::from_value::<TemplateBashTaskArgs>(value.clone())
-                                .unwrap()
-                                .script,
-                            &task_id_by_name,
-                        ),
-                        _ => value
-                            .as_object()
-                            .unwrap()
-                            .get("args")
-                            .unwrap_or(&default_args)
-                            .clone(),
-                    };
-
-                    _add_task_with_function_name::<Value, Value>(
-                        template_args,
-                        &template_task.options,
-                        &template_task.name,
-                        &template_task.operator,
-                    );
-                }
-            } else {
-                let function_name = &template_task.operator;
+            if !function_with_name_exists(&template_task.operator) {
                 panic!(
-                    "no such function '{function_name}'\navailable functions: {:#?}",
+                    "no such function '{}'\navailable functions: {:#?}",
+                    &template_task.operator,
                     get_functions()
                         .read()
                         .unwrap()
                         .keys()
                         .collect::<Vec<&String>>()
-                )
+                );
+            }
+
+            if template_task.lazy_expand {
+                assert!(depends_on.len() == 1);
+
+                register_function(collector);
+                _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
+                    &_lazy_task_ref(depends_on[0]),
+                    &template_task.options,
+                    &template_task.name,
+                    &template_task.operator,
+                );
+            } else {
+                _add_task_with_function_name::<Value, Value>(
+                    create_template_args_by_operator(id, value, operator, &task_id_by_name),
+                    &template_task.options,
+                    &template_task.name,
+                    &template_task.operator,
+                );
             }
         }
     }

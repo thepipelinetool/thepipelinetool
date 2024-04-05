@@ -15,6 +15,8 @@ pub enum Operator {
     PrintOperator,
 }
 
+pub const ORIGINAL_STRING_KEY: &str = "_original_string";
+
 #[cfg(test)]
 mod test {
     use serde_json::Value;

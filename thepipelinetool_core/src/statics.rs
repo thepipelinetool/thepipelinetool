@@ -21,3 +21,21 @@ pub fn get_functions() -> &'static StaticFunctions {
 pub fn get_edges() -> &'static StaticEdges {
     EDGES.get_or_init(StaticEdges::default)
 }
+
+pub fn function_with_name_exists(task_name: &str) -> bool {
+    get_functions()
+        .read()
+        .unwrap()
+        .contains_key(task_name)
+}
+
+
+pub fn get_id_by_task_name(name: &str) -> usize {
+    get_tasks()
+        .read()
+        .unwrap()
+        .iter()
+        .find(|t| t.name == name)
+        .unwrap_or_else(|| panic!("missing task {name}"))
+        .id
+}

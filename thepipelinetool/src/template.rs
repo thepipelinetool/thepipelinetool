@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use thepipelinetool_core::dev::{bash_operator, get_edges, get_tasks, TaskOptions};
+use thepipelinetool_core::dev::{
+    bash::TemplateBashTaskArgs, bash_operator, get_edges, get_id_by_task_name, Operator,
+    TaskOptions, ORIGINAL_STRING_KEY,
+};
 use thepipelinetool_utils::{
     function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
@@ -32,21 +35,39 @@ pub struct TemplateTask {
     pub depends_on: Vec<String>,
 }
 
+const LEFT_INTERPOLATION_IDENTIFIER: &str = "{{";
+const RIGHT_INTERPOLATION_IDENTIFIER: &str = "}}";
+
+pub fn create_template_args_by_operator(
+    id: usize,
+    value: &Value,
+    operator: &Option<Operator>,
+    task_id_by_name: &HashMap<String, usize>,
+) -> Value {
+    let default_args = json!({});
+    // generate template args dependant on operator type
+    match operator {
+        Some(Operator::BashOperator) => create_template_args_from_string(
+            id,
+            &serde_json::from_value::<TemplateBashTaskArgs>(value.clone())
+                .unwrap()
+                .script,
+            &task_id_by_name,
+        ),
+        _ => value
+            .as_object()
+            .unwrap()
+            .get("args")
+            .unwrap_or(&default_args)
+            .clone(),
+    }
+}
+
 // #[derive(Serialize, Deserialize, Clone, Debug)]
 // pub struct TemplateTaskArgs {
 //     #[serde(default)]
 //     pub args: Value,
 // }
-
-fn _get_task_id_by_name(name: &str) -> usize {
-    get_tasks()
-        .read()
-        .unwrap()
-        .iter()
-        .find(|t| t.name == name)
-        .unwrap_or_else(|| panic!("missing task {name}"))
-        .id
-}
 
 pub fn create_template_args_from_string(
     task_id: usize,
@@ -59,21 +80,21 @@ pub fn create_template_args_from_string(
     let string = &mut string.to_string();
 
     loop {
-        let (left, right) = (string.find("{{"), string.find("}}"));
+        let (left, right) = (
+            string.find(LEFT_INTERPOLATION_IDENTIFIER),
+            string.find(RIGHT_INTERPOLATION_IDENTIFIER),
+        );
 
         if left.is_none() || right.is_none() {
             break;
         }
         let (left, right) = (left.unwrap(), right.unwrap());
-
         let chunks: Vec<&str> = string[(left + 2)..(right)].trim().split('.').collect();
 
-        let task_name = chunks[0];
-        let upstream_id = if let Some(id) = task_id_by_name.get(task_name) {
-            *id
-        } else {
-            _get_task_id_by_name(task_name)
-        };
+        let upstream_task_name = chunks[0];
+        let upstream_id = *task_id_by_name
+            .get(upstream_task_name)
+            .unwrap_or(&get_id_by_task_name(upstream_task_name));
 
         let to_replace = &string[left..(right + 2)].to_string();
 
@@ -88,7 +109,7 @@ pub fn create_template_args_from_string(
         string.replace_range(left..(right + 2), "");
     }
 
-    temp_args["_original_command"] = string.to_string().into();
+    temp_args[ORIGINAL_STRING_KEY] = string.to_string().into();
 
     temp_args
 }
