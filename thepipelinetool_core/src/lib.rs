@@ -9,26 +9,13 @@ mod helpers;
 mod ops;
 mod statics;
 
-use std::collections::HashSet;
-
 use serde::Serialize;
-use serde_json::Value;
-pub use thepipelinetool_task::task_ref_inner::TaskRefInner;
 
-pub struct TaskRef<T: Serialize>(TaskRefInner<T>);
-
-pub fn _lazy_task_ref(id: usize) -> TaskRef<Vec<Value>> {
-    TaskRef(TaskRefInner {
-        task_ids: HashSet::from([id]),
-        key: None,
-
-        _marker: std::marker::PhantomData,
-    })
-}
+pub struct TaskRef<T: Serialize>(dev::TaskRefInner<T>);
 
 pub mod prelude {
     pub use crate::cli::parse_cli;
-    pub use crate::{functions::*, TaskRef, TaskRefInner};
+    pub use crate::{functions::*, TaskRef};
     pub use thepipelinetool_operators::*;
 
     pub use serde::{Deserialize, Serialize};
@@ -39,6 +26,20 @@ pub mod prelude {
 }
 
 pub mod dev {
+    use std::collections::HashSet;
+
+    pub use thepipelinetool_task::task_ref_inner::TaskRefInner;
+
+    pub fn _lazy_task_ref(id: usize) -> TaskRef<Vec<Value>> {
+        TaskRef(TaskRefInner {
+            task_ids: HashSet::from([id]),
+            key: None,
+
+            _marker: std::marker::PhantomData,
+        })
+    }
+    // pub use crate::TaskRefInner;
+
     pub use crate::cli::*;
     pub use crate::helpers::*;
     pub use crate::prelude::*;

@@ -65,7 +65,7 @@ fn naive_datetime_to_datetime_with_timezone(
         if let Some(timezone) = timezone {
             return Some(
                 timezone
-                    .from_local_datetime(&date)
+                    .from_local_datetime(date)
                     .unwrap()
                     .with_timezone(&Utc),
             );

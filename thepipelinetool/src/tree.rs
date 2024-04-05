@@ -6,7 +6,7 @@ use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, 
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
     let mut runner = InMemoryRunner::new(tasks, edges);
-    let run_id = runner.enqueue_run("in_memory", "", Utc::now().into());
+    let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
         .get_default_tasks()
         .iter()

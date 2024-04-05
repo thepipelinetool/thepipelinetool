@@ -305,9 +305,9 @@ pub fn run_in_memory(
     tpt_path: String,
     num_threads: usize,
 ) -> i32 {
-    let scheduled_date_for_dag_run: DateTime<Utc> = Utc::now().into();
+    let scheduled_date_for_dag_run: DateTime<Utc> = Utc::now();
     let mut runner = InMemoryRunner::new(tasks, edges);
-    let run_id = runner.enqueue_run("", "", Utc::now().into());
+    let run_id = runner.enqueue_run("", "", Utc::now());
 
     let (tx, rx) = channel();
     let mut thread_count = 0;

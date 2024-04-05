@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{prelude::*, statics::*};
+use crate::{dev::*, statics::*};
 
 pub fn seq<T: Serialize, G: Serialize>(a: &TaskRef<T>, b: &TaskRef<G>) -> TaskRef<G> {
     let mut last: usize = 0;

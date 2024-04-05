@@ -311,7 +311,7 @@ impl Runner for RedisRunner {
                     .arg(
                         serde_json::to_string(&Run {
                             run_id,
-                            scheduled_date_for_dag_run: scheduled_date_for_dag_run.into(), // TODO check correctness
+                            scheduled_date_for_dag_run,
                         })
                         .unwrap(),
                     )

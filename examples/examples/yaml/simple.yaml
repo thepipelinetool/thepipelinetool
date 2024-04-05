@@ -12,7 +12,7 @@ tasks:
   date:
     script: "date"
   echo:
-    script: "echo \"['hello', 'world']\""
+    script: "echo '{{random_a}} {{random_b}} {{random_c}} {{date}}'"
   # papermill: # requires papermill ipykernel
   #   script: papermill -p a {{random_a}} -p b {{random_b}} -p c {{random_c}} -p date {{date}} -p data {{echo}} ../notebooks/test.ipynb ../notebooks/test_out.ipynb
   # papermill:

@@ -166,7 +166,7 @@ pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
                 let futures = cron.clone().iter_from(
                     if let Some(start_date) = options.get_start_date_with_timezone() {
                         if options.should_catchup || start_date > Utc::now() {
-                            start_date.into()
+                            start_date
                         } else {
                             Utc::now()
                         }
@@ -246,8 +246,7 @@ pub async fn _trigger_run_from_schedules(
             continue;
         }
 
-        // TODO check datetime.into() correctness
-        _trigger_run(dag_name, scheduled_date.into(), pool.clone()).await;
+        _trigger_run(dag_name, scheduled_date, pool.clone()).await;
         println!(
             "scheduling catchup {dag_name} {}",
             scheduled_date.format("%F %R")
@@ -264,7 +263,7 @@ fn _get_schedules_for_catchup(
     cron.clone()
         .iter_from(if let Some(start_date) = start_date {
             if should_catchup {
-                start_date.into()
+                start_date
             } else {
                 server_start_date
             }

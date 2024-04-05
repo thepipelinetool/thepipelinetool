@@ -27,7 +27,7 @@ impl TaskResult {
         // TODO check for timeout here?
         !self.premature_failure
             && !self.success
-            && (self.is_sensor || self.attempt < self.max_attempts as usize)
+            && (self.is_sensor || self.attempt < self.max_attempts)
     }
 
     pub fn premature_error(

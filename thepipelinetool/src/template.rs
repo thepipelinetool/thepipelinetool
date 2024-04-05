@@ -52,7 +52,7 @@ pub fn create_template_args_by_operator(
             &serde_json::from_value::<TemplateBashTaskArgs>(value.clone())
                 .unwrap()
                 .script,
-            &task_id_by_name,
+            task_id_by_name,
         ),
         _ => value
             .as_object()
@@ -71,32 +71,33 @@ pub fn create_template_args_by_operator(
 
 pub fn create_template_args_from_string(
     task_id: usize,
-    string: &str,
+    original_string: &str,
     task_id_by_name: &HashMap<String, usize>,
 ) -> Value {
-    assert!(!string.trim().is_empty());
+    assert!(!original_string.trim().is_empty());
 
     let mut temp_args = json!({});
-    let string = &mut string.to_string();
+    let temp_string = &mut original_string.to_string();
 
     loop {
         let (left, right) = (
-            string.find(LEFT_INTERPOLATION_IDENTIFIER),
-            string.find(RIGHT_INTERPOLATION_IDENTIFIER),
+            temp_string.find(LEFT_INTERPOLATION_IDENTIFIER),
+            temp_string.find(RIGHT_INTERPOLATION_IDENTIFIER),
         );
 
         if left.is_none() || right.is_none() {
             break;
         }
         let (left, right) = (left.unwrap(), right.unwrap());
-        let chunks: Vec<&str> = string[(left + 2)..(right)].trim().split('.').collect();
+        let chunks: Vec<&str> = temp_string[(left + 2)..(right)].trim().split('.').collect();
 
         let upstream_task_name = chunks[0];
-        let upstream_id = *task_id_by_name
+        let upstream_id = task_id_by_name
             .get(upstream_task_name)
-            .unwrap_or(&get_id_by_task_name(upstream_task_name));
+            .copied()
+            .unwrap_or_else(|| get_id_by_task_name(upstream_task_name));
 
-        let to_replace = &string[left..(right + 2)].to_string();
+        let to_replace = &temp_string[left..(right + 2)].to_string();
 
         temp_args[to_replace] = json!({
             UPSTREAM_TASK_ID_KEY: upstream_id
@@ -106,10 +107,10 @@ pub fn create_template_args_from_string(
             temp_args[to_replace][UPSTREAM_TASK_RESULT_KEY] = chunks[1].into();
         }
         get_edges().write().unwrap().insert((upstream_id, task_id));
-        string.replace_range(left..(right + 2), "");
+        temp_string.replace_range(left..(right + 2), "");
     }
 
-    temp_args[ORIGINAL_STRING_KEY] = string.to_string().into();
+    temp_args[ORIGINAL_STRING_KEY] = original_string.to_string().into();
 
     temp_args
 }
