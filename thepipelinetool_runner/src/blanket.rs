@@ -4,7 +4,7 @@ use std::{
     io::{Error, ErrorKind},
 };
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_ref_inner::TaskRefInner,
@@ -27,7 +27,7 @@ pub trait BlanketRunner {
         &mut self,
         dag_name: &str,
         dag_hash: &str,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> usize;
     fn work<P: AsRef<OsStr>>(
         &mut self,
@@ -35,7 +35,7 @@ pub trait BlanketRunner {
         queued_task: &OrderedQueuedTask,
         dag_path: P,
         tpt_path: P,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     );
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
     fn run_task<P: AsRef<OsStr>>(
@@ -46,7 +46,7 @@ pub trait BlanketRunner {
         resolution_result: &Value,
         dag_path: P,
         tpt_path: P,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -119,9 +119,9 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         &mut self,
         dag_name: &str,
         dag_hash: &str,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> usize {
-        let run_id = self.create_new_run(dag_name, dag_hash, logical_date);
+        let run_id = self.create_new_run(dag_name, dag_hash, scheduled_date_for_dag_run);
         let default_tasks = self.get_default_tasks();
         for task in &default_tasks {
             self.append_new_task_and_set_status_to_pending(
@@ -147,7 +147,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .filter(|task| self.get_task_depth(run_id, task.id) == 0)
             .collect::<Vec<&Task>>()
         {
-            self.enqueue_task(run_id, task.id, logical_date);
+            self.enqueue_task(run_id, task.id, scheduled_date_for_dag_run);
         }
 
         run_id
@@ -184,7 +184,11 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 result.max_attempts
             );
             self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
-            self.enqueue_task(run_id, result.task_id, queued_task.queued_date);
+            self.enqueue_task(
+                run_id,
+                result.task_id,
+                queued_task.scheduled_date_for_dag_run,
+            );
             return;
         }
 
@@ -216,7 +220,11 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         self.remove_from_temp_queue(queued_task);
 
         if !result.premature_failure && self.task_needs_running(run_id, result.task_id) {
-            self.enqueue_task(run_id, result.task_id, queued_task.queued_date);
+            self.enqueue_task(
+                run_id,
+                result.task_id,
+                queued_task.scheduled_date_for_dag_run,
+            );
         } else {
             for downstream in self
                 .get_downstream(run_id, result.task_id)
@@ -226,7 +234,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 })
                 .collect::<Vec<&usize>>()
             {
-                self.enqueue_task(run_id, *downstream, queued_task.queued_date);
+                self.enqueue_task(run_id, *downstream, queued_task.scheduled_date_for_dag_run);
             }
         }
     }
@@ -239,7 +247,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         resolution_result: &Value,
         dag_path: P,
         tpt_path: P,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -315,13 +323,13 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
                     self.delete_task_depth(run_id, *d);
-                    self.enqueue_task(run_id, *d, logical_date);
+                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run);
                 }
 
-                self.enqueue_task(run_id, collector_id, logical_date);
+                self.enqueue_task(run_id, collector_id, scheduled_date_for_dag_run);
             }
             for lazy_id in &lazy_ids {
-                self.enqueue_task(run_id, *lazy_id, logical_date);
+                self.enqueue_task(run_id, *lazy_id, scheduled_date_for_dag_run);
             }
 
             let start = Utc::now();
@@ -342,7 +350,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
-                logical_date,
+                scheduled_date_for_dag_run,
             };
         }
 
@@ -354,7 +362,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             self.take_last_stdout_line(run_id, task.id, attempt),
             dag_path,
             tpt_path,
-            logical_date,
+            scheduled_date_for_dag_run,
         )
     }
 
@@ -479,14 +487,18 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         ordered_queued_task: &OrderedQueuedTask,
         dag_path: P,
         tpt_path: P,
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
             self.remove_from_temp_queue(&ordered_queued_task.queued_task);
-            self.enqueue_task(run_id, ordered_queued_task.queued_task.task_id, logical_date);
+            self.enqueue_task(
+                run_id,
+                ordered_queued_task.queued_task.task_id,
+                scheduled_date_for_dag_run,
+            );
             return;
         }
 
@@ -500,7 +512,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 &resolution_result,
                 dag_path,
                 tpt_path,
-                logical_date,
+                scheduled_date_for_dag_run,
             ),
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
@@ -511,7 +523,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
-                logical_date,
+                scheduled_date_for_dag_run,
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);

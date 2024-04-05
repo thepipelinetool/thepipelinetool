@@ -19,7 +19,7 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
                 continue;
             }
 
-            let cron = &options.schedule.unwrap().parse::<Cron>().unwrap();
+            let cron = &options.schedule.clone().unwrap().parse::<Cron>().unwrap();
 
             if !cron.any() {
                 println!("Cron will never match any given time!");
@@ -27,7 +27,7 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
             }
             println!("checking for catchup: {dag_name}");
 
-            if let Some(start_date) = options.start_date {
+            if let Some(start_date) = options.get_start_date_with_timezone() {
                 if start_date >= server_start_date {
                     continue;
                 }
@@ -38,11 +38,11 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
                 cron,
                 _get_schedules_for_catchup(
                     cron,
-                    options.start_date,
+                    options.get_start_date_with_timezone(),
                     options.should_catchup,
                     server_start_date,
                 ),
-                options.end_date,
+                options.get_end_date_with_timezone(),
                 pool.clone(),
             )
             .await;

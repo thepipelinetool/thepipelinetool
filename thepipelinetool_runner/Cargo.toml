@@ -12,6 +12,6 @@ thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.2.1" }
 thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.1" }
 serde_json = "1.0"
 serde = { version = "1.0.152", features = ["derive"] }
-
 chrono = { version = "0.4.31", features = [ "serde" ] }
+chrono-tz = { version = "0.8.6", features = [ "serde" ] }
 parking_lot = "0.12.1"

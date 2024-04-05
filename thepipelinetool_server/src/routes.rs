@@ -24,7 +24,7 @@ pub async fn get_runs(Path(dag_name): Path<String>, State(pool): State<Pool>) ->
         .iter()
         .map(|r| json!({
             "run_id": r.run_id.to_string(),
-            "date": r.date,
+            "date": r.scheduled_date_for_dag_run,
         }))
         .collect::<Vec<Value>>())
     .into()
@@ -64,7 +64,7 @@ pub async fn get_runs_with_tasks(
             tasks[format!("{}_{}", task.name, task.id)] = json!(task);
         }
         res[run.run_id.to_string()] = json!({
-            "date": run.date,
+            "date": run.scheduled_date_for_dag_run,
             "tasks": tasks,
         });
     }

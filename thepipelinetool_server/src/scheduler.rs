@@ -26,20 +26,20 @@ pub fn spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) {
                 if options.schedule.is_none() {
                     continue 'inner;
                 }
-                let cron = &options.schedule.unwrap().parse::<Cron>().unwrap();
+                let cron = &options.schedule.clone().unwrap().parse::<Cron>().unwrap();
                 if !cron.any() {
                     println!("Cron will never match any given time!");
                     continue 'inner;
                 }
                 // println!("checking for schedules: {dag_name} {up_to}");
 
-                if let Some(end_date) = options.end_date {
+                if let Some(end_date) = options.get_end_date_with_timezone() {
                     if end_date <= last_checked {
                         continue 'inner;
                     }
                 }
 
-                if let Some(start_date) = options.start_date {
+                if let Some(start_date) = options.get_start_date_with_timezone() {
                     if start_date >= last_checked {
                         continue 'inner;
                     }
@@ -50,7 +50,7 @@ pub fn spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) {
                     server_start_date,
                     cron,
                     cron.clone().iter_from(last_checked),
-                    options.end_date,
+                    options.get_end_date_with_timezone(),
                     pool.clone(),
                 )
                 .await;

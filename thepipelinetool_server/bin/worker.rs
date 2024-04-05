@@ -38,7 +38,10 @@ async fn main() {
                 &ordered_queued_task,
                 _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
                 tpt_path.clone(),
-                ordered_queued_task.queued_task.queued_date.into() // TODO is this correct
+                ordered_queued_task
+                    .queued_task
+                    .scheduled_date_for_dag_run
+                    .into(), // TODO is this correct
             );
             runner.remove_from_temp_queue(&ordered_queued_task.queued_task);
         } else {

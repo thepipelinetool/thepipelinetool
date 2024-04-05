@@ -3,7 +3,7 @@ use log::debug;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_runner::Runner;
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use thepipelinetool_core::dev::*;
 
@@ -27,7 +27,7 @@ const TEMPLATE_ARGS_KEY: &str = "ta";
 #[derive(Serialize, Deserialize)]
 pub struct Run {
     pub run_id: usize,
-    pub date: DateTime<Utc>,
+    pub scheduled_date_for_dag_run: DateTime<Utc>,
 }
 
 pub struct RedisRunner {
@@ -138,13 +138,13 @@ impl RedisRunner {
     pub async fn contains_logical_date(
         dag_name: &str,
         dag_hash: &str,
-        logical_date: DateTime<Utc>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
         pool: Pool,
     ) -> bool {
         let mut conn = pool.get().await.unwrap();
         cmd("SISMEMBER")
             .arg(format!("{LOGICAL_DATES_KEY}:{dag_name}:{dag_hash}"))
-            .arg(logical_date.to_string())
+            .arg(scheduled_date_for_dag_run.to_string())
             .query_async::<_, bool>(&mut conn)
             .await
             .unwrap()
@@ -294,7 +294,7 @@ impl Runner for RedisRunner {
         &mut self,
         dag_name: &str,
         _dag_hash: &str, // TODO
-        logical_date: DateTime<FixedOffset>,
+        scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> usize {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -311,7 +311,7 @@ impl Runner for RedisRunner {
                     .arg(
                         serde_json::to_string(&Run {
                             run_id,
-                            date: logical_date.into(), // TODO check correctness
+                            scheduled_date_for_dag_run: scheduled_date_for_dag_run.into(), // TODO check correctness
                         })
                         .unwrap(),
                     )
@@ -692,7 +692,12 @@ impl Runner for RedisRunner {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn enqueue_task(&mut self, run_id: usize, task_id: usize, logical_date: DateTime<FixedOffset>) {
+    fn enqueue_task(
+        &mut self,
+        run_id: usize,
+        task_id: usize,
+        scheduled_date_for_dag_run: DateTime<Utc>,
+    ) {
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
 
         tokio::task::block_in_place(|| {
@@ -708,7 +713,7 @@ impl Runner for RedisRunner {
                             task_id,
                             run_id,
                             dag_name: self.get_dag_name(),
-                            queued_date: logical_date,
+                            scheduled_date_for_dag_run,
                             attempt,
                         })
                         .unwrap(),

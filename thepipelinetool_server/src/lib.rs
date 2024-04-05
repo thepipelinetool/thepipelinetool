@@ -1,6 +1,6 @@
 use std::{env, fs, io::ErrorKind, path::PathBuf, process::Command};
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use log::{debug, info};
@@ -102,7 +102,11 @@ pub fn _get_dags() -> Vec<String> {
 }
 
 #[timed(duration(printer = "debug!"))]
-pub async fn _trigger_run(dag_name: &str, logical_date: DateTime<FixedOffset>, pool: Pool) -> usize {
+pub async fn _trigger_run(
+    dag_name: &str,
+    scheduled_date_for_dag_run: DateTime<Utc>,
+    pool: Pool,
+) -> usize {
     let hash = _get_hash(dag_name);
 
     // TODO handle error
@@ -112,7 +116,7 @@ pub async fn _trigger_run(dag_name: &str, logical_date: DateTime<FixedOffset>, p
     RedisRunner::from(dag_name, nodes.clone(), edges.clone(), pool.clone()).enqueue_run(
         dag_name,
         &hash,
-        logical_date,
+        scheduled_date_for_dag_run,
     )
 }
 
@@ -159,24 +163,24 @@ pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
                 }
 
                 info!("Upcoming:");
-                let futures =
-                    cron.clone()
-                        .iter_from(if let Some(start_date) = options.start_date {
-                            if options.should_catchup || start_date > Utc::now() {
-                                start_date.into()
-                            } else {
-                                Utc::now()
-                            }
+                let futures = cron.clone().iter_from(
+                    if let Some(start_date) = options.get_start_date_with_timezone() {
+                        if options.should_catchup || start_date > Utc::now() {
+                            start_date.into()
                         } else {
                             Utc::now()
-                        });
+                        }
+                    } else {
+                        Utc::now()
+                    },
+                );
                 let mut next_runs = vec![];
                 for time in futures.take(1) {
                     if !cron.contains(time) {
                         info!("Failed check! Cron does not contain {}.", time);
                         break;
                     }
-                    if let Some(end_date) = options.end_date {
+                    if let Some(end_date) = options.get_end_date_with_timezone() {
                         if time > end_date {
                             break;
                         }
@@ -213,20 +217,20 @@ pub async fn _trigger_run_from_schedules(
     dag_name: &str,
     server_start_date: DateTime<Utc>,
     cron: &Cron,
-    logical_dates: CronTimesIter,
-    end_date: Option<DateTime<FixedOffset>>,
+    scheduled_dates: CronTimesIter,
+    end_date: Option<DateTime<Utc>>,
     pool: Pool,
 ) {
-    for logical_date in logical_dates {
-        if !cron.contains(logical_date) {
-            println!("Failed check! Cron does not contain {}.", logical_date);
+    for scheduled_date in scheduled_dates {
+        if !cron.contains(scheduled_date) {
+            println!("Failed check! Cron does not contain {}.", scheduled_date);
             break;
         }
-        if logical_date >= server_start_date {
+        if scheduled_date >= server_start_date {
             break;
         }
         if let Some(end_date) = end_date {
-            if logical_date > end_date {
+            if scheduled_date > end_date {
                 break;
             }
         }
@@ -234,7 +238,7 @@ pub async fn _trigger_run_from_schedules(
         if RedisRunner::contains_logical_date(
             dag_name,
             &_get_hash(dag_name),
-            logical_date,
+            scheduled_date,
             pool.clone(),
         )
         .await
@@ -243,17 +247,17 @@ pub async fn _trigger_run_from_schedules(
         }
 
         // TODO check datetime.into() correctness
-        _trigger_run(dag_name, logical_date.into(), pool.clone()).await;
+        _trigger_run(dag_name, scheduled_date.into(), pool.clone()).await;
         println!(
             "scheduling catchup {dag_name} {}",
-            logical_date.format("%F %R")
+            scheduled_date.format("%F %R")
         );
     }
 }
 
 fn _get_schedules_for_catchup(
     cron: &Cron,
-    start_date: Option<DateTime<FixedOffset>>,
+    start_date: Option<DateTime<Utc>>,
     should_catchup: bool,
     server_start_date: DateTime<Utc>,
 ) -> CronTimesIter {

@@ -23,12 +23,8 @@ pub fn get_edges() -> &'static StaticEdges {
 }
 
 pub fn function_with_name_exists(task_name: &str) -> bool {
-    get_functions()
-        .read()
-        .unwrap()
-        .contains_key(task_name)
+    get_functions().read().unwrap().contains_key(task_name)
 }
-
 
 pub fn get_id_by_task_name(name: &str) -> usize {
     get_tasks()

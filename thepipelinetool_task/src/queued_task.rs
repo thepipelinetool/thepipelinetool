@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -6,6 +6,6 @@ pub struct QueuedTask {
     pub task_id: usize,
     pub run_id: usize,
     pub dag_name: String,
-    pub queued_date: DateTime<FixedOffset>,
+    pub scheduled_date_for_dag_run: DateTime<Utc>,
     pub attempt: usize,
 }

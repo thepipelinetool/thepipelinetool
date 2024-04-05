@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 
 use deadpool_redis::Pool;
 use thepipelinetool_core::dev::TaskResult;
@@ -16,8 +16,12 @@ pub fn spawn_check_timeout(pool: Pool) {
             for queued_task in dummy.get_temp_queue().await {
                 let task = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id);
                 if let Some(timeout) = task.options.timeout {
-                    let now: DateTime<FixedOffset> = Utc::now().into();
-                    if (now - queued_task.queued_date).to_std().unwrap() > timeout {
+                    let now: DateTime<Utc> = Utc::now().into();
+                    if (now - queued_task.scheduled_date_for_dag_run)
+                        .to_std()
+                        .unwrap()
+                        > timeout
+                    {
                         let result = TaskResult::premature_error(
                             task.id,
                             queued_task.attempt,
@@ -27,7 +31,7 @@ pub fn spawn_check_timeout(pool: Pool) {
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
-                            queued_task.queued_date.into() // TODO is this correct?
+                            queued_task.scheduled_date_for_dag_run.into(), // TODO is this correct?
                         );
 
                         dummy.handle_task_result(queued_task.run_id, result, &queued_task);
