@@ -13,7 +13,7 @@ use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{in_memory::run_in_memory, options::DagOptions};
 use tree::display_tree;
 
-pub mod binary;
+pub mod executable;
 pub mod circular_dependencies;
 pub mod commands;
 pub mod graph;

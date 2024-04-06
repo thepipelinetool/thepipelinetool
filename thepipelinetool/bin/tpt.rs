@@ -7,7 +7,7 @@ use std::{
 
 use clap::Arg;
 use thepipelinetool::{
-    binary::load_from_binary, commands::create_commands, process_subcommands, yaml::read_from_yaml,
+    executable::read_from_executable, commands::create_commands, process_subcommands, yaml::read_from_yaml,
 };
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::options::DagOptions;
@@ -32,8 +32,10 @@ fn main() {
         );
         process::exit(exit_status.code().unwrap());
     } else if is_executable {
-        load_from_binary(dag_name)
+        read_from_executable(dag_name)
     } else {
+        // TODO enable flag to load from binary as well when reading YAML pipeline
+
         read_from_yaml(dag_path);
     }
 
