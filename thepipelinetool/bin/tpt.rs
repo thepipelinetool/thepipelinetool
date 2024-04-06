@@ -7,7 +7,8 @@ use std::{
 
 use clap::Arg;
 use thepipelinetool::{
-    executable::read_from_executable, commands::create_commands, process_subcommands, yaml::read_from_yaml,
+    commands::create_commands, executable::read_from_executable, process_subcommands,
+    yaml::read_from_yaml,
 };
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::options::DagOptions;

@@ -1,9 +1,4 @@
-use std::{
-    cmp::max,
-    env,
-    path::Path,
-    process,
-};
+use std::{cmp::max, env, path::Path, process};
 
 use circular_dependencies::check_circular_dependencies;
 use clap::ArgMatches;
@@ -13,9 +8,9 @@ use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{in_memory::run_in_memory, options::DagOptions};
 use tree::display_tree;
 
-pub mod executable;
 pub mod circular_dependencies;
 pub mod commands;
+pub mod executable;
 pub mod graph;
 pub mod hash;
 pub mod template;
