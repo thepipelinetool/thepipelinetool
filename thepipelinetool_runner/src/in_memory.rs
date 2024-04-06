@@ -1,9 +1,6 @@
 use std::{
     collections::{BinaryHeap, HashMap, HashSet},
-    env,
-    path::Path,
     sync::{mpsc::channel, Arc},
-    thread,
 };
 
 use chrono::{DateTime, Utc};
@@ -375,6 +372,4 @@ pub fn run_in_memory(
     }
 
     runner.get_run_status(run_id)
-
-    // dbg!(1);
 }

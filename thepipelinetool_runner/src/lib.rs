@@ -1,13 +1,9 @@
 use std::{
     collections::{HashMap, HashSet},
-    env,
-    ffi::OsStr,
-    path::PathBuf,
     sync::mpsc::Sender,
     thread,
 };
 
-use blanket::BlanketRunner;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use thepipelinetool_task::{
@@ -105,53 +101,9 @@ pub trait Runner {
     ) -> usize;
 }
 
-#[derive(Clone)]
-pub enum Executor {
-    Local,
-    Docker,
-    Kubernetes,
-}
-
-pub fn spawn_executor(
-    tx: Sender<()>,
-    // tpt_path: T,
-    // dag_path: U,
-    executor: impl FnOnce() -> () + Send + 'static,
-) {
-    // let ordered_queued_task = ordered_queued_task.clone();
+pub fn spawn_executor(tx: Sender<()>, executor: impl FnOnce() + Send + 'static) {
     thread::spawn(move || {
-        // let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
-        // let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
-
         executor();
-
-        // match executor {
-        //     Executor::Local => {
-        //         // let pool = get_redis_pool();
-
-        //         // RedisRunner::from(
-        //         //     &ordered_queued_task.queued_task.dag_name,
-        //         //     nodes,
-        //         //     edges,
-        //         //     pool.clone(),
-        //         // )
-        //         runner
-        //         .work(
-        //             ordered_queued_task.queued_task.run_id,
-        //             &ordered_queued_task,
-        //             dag_path,
-        //             tpt_path,
-        //             ordered_queued_task.queued_task.scheduled_date_for_dag_run,
-        //         );
-        //     }
-        //     Executor::Docker => {
-        //         // TODO run docker commands to work on queued task
-        //     }
-        //     Executor::Kubernetes => {
-        //         // TODO run docker commands to work on queued task
-        //     }
-        // }
-
         tx.send(()).unwrap();
     });
 }

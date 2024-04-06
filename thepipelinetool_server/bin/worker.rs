@@ -1,14 +1,6 @@
-use deadpool_redis::Pool;
-use futures::executor;
-use std::{
-    env,
-    path::{Path, PathBuf},
-    sync::mpsc::{channel, Sender},
-    thread,
-    time::Duration,
-};
+use std::{sync::mpsc::channel, time::Duration};
 use thepipelinetool_core::dev::OrderedQueuedTask;
-use thepipelinetool_runner::{blanket::BlanketRunner, spawn_executor, Executor, Runner};
+use thepipelinetool_runner::{blanket::BlanketRunner, spawn_executor, Runner};
 use thepipelinetool_server::{
     _get_dag_path_by_name, get_redis_pool,
     redis_runner::RedisRunner,
@@ -71,6 +63,13 @@ async fn main() {
     }
 }
 
+#[derive(Clone)]
+enum Executor {
+    Local,
+    // Docker,
+    // Kubernetes,
+}
+
 fn execute(ordered_queued_task: OrderedQueuedTask) {
     let executor = Executor::Local;
     let tpt_path = "tpt".to_string();
@@ -78,8 +77,6 @@ fn execute(ordered_queued_task: OrderedQueuedTask) {
 
     match executor {
         Executor::Local => {
-            let pool = get_redis_pool();
-
             let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
             let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
 
@@ -87,7 +84,7 @@ fn execute(ordered_queued_task: OrderedQueuedTask) {
                 &ordered_queued_task.queued_task.dag_name,
                 nodes,
                 edges,
-                pool.clone(),
+                get_redis_pool(),
             )
             .work(
                 ordered_queued_task.queued_task.run_id,
@@ -96,12 +93,11 @@ fn execute(ordered_queued_task: OrderedQueuedTask) {
                 tpt_path,
                 ordered_queued_task.queued_task.scheduled_date_for_dag_run,
             );
-        }
-        Executor::Docker => {
-            todo!()
-        }
-        Executor::Kubernetes => {
-            todo!()
-        }
+        } // Executor::Docker => {
+          //     todo!()
+          // }
+          // Executor::Kubernetes => {
+          //     todo!()
+          // }
     }
 }
