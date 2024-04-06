@@ -46,7 +46,7 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn execute<P>(
+    pub fn execute<P, D>(
         &self,
         resolved_args: &Value,
         attempt: usize,
@@ -54,11 +54,12 @@ impl Task {
         handle_stderr_log: Box<dyn Fn(String) + Send>,
         take_last_stdout_line: Box<dyn Fn() -> String + Send>,
         dag_path: P,
-        tpt_path: P,
+        tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
+        D: AsRef<OsStr>,
     {
         let task_id: usize = self.id;
         let function_name = &self.function;

@@ -1,5 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    ffi::OsStr,
+    path::PathBuf,
+    sync::mpsc::Sender,
+    thread,
+};
 
+use blanket::BlanketRunner;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use thepipelinetool_task::{
@@ -13,6 +21,7 @@ pub mod options;
 
 pub trait Runner {
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask);
+    fn get_queue_length(&self) -> usize;
 
     fn print_priority_queue(&mut self);
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
@@ -94,4 +103,55 @@ pub trait Runner {
         is_dynamic: bool,
         is_branch: bool,
     ) -> usize;
+}
+
+#[derive(Clone)]
+pub enum Executor {
+    Local,
+    Docker,
+    Kubernetes,
+}
+
+pub fn spawn_executor(
+    tx: Sender<()>,
+    // tpt_path: T,
+    // dag_path: U,
+    executor: impl FnOnce() -> () + Send + 'static,
+) {
+    // let ordered_queued_task = ordered_queued_task.clone();
+    thread::spawn(move || {
+        // let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
+        // let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
+
+        executor();
+
+        // match executor {
+        //     Executor::Local => {
+        //         // let pool = get_redis_pool();
+
+        //         // RedisRunner::from(
+        //         //     &ordered_queued_task.queued_task.dag_name,
+        //         //     nodes,
+        //         //     edges,
+        //         //     pool.clone(),
+        //         // )
+        //         runner
+        //         .work(
+        //             ordered_queued_task.queued_task.run_id,
+        //             &ordered_queued_task,
+        //             dag_path,
+        //             tpt_path,
+        //             ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+        //         );
+        //     }
+        //     Executor::Docker => {
+        //         // TODO run docker commands to work on queued task
+        //     }
+        //     Executor::Kubernetes => {
+        //         // TODO run docker commands to work on queued task
+        //     }
+        // }
+
+        tx.send(()).unwrap();
+    });
 }

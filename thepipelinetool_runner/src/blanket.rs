@@ -29,23 +29,23 @@ pub trait BlanketRunner {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> usize;
-    fn work<P: AsRef<OsStr>>(
+    fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
         dag_path: P,
-        tpt_path: P,
+        tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     );
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
-    fn run_task<P: AsRef<OsStr>>(
+    fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
         dag_path: P,
-        tpt_path: P,
+        tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> TaskResult;
     fn resolve_args(
@@ -246,14 +246,14 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         }
     }
 
-    fn run_task<P: AsRef<OsStr>>(
+    fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
         dag_path: P,
-        tpt_path: P,
+        tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> TaskResult {
         if task.lazy_expand {
@@ -361,6 +361,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             };
         }
 
+        // TODO pass run_id here
         task.execute(
             resolution_result,
             attempt,
@@ -488,19 +489,19 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         Ok(resolved_args)
     }
 
-    fn work<P: AsRef<OsStr>>(
+    fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
         dag_path: P,
-        tpt_path: P,
+        tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
-            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
+            // self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             self.enqueue_task(
                 run_id,
                 ordered_queued_task.queued_task.task_id,

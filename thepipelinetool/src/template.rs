@@ -76,8 +76,8 @@ pub fn create_template_args_from_string(
 ) -> Value {
     assert!(!original_string.trim().is_empty());
 
-    let mut temp_args = json!({});
-    let temp_string = &mut original_string.to_string();
+    let mut temp_args = json!({ ORIGINAL_STRING_KEY: original_string });
+    let mut temp_string = original_string.to_string();
 
     loop {
         let (left, right) = (
@@ -109,8 +109,6 @@ pub fn create_template_args_from_string(
         get_edges().write().unwrap().insert((upstream_id, task_id));
         temp_string.replace_range(left..(right + 2), "");
     }
-
-    temp_args[ORIGINAL_STRING_KEY] = original_string.to_string().into();
 
     temp_args
 }

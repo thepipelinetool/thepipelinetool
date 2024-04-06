@@ -149,17 +149,40 @@ impl RedisRunner {
             .await
             .unwrap()
     }
+
+    pub async fn get_running_tasks_count(&self) -> usize {
+        let mut conn = self.pool.get().await.unwrap();
+        cmd("SCARD")
+            .arg("tmpqueue")
+            .query_async::<_, usize>(&mut conn)
+            .await
+            .unwrap()
+    }
 }
 
 impl Runner for RedisRunner {
-    #[timed(duration(printer = "debug!"))]
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
+    fn get_queue_length(&self) -> usize {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let mut conn = self.pool.get().await.unwrap();
 
+                cmd("ZCOUNT")
+                    .arg("queue")
+                    .arg(i32::MIN)
+                    .arg(i32::MAX)
+                    .query_async::<_, usize>(&mut conn)
+                    .await
+                    .unwrap()
+            })
+        })
+    }
+
+    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let mut conn = self.pool.get().await.unwrap();
                 cmd("SREM")
-                    .arg("tmpqueue") // TODO timeout arg
+                    .arg("tmpqueue")
                     .arg(serde_json::to_string(queued_task).unwrap())
                     .query_async::<_, ()>(&mut conn)
                     .await

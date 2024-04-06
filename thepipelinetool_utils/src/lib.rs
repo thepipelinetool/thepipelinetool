@@ -131,9 +131,10 @@ pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool)
     res
 }
 
-pub fn create_command<P>(dag_path: &P, use_timeout: bool, tpt_path: &P) -> Command
+pub fn create_command<P, D>(dag_path: &P, use_timeout: bool, tpt_path: &D) -> Command
 where
     P: AsRef<OsStr>,
+    D: AsRef<OsStr>,
 {
     // dbg!(use_timeout);
     if use_timeout {
@@ -145,15 +146,16 @@ where
     }
 }
 
-pub fn command_timeout<P>(
+pub fn command_timeout<P, D>(
     command: &mut Command,
     dag_path: &P,
     use_timeout: bool,
     timeout_as_secs: &str,
-    tpt_path: &P,
+    tpt_path: &D,
     function: &str,
 ) where
     P: AsRef<OsStr>,
+    D: AsRef<OsStr>,
 {
     if use_timeout {
         command.args(["-k", timeout_as_secs, timeout_as_secs]);

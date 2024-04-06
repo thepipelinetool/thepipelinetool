@@ -14,7 +14,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
-use crate::{blanket::BlanketRunner, Runner};
+use crate::{blanket::BlanketRunner, spawn_executor, Runner};
 
 pub struct InMemoryRunner {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
@@ -285,8 +285,6 @@ impl Runner for InMemoryRunner {
         });
     }
 
-    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
-
     fn take_last_stdout_line(
         &mut self,
         _run_id: usize,
@@ -296,6 +294,12 @@ impl Runner for InMemoryRunner {
         let task_logs = self.task_logs.clone();
         Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
     }
+
+    fn get_queue_length(&self) -> usize {
+        self.priority_queue.lock().len()
+    }
+
+    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
 }
 
 pub fn run_in_memory(
@@ -314,22 +318,20 @@ pub fn run_in_memory(
 
     for _ in 0..num_threads {
         let mut runner = runner.clone();
-        let tx = tx.clone();
         let dag_path = dag_path.clone();
         let tpt_path = tpt_path.clone();
 
-        if let Some(queued_task) = runner.pop_priority_queue() {
-            thread::spawn(move || {
-                env::set_var("run_id", run_id.to_string());
+        if let Some(ordered_queued_task) = runner.pop_priority_queue() {
+            spawn_executor(tx.clone(), move || {
+                // env::set_var("run_id", ordered_queued_task.queued_task.run_id.to_string());
 
                 runner.work(
                     run_id,
-                    &queued_task,
-                    Path::new(&dag_path),
-                    Path::new(&tpt_path),
+                    &ordered_queued_task,
+                    dag_path,
+                    tpt_path,
                     scheduled_date_for_dag_run,
                 );
-                tx.send(()).unwrap();
             });
 
             thread_count += 1;
@@ -347,20 +349,17 @@ pub fn run_in_memory(
         let tpt_path = tpt_path.clone();
 
         let mut runner = runner.clone();
-        if let Some(queued_task) = runner.pop_priority_queue() {
-            let tx = tx.clone();
-
-            thread::spawn(move || {
-                env::set_var("run_id", run_id.to_string());
+        if let Some(ordered_queued_task) = runner.pop_priority_queue() {
+            spawn_executor(tx.clone(), move || {
+                // env::set_var("run_id", ordered_queued_task.queued_task.run_id.to_string());
 
                 runner.work(
                     run_id,
-                    &queued_task,
-                    Path::new(&dag_path),
-                    Path::new(&tpt_path),
+                    &ordered_queued_task,
+                    dag_path,
+                    tpt_path,
                     scheduled_date_for_dag_run,
                 );
-                tx.send(()).unwrap();
             });
 
             thread_count += 1;
