@@ -19,14 +19,14 @@ log = "0.4.20"
 env_logger = "0.10.0"
 deadpool = { version = "0.11.0", features = ["managed", "rt_tokio_1"] }
 deadpool-redis = "0.15"
-redis = { version = "=0.25.2", features = ["tokio-comp"] }
+redis = { version = "=0.25.3", features = ["tokio-comp"] }
 parking_lot = "0.12.1"
 
 # server deps
 tower-http = { version = "0.5.1", features = [ "cors", "trace", "compression-gzip", "fs" ] }
 saffron = { git = "https://github.com/cloudflare/saffron.git" }
 chrono = { version = "0.4.31", features = [ "serde" ] }
-chrono-tz = { version = "0.8.6", features = [ "serde" ] }
+chrono-tz = { version = "0.9.0", features = [ "serde" ] }
 
 kube = { version = "0.87.1", features = ["runtime", "derive", "ws" ] }
 k8s-openapi = { version = "0.20.0", features = ["latest"] }
