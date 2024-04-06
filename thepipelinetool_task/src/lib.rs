@@ -101,6 +101,8 @@ impl Task {
             thread::sleep(self.options.retry_delay);
         }
         let start = Utc::now();
+
+        // TODO store exit code? (coudl allow for 'skipped' status)
         let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
         let end = Utc::now();
 

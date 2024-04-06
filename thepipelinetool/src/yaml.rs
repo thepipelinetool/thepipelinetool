@@ -11,23 +11,6 @@ use thepipelinetool_utils::collector;
 
 use crate::template::{create_template_args_by_operator, TemplateTask};
 
-// use crate::create_template_args;
-
-// impl Default for YamlTaskTemplate {
-//     fn default() -> Self {
-//         Self {
-//             name: "".to_string(),
-//             // function_name: "".to_string(),
-//             args: json!([]),
-//             options: Default::default(),
-//             lazy_expand: false,
-//             is_branch: false,
-//             operator: ,
-//             depends_on: Vec::new(),
-//         }
-//     }
-// }
-
 pub fn read_from_yaml(dag_path: &Path) {
     let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();
 

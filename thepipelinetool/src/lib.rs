@@ -1,7 +1,7 @@
 use std::{
     cmp::max,
     env,
-    path::{Path, PathBuf},
+    path::Path,
     process,
 };
 
@@ -24,24 +24,6 @@ pub mod yaml;
 
 fn display_options(options: &DagOptions) {
     print!("{}", serde_json::to_string_pretty(options).unwrap());
-}
-
-#[derive(PartialEq)]
-pub enum DagType {
-    Binary,
-    YAML,
-}
-
-pub fn get_dag_type_by_path(path: PathBuf) -> DagType {
-    if let Some(ext) = path.extension() {
-        match ext.to_str().unwrap() {
-            "yaml" => {
-                return DagType::YAML;
-            }
-            _ => {}
-        }
-    }
-    DagType::Binary
 }
 
 pub fn process_subcommands(
@@ -111,7 +93,6 @@ pub fn process_subcommands(
                     process::exit(exit_code);
                 }
                 "function" => run_function(matches),
-
                 _ => {}
             }
         }
