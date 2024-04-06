@@ -39,7 +39,7 @@ Orchestrate your pipelines using `tpt`. [Deploy](https://github.com/thepipelinet
 
 ## Installation
 ```bash
-cargo install thepipelinetool_cli
+cargo install thepipelinetool
 ```
 
 ## Usage
