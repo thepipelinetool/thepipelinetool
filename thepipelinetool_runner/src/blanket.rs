@@ -178,11 +178,18 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         );
 
         if result.needs_retry() {
-            println!(
-                "\nattempt failed, retrying {}/{}\n",
-                result.attempt + 1,
-                result.max_attempts
-            );
+            if result.is_sensor {
+                println!(
+                    "\nsensor attempt failed, retrying #{}\n",
+                    result.attempt + 1
+                );
+            } else {
+                println!(
+                    "\nattempt failed, retrying {}/{}\n",
+                    result.attempt + 1,
+                    result.max_attempts
+                );
+            }
             self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
             self.enqueue_task(
                 run_id,
