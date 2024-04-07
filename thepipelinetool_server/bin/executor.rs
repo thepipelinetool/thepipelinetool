@@ -4,7 +4,7 @@ use thepipelinetool_core::dev::OrderedQueuedTask;
 use thepipelinetool_runner::blanket_backend::BlanketBackend;
 use thepipelinetool_server::{
     get_redis_pool, get_tpt_command,
-    redis::RedisBackend,
+    redis_backend::RedisBackend,
     statics::{_get_default_edges, _get_default_tasks},
 };
 use thepipelinetool_utils::_get_dag_path_by_name;

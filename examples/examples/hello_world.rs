@@ -1,7 +1,5 @@
 use std::{thread, time::Duration};
 
-use rand::Rng;
-
 use thepipelinetool_core::prelude::*;
 
 fn hello_world0(args: Value) -> Value {
@@ -27,10 +25,7 @@ fn hello_world1(args: Value) -> Value {
 
 fn hello_world2(args: Value) -> Value {
     println!("hello world2 {:?}", args);
-    let mut rng = rand::thread_rng(); // Initialize the random number generator
 
-    let random_bool: bool = rng.gen(); // Generate a random boolean value
-    println!("{}", random_bool);
     thread::sleep(Duration::from_secs(3));
 
     json!({

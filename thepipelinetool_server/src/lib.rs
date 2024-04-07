@@ -3,8 +3,9 @@ use std::{env, fs, io::ErrorKind, path::PathBuf, process::Command};
 use chrono::{DateTime, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
+use local_runner::Executor;
 use log::{debug, info};
-use redis::{RedisBackend, Run};
+use redis_backend::{RedisBackend, Run};
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
@@ -16,7 +17,8 @@ use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_opt
 
 pub mod catchup;
 pub mod check_timeout;
-pub mod redis;
+pub mod local_runner;
+pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;
 pub mod statics;
@@ -275,7 +277,7 @@ pub fn tpt_executor_installed() -> bool {
     !matches!(
         String::from_utf8_lossy(
             &Command::new("which")
-                .arg(get_executor_command())
+                .arg(get_tpt_executor_command())
                 .output()
                 .unwrap()
                 .stdout
@@ -297,7 +299,7 @@ pub fn get_tpt_command() -> String {
 
 const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
 
-pub fn get_executor_command() -> String {
+pub fn get_tpt_executor_command() -> String {
     env::var("TPT_X_CMD")
         .unwrap_or(DEFAULT_TPT_X_COMMAND.to_string())
         .to_string()
@@ -309,6 +311,15 @@ pub fn get_max_parallelism() -> usize {
         .to_string()
         .parse::<usize>()
         .unwrap()
+}
+
+pub fn get_executor_type() -> Executor {
+    serde_json::from_str(
+        &env::var("EXECUTOR")
+            .unwrap_or(serde_json::to_string(&json!(Executor::Local)).unwrap())
+            .to_string(),
+    )
+    .unwrap()
 }
 
 #[cfg(test)]

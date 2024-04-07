@@ -7,7 +7,7 @@ use thepipelinetool_core::dev::TaskResult;
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend};
 use tokio::time::sleep;
 
-use crate::redis::RedisBackend;
+use crate::redis_backend::RedisBackend;
 
 pub fn spawn_check_timeout(pool: Pool) {
     tokio::spawn(async move {

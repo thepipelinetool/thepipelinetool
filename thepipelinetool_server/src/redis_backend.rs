@@ -1,10 +1,7 @@
 use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
-use std::{
-    collections::{HashMap, HashSet},
-    process::Command,
-};
-use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
+use std::collections::{HashMap, HashSet};
+use thepipelinetool_runner::backend::Backend;
 
 use chrono::{DateTime, Utc};
 use thepipelinetool_core::dev::*;
@@ -30,22 +27,6 @@ macro_rules! block_on {
     ($body:block) => {
         tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async { $body }))
     };
-}
-
-impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for LocalRunner<U> {
-    fn run(&mut self, ordered_queued_task: &OrderedQueuedTask) {
-        let mut cmd = Command::new(&self.executor_path);
-        cmd.arg(serde_json::to_string(ordered_queued_task).unwrap());
-        let _ = spawn(
-            cmd,
-            Box::new(|x| print!("{x}")),
-            Box::new(|x| eprint!("{x}")),
-        );
-    }
-
-    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
-        self.backend.pop_priority_queue()
-    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -726,11 +707,4 @@ impl Backend for RedisBackend {
             })
         })
     }
-}
-
-#[derive(Clone)]
-pub struct LocalRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
-    pub backend: Box<U>,
-    pub tpt_path: String,
-    pub executor_path: String,
 }

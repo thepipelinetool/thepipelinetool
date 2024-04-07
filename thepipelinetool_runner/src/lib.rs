@@ -1,14 +1,14 @@
-use std::{env, sync::mpsc::channel, thread};
+use std::{sync::mpsc::channel, thread};
 
 use backend::Backend;
 use blanket_backend::BlanketBackend;
 
 use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
-use thepipelinetool_utils::get_default_max_parallelism;
 
 pub mod backend;
 pub mod blanket_backend;
-pub mod in_memory;
+pub mod in_memory_backend;
+pub mod in_memory_runner;
 pub mod options;
 
 pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
@@ -21,7 +21,7 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     max_parallelism: usize,
 ) {
     let (tx, rx) = channel();
-    let mut thread_count = 0;
+    let mut current_parallel_tasks_count = 0;
 
     for _ in 0..max_parallelism {
         if let Some(ordered_queued_task) = runner.pop_priority_queue() {
@@ -33,8 +33,8 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
                 tx.send(()).unwrap();
             });
 
-            thread_count += 1;
-            if thread_count >= max_parallelism {
+            current_parallel_tasks_count += 1;
+            if current_parallel_tasks_count >= max_parallelism {
                 break;
             }
         } else {
@@ -43,7 +43,7 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     }
 
     for _ in rx.iter() {
-        thread_count -= 1;
+        current_parallel_tasks_count -= 1;
 
         if let Some(ordered_queued_task) = runner.pop_priority_queue() {
             let tx = tx.clone();
@@ -53,13 +53,13 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
                 runner.run(&ordered_queued_task);
                 tx.send(()).unwrap();
             });
-            thread_count += 1;
+            current_parallel_tasks_count += 1;
 
-            if thread_count >= max_parallelism {
+            if current_parallel_tasks_count >= max_parallelism {
                 continue;
             }
         }
-        if thread_count == 0 {
+        if current_parallel_tasks_count == 0 {
             drop(tx);
             break;
         }

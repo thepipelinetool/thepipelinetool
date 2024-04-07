@@ -6,10 +6,8 @@ use clap::ArgMatches;
 use hash::display_hash;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend,
-    in_memory::{InMemoryBackend, InMemoryRunner},
-    options::DagOptions,
-    run,
+    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
+    in_memory_runner::InMemoryRunner, options::DagOptions, run,
 };
 use tree::display_tree;
 

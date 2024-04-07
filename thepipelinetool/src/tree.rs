@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path};
 use chrono::Utc;
 use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{
-    backend::Backend, blanket_backend::BlanketBackend, in_memory::InMemoryBackend,
+    backend::Backend, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
 };
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {

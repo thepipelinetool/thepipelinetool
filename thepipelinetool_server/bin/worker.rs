@@ -1,9 +1,10 @@
-use std::{env, time::Duration};
+use std::time::Duration;
+use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::run;
-use thepipelinetool_runner::{backend::Backend, get_max_parallelism};
 use thepipelinetool_server::{
-    get_executor_command, get_redis_pool,
-    redis::{LocalRunner, RedisBackend},
+    get_max_parallelism, get_redis_pool,
+    local_runner::LocalRunner,
+    redis_backend::RedisBackend,
 };
 use tokio::time::sleep;
 
@@ -15,12 +16,8 @@ async fn main() {
     env_logger::init();
 
     let max_parallelism = get_max_parallelism();
+    let mut runner = LocalRunner::new(RedisBackend::dummy(get_redis_pool()));
 
-    let mut runner = LocalRunner {
-        backend: Box::new(RedisBackend::dummy(get_redis_pool())),
-        tpt_path: env::args().next().unwrap(),
-        executor_path: get_executor_command(),
-    };
     loop {
         if runner.backend.get_queue_length() == 0
             || runner.backend.get_running_tasks_count().await >= max_parallelism
@@ -31,13 +28,6 @@ async fn main() {
 
         run(&mut runner, max_parallelism);
     }
-}
-
-#[derive(Clone)]
-enum Executor {
-    Local,
-    // Docker,
-    // Kubernetes,
 }
 
 // fn execute(ordered_queued_task: OrderedQueuedTask) {
