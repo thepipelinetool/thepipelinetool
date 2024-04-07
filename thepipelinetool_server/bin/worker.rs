@@ -1,8 +1,8 @@
 use std::{env, time::Duration};
-use thepipelinetool_runner::backend::Backend;
+use thepipelinetool_runner::{backend::Backend, get_max_parallelism};
 use thepipelinetool_runner::run;
 use thepipelinetool_server::{
-    get_executor_command, get_max_parallelism, get_redis_pool,
+    get_executor_command, get_redis_pool,
     redis::{LocalRunner, RedisBackend},
 };
 use tokio::time::sleep;
@@ -20,7 +20,6 @@ async fn main() {
         backend: Box::new(RedisBackend::dummy(get_redis_pool())),
         tpt_path: env::args().next().unwrap(),
         executor_path: get_executor_command(),
-        max_parallelism,
     };
     loop {
         if runner.backend.get_queue_length() == 0

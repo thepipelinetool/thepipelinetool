@@ -1,26 +1,33 @@
-use std::{sync::mpsc::channel, thread};
+use std::{env, sync::mpsc::channel, thread};
 
 use backend::Backend;
 use blanket_backend::BlanketBackend;
 
 use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
+use thepipelinetool_utils::get_default_max_parallelism;
 
 pub mod backend;
 pub mod blanket_backend;
 pub mod in_memory;
 pub mod options;
 
+pub fn get_max_parallelism() -> usize {
+    env::var("MAX_PARALLELISM")
+        .unwrap_or(get_default_max_parallelism().to_string())
+        .to_string()
+        .parse::<usize>()
+        .unwrap()
+}
+
 pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
     fn run(&mut self, ordered_queued_task: &OrderedQueuedTask);
-
-    fn get_max_parallelism(&self) -> usize;
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
 }
 
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     runner: &mut (impl Runner<U> + Clone + Send + 'static),
 ) {
-    let max_parallelism = runner.get_max_parallelism();
+    let max_parallelism = get_max_parallelism();
 
     let (tx, rx) = channel();
     let mut thread_count = 0;

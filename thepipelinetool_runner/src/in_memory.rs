@@ -321,10 +321,6 @@ impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for 
         );
     }
 
-    fn get_max_parallelism(&self) -> usize {
-        self.max_parallelism
-    }
-
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         self.backend.pop_priority_queue()
     }

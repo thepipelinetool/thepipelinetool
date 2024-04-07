@@ -43,10 +43,6 @@ impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for 
         );
     }
 
-    fn get_max_parallelism(&self) -> usize {
-        self.max_parallelism
-    }
-
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         self.backend.pop_priority_queue()
     }
@@ -769,5 +765,4 @@ pub struct LocalRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'stat
     pub backend: Box<U>,
     pub tpt_path: String,
     pub executor_path: String,
-    pub max_parallelism: usize,
 }
