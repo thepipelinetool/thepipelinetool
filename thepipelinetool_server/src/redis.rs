@@ -26,6 +26,13 @@ const TASK_ID_KEY: &str = "ti";
 const TASK_KEY: &str = "t";
 const TEMPLATE_ARGS_KEY: &str = "ta";
 
+macro_rules! block_on {
+    // Textual definition.
+    ($body:block) => {
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async { $body }))
+    };
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Run {
     pub run_id: usize,
@@ -170,63 +177,55 @@ impl Backend for RedisBackend {
     // }
 
     fn get_queue_length(&self) -> usize {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                cmd("ZCOUNT")
-                    .arg("queue")
-                    .arg(i32::MIN)
-                    .arg(i32::MAX)
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap()
-            })
+            cmd("ZCOUNT")
+                .arg("queue")
+                .arg(i32::MIN)
+                .arg(i32::MAX)
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap()
         })
     }
 
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SREM")
-                    .arg("tmpqueue")
-                    .arg(serde_json::to_string(queued_task).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SREM")
+                .arg("tmpqueue")
+                .arg(serde_json::to_string(queued_task).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         })
     }
 
     fn delete_task_depth(&mut self, run_id: usize, task_id: usize) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                cmd("DEL")
-                    .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
-            });
+            cmd("DEL")
+                .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("LRANGE")
-                    .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
-                    .arg(0)
-                    .arg(-1)
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await
-                    .unwrap_or_default()
-                    .join("\n")
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("LRANGE")
+                .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
+                .arg(0)
+                .arg(-1)
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap_or_default()
+                .join("\n")
         })
     }
 
@@ -258,65 +257,57 @@ impl Backend for RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                serde_json::from_str(
-                    &cmd("GET")
-                        .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
-                        .query_async::<_, String>(&mut conn)
-                        .await
-                        .unwrap(),
-                )
-                .unwrap()
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            serde_json::from_str(
+                &cmd("GET")
+                    .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
+                    .query_async::<_, String>(&mut conn)
+                    .await
+                    .unwrap(),
+            )
+            .unwrap()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize) -> usize {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                cmd("INCR")
-                    .arg(format!("{TASK_ATTEMPT_KEY}:{run_id}:{task_id}"))
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap()
-            })
+            cmd("INCR")
+                .arg(format!("{TASK_ATTEMPT_KEY}:{run_id}:{task_id}"))
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_task_status(&mut self, run_id: usize, task_id: usize) -> TaskStatus {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                TaskStatus::from_str(
-                    &cmd("GET")
-                        .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
-                        .query_async::<_, String>(&mut conn)
-                        .await
-                        .unwrap(),
-                )
-                .unwrap()
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            TaskStatus::from_str(
+                &cmd("GET")
+                    .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
+                    .query_async::<_, String>(&mut conn)
+                    .await
+                    .unwrap(),
+            )
+            .unwrap()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn set_task_status(&mut self, run_id: usize, task_id: usize, task_status: TaskStatus) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SET")
-                    .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
-                    .arg(task_status.as_str())
-                    .query_async::<_, String>(&mut conn)
-                    .await
-                    .unwrap();
-            });
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SET")
+                .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
+                .arg(task_status.as_str())
+                .query_async::<_, String>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
@@ -327,54 +318,50 @@ impl Backend for RedisBackend {
         _dag_hash: &str, // TODO
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) -> usize {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                let run_id = cmd("INCR")
-                    .arg("run")
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
+            let run_id = cmd("INCR")
+                .arg("run")
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
 
-                cmd("RPUSH")
-                    .arg(format!("{RUNS_KEY}:{dag_name}"))
-                    .arg(
-                        serde_json::to_string(&Run {
-                            run_id,
-                            scheduled_date_for_dag_run,
-                        })
-                        .unwrap(),
-                    )
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-                run_id
-            })
+            cmd("RPUSH")
+                .arg(format!("{RUNS_KEY}:{dag_name}"))
+                .arg(
+                    serde_json::to_string(&Run {
+                        run_id,
+                        scheduled_date_for_dag_run,
+                    })
+                    .unwrap(),
+                )
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
+            run_id
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn insert_task_results(&mut self, run_id: usize, result: &TaskResult) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                let res = serde_json::to_string(result).unwrap();
-                let task_id = result.task_id;
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            let res = serde_json::to_string(result).unwrap();
+            let task_id = result.task_id;
 
-                cmd("RPUSH")
-                    .arg(format!("{TASK_RESULTS_KEY}:{run_id}:{task_id}"))
-                    .arg(&res)
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-                cmd("SET")
-                    .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
-                    .arg(res)
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+            cmd("RPUSH")
+                .arg(format!("{TASK_RESULTS_KEY}:{run_id}:{task_id}"))
+                .arg(&res)
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
+            cmd("SET")
+                .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
+                .arg(res)
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
@@ -384,20 +371,18 @@ impl Backend for RedisBackend {
         run_id: usize,
         task_id: usize,
     ) -> HashMap<(usize, String), String> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                let k: Vec<((usize, String), String)> = cmd("SMEMBERS")
-                    .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await
-                    .unwrap_or_default()
-                    .iter()
-                    .map(|v| serde_json::from_str(v).unwrap())
-                    .collect();
-                k.into_iter().collect()
-            })
+            let k: Vec<((usize, String), String)> = cmd("SMEMBERS")
+                .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap_or_default()
+                .iter()
+                .map(|v| serde_json::from_str(v).unwrap())
+                .collect();
+            k.into_iter().collect()
         })
     }
 
@@ -409,105 +394,93 @@ impl Backend for RedisBackend {
         upstream: (usize, String),
         v: String,
     ) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SADD")
-                    .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
-                    .arg(serde_json::to_string(&(upstream, v)).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SADD")
+                .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
+                .arg(serde_json::to_string(&(upstream, v)).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SMEMBERS")
-                    .arg(format!("{EDGES_KEY}:{run_id}"))
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await
-                    .unwrap()
-                    .iter()
-                    .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
-                    .filter_map(|(up, down)| if up == task_id { Some(down) } else { None })
-                    .collect()
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SMEMBERS")
+                .arg(format!("{EDGES_KEY}:{run_id}"))
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap()
+                .iter()
+                .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
+                .filter_map(|(up, down)| if up == task_id { Some(down) } else { None })
+                .collect()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_upstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SMEMBERS")
-                    .arg(&[format!("{EDGES_KEY}:{run_id}")])
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await
-                    .unwrap()
-                    .iter()
-                    .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
-                    .filter_map(|(up, down)| if down == task_id { Some(up) } else { None })
-                    .collect()
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SMEMBERS")
+                .arg(&[format!("{EDGES_KEY}:{run_id}")])
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap()
+                .iter()
+                .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
+                .filter_map(|(up, down)| if down == task_id { Some(up) } else { None })
+                .collect()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SREM")
-                    .arg(format!("{EDGES_KEY}:{run_id}"))
-                    .arg(serde_json::to_string(&edge).unwrap())
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
-                cmd("SREM")
-                    .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{}", edge.1))
-                    .arg(serde_json::to_string(&((edge.0, ""), "")).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SREM")
+                .arg(format!("{EDGES_KEY}:{run_id}"))
+                .arg(serde_json::to_string(&edge).unwrap())
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
+            cmd("SREM")
+                .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{}", edge.1))
+                .arg(serde_json::to_string(&((edge.0, ""), "")).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
     #[timed(duration(printer = "debug!"))]
     fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                cmd("SADD")
-                    .arg(format!("{EDGES_KEY}:{run_id}"))
-                    .arg(serde_json::to_string(&edge).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            cmd("SADD")
+                .arg(format!("{EDGES_KEY}:{run_id}"))
+                .arg(serde_json::to_string(&edge).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_all_tasks(&self, run_id: usize) -> Vec<Task> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn: deadpool_redis::Connection = self.pool.get().await.unwrap();
-                cmd("SMEMBERS")
-                    .arg(format!("{TASKS_KEY}:{run_id}"))
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await
-                    .unwrap()
-                    .iter()
-                    .map(|t| serde_json::from_str(t).unwrap())
-                    .collect()
-            })
+        block_on!({
+            let mut conn: deadpool_redis::Connection = self.pool.get().await.unwrap();
+            cmd("SMEMBERS")
+                .arg(format!("{TASKS_KEY}:{run_id}"))
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap()
+                .iter()
+                .map(|t| serde_json::from_str(t).unwrap())
+                .collect()
         })
     }
 
@@ -523,18 +496,16 @@ impl Backend for RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Task {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                serde_json::from_str(
-                    &cmd("GET")
-                        .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
-                        .query_async::<_, String>(&mut conn)
-                        .await
-                        .unwrap(),
-                )
-                .unwrap()
-            })
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            serde_json::from_str(
+                &cmd("GET")
+                    .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
+                    .query_async::<_, String>(&mut conn)
+                    .await
+                    .unwrap(),
+            )
+            .unwrap()
         })
     }
 
@@ -550,48 +521,46 @@ impl Backend for RedisBackend {
         is_dynamic: bool,
         is_branch: bool,
     ) -> usize {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                let task_id = cmd("INCR")
-                    .arg(format!("{TASK_ID_KEY}:{run_id}"))
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap()
-                    - 1;
+            let task_id = cmd("INCR")
+                .arg(format!("{TASK_ID_KEY}:{run_id}"))
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap()
+                - 1;
 
-                let task = Task {
-                    id: task_id,
-                    name: name.to_owned(),
-                    function: function_name.to_owned(),
-                    template_args: template_args.to_owned(),
-                    options: options.to_owned(),
-                    lazy_expand,
-                    is_dynamic,
-                    is_branch,
-                };
-                cmd("SADD")
-                    .arg(format!("{TASKS_KEY}:{run_id}"))
-                    .arg(serde_json::to_string(&task).unwrap())
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
-                cmd("SET")
-                    .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
-                    .arg(serde_json::to_string(&task).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-                cmd("SET")
-                    .arg(format!("{TEMPLATE_ARGS_KEY}:{run_id}:{task_id}"))
-                    .arg(serde_json::to_string(&task.template_args).unwrap())
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-                self.set_task_status(run_id, task_id, TaskStatus::Pending);
-                task_id
-            })
+            let task = Task {
+                id: task_id,
+                name: name.to_owned(),
+                function: function_name.to_owned(),
+                template_args: template_args.to_owned(),
+                options: options.to_owned(),
+                lazy_expand,
+                is_dynamic,
+                is_branch,
+            };
+            cmd("SADD")
+                .arg(format!("{TASKS_KEY}:{run_id}"))
+                .arg(serde_json::to_string(&task).unwrap())
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
+            cmd("SET")
+                .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
+                .arg(serde_json::to_string(&task).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
+            cmd("SET")
+                .arg(format!("{TEMPLATE_ARGS_KEY}:{run_id}:{task_id}"))
+                .arg(serde_json::to_string(&task.template_args).unwrap())
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
+            self.set_task_status(run_id, task_id, TaskStatus::Pending);
+            task_id
         })
     }
 
@@ -603,63 +572,59 @@ impl Backend for RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     fn set_template_args(&mut self, run_id: usize, task_id: usize, template_args_str: &str) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
-                let mut task = self.get_task_by_id(run_id, task_id);
-                task.template_args = serde_json::from_str(template_args_str).unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
+            let mut task = self.get_task_by_id(run_id, task_id);
+            task.template_args = serde_json::from_str(template_args_str).unwrap();
 
-                cmd("SET")
-                    .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
-                    .arg(serde_json::to_string(&task).unwrap())
-                    .query_async::<_, String>(&mut conn)
-                    .await
-                    .unwrap();
-            })
+            cmd("SET")
+                .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
+                .arg(serde_json::to_string(&task).unwrap())
+                .query_async::<_, String>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
     #[timed(duration(printer = "debug!"))]
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                let parallel_task_count = cmd("SCARD")
-                    .arg("tmpqueue") // TODO timeout arg
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
+            let parallel_task_count = cmd("SCARD")
+                .arg("tmpqueue") // TODO timeout arg
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
 
-                let max_threads = 10;
+            let max_threads = 10;
 
-                if parallel_task_count >= max_threads {
-                    return None;
+            if parallel_task_count >= max_threads {
+                return None;
+            }
+
+            let res = cmd("ZPOPMIN")
+                .arg(&["queue".to_string(), "1".to_string()]) // TODO timeout arg
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await;
+
+            if let Ok(vec) = &res {
+                if !vec.is_empty() {
+                    cmd("SADD")
+                        .arg(&["tmpqueue".to_string(), vec[0].to_string()])
+                        .query_async::<_, ()>(&mut conn)
+                        .await
+                        .unwrap();
+                    return Some(OrderedQueuedTask {
+                        score: vec[1].parse().unwrap(),
+                        queued_task: serde_json::from_str(&vec[0]).unwrap(),
+                    });
                 }
+            } else {
+                println!("{:#?}", res.unwrap_err().detail());
+            }
 
-                let res = cmd("ZPOPMIN")
-                    .arg(&["queue".to_string(), "1".to_string()]) // TODO timeout arg
-                    .query_async::<_, Vec<String>>(&mut conn)
-                    .await;
-
-                if let Ok(vec) = &res {
-                    if !vec.is_empty() {
-                        cmd("SADD")
-                            .arg(&["tmpqueue".to_string(), vec[0].to_string()])
-                            .query_async::<_, ()>(&mut conn)
-                            .await
-                            .unwrap();
-                        return Some(OrderedQueuedTask {
-                            score: vec[1].parse().unwrap(),
-                            queued_task: serde_json::from_str(&vec[0]).unwrap(),
-                        });
-                    }
-                } else {
-                    println!("{:#?}", res.unwrap_err().detail());
-                }
-
-                None
-            })
+            None
         })
     }
 
@@ -680,45 +645,41 @@ impl Backend for RedisBackend {
     // }
 
     fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                if !cmd("EXISTS")
-                    .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
-                    .query_async::<_, bool>(&mut conn)
-                    .await
-                    .unwrap()
-                {
-                    let depth = self
-                        .get_upstream(run_id, task_id)
-                        .iter()
-                        .map(|up| self.get_task_depth(run_id, *up) + 1)
-                        .max()
-                        .unwrap_or(0);
-                    self.set_task_depth(run_id, task_id, depth);
-                }
-                cmd("GET")
-                    .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap()
-            })
+            if !cmd("EXISTS")
+                .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
+                .query_async::<_, bool>(&mut conn)
+                .await
+                .unwrap()
+            {
+                let depth = self
+                    .get_upstream(run_id, task_id)
+                    .iter()
+                    .map(|up| self.get_task_depth(run_id, *up) + 1)
+                    .max()
+                    .unwrap_or(0);
+                self.set_task_depth(run_id, task_id, depth);
+            }
+            cmd("GET")
+                .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap()
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let mut conn = self.pool.get().await.unwrap();
 
-                cmd("SET")
-                    .arg(&[format!("{DEPTH_KEY}:{run_id}:{task_id}"), depth.to_string()])
-                    .query_async::<_, ()>(&mut conn)
-                    .await
-                    .unwrap();
-            });
+            cmd("SET")
+                .arg(&[format!("{DEPTH_KEY}:{run_id}:{task_id}"), depth.to_string()])
+                .query_async::<_, ()>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
@@ -732,28 +693,26 @@ impl Backend for RedisBackend {
     ) {
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
 
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let depth = self.get_task_depth(run_id, task_id);
-                let mut conn = self.pool.get().await.unwrap();
+        block_on!({
+            let depth = self.get_task_depth(run_id, task_id);
+            let mut conn = self.pool.get().await.unwrap();
 
-                cmd("ZADD")
-                    .arg(&[
-                        "queue".to_string(),
-                        depth.to_string(),
-                        serde_json::to_string(&QueuedTask {
-                            task_id,
-                            run_id,
-                            dag_name,
-                            scheduled_date_for_dag_run,
-                            attempt,
-                        })
-                        .unwrap(),
-                    ])
-                    .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap();
-            });
+            cmd("ZADD")
+                .arg(&[
+                    "queue".to_string(),
+                    depth.to_string(),
+                    serde_json::to_string(&QueuedTask {
+                        task_id,
+                        run_id,
+                        dag_name,
+                        scheduled_date_for_dag_run,
+                        attempt,
+                    })
+                    .unwrap(),
+                ])
+                .query_async::<_, usize>(&mut conn)
+                .await
+                .unwrap();
         });
     }
 
