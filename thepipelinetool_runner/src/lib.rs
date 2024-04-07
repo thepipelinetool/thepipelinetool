@@ -28,10 +28,10 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
             let tx = tx.clone();
             let mut runner = runner.clone();
 
-            thread::spawn(Box::new(move || {
+            thread::spawn(move || {
                 runner.run(&ordered_queued_task);
                 tx.send(()).unwrap();
-            }));
+            });
 
             thread_count += 1;
             if thread_count >= max_parallelism {
@@ -49,10 +49,10 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
             let tx = tx.clone();
             let mut runner = runner.clone();
 
-            thread::spawn(Box::new(move || {
+            thread::spawn(move || {
                 runner.run(&ordered_queued_task);
                 tx.send(()).unwrap();
-            }));
+            });
             thread_count += 1;
 
             if thread_count >= max_parallelism {
