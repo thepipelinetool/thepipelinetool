@@ -9,7 +9,7 @@ use thepipelinetool_core::dev::{
 };
 use thepipelinetool_utils::collector;
 
-use crate::template::{create_template_args_by_operator, TemplateTask};
+use crate::templating::{create_template_args_by_operator, TemplateTask};
 
 pub fn read_from_yaml(dag_path: &Path) {
     let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();

@@ -2,7 +2,7 @@ use std::{collections::HashSet, process};
 
 use thepipelinetool_core::dev::Task;
 
-pub fn check_circular_dependencies(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+pub fn check_for_cycles(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     if let Some(cycle_tasks) = get_circular_dependencies(tasks.len(), edges) {
         eprintln!(
             "cycle detected: {}",

@@ -1,27 +1,27 @@
 use std::{env, path::Path, process};
 
+use check_for_cycles::check_for_cycles;
 use chrono::Utc;
-use circular_dependencies::check_circular_dependencies;
 use clap::ArgMatches;
-use hash::display_hash;
+use display_hash::display_hash;
+use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
     blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
     in_memory_runner::InMemoryRunner, options::DagOptions, run,
 };
-use tree::display_tree;
 
 use std::collections::HashSet;
 
 use thepipelinetool_core::dev::{get_default_graphite_graph, get_default_mermaid_graph, Task};
 
-pub mod circular_dependencies;
+pub mod check_for_cycles;
 pub mod commands;
-pub mod executable;
-pub mod hash;
-pub mod template;
-pub mod tree;
-pub mod yaml;
+pub mod display_hash;
+pub mod display_tree;
+pub mod read_from_executable;
+pub mod read_from_yaml;
+pub mod templating;
 
 pub fn display_default_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
     print!("{}", get_default_mermaid_graph(tasks, edges));
@@ -74,7 +74,7 @@ pub fn process_subcommands(
         },
 
         "tree" => display_tree(tasks, edges, dag_path),
-        "check" => check_circular_dependencies(tasks, edges),
+        "check" => check_for_cycles(tasks, edges),
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             match matches.subcommand_name().unwrap() {
@@ -91,7 +91,7 @@ pub fn process_subcommands(
                     };
                     assert!(max_parallelism > 0);
 
-                    check_circular_dependencies(tasks, edges);
+                    check_for_cycles(tasks, edges);
                     // let mut backend = runner.backend;
                     let mut runner = InMemoryRunner {
                         backend: Box::new(InMemoryBackend::new(tasks, edges)),

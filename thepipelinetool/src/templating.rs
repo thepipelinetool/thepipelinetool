@@ -120,7 +120,7 @@ mod tests {
     use serde_json::json;
     use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 
-    use crate::template::create_template_args_from_string;
+    use crate::templating::create_template_args_from_string;
 
     #[test]
     fn test_create_bash_args() {
