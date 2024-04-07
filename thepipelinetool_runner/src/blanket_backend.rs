@@ -104,7 +104,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool {
         match self.get_task_status(run_id, task_id) {
-            TaskStatus::Pending | TaskStatus::Running | TaskStatus::Retrying => false,
+            TaskStatus::Pending | TaskStatus::Running | TaskStatus::RetryPending => false,
             TaskStatus::Success | TaskStatus::Failure | TaskStatus::Skipped => true,
         }
     }
@@ -112,7 +112,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool {
         matches!(
             self.get_task_status(run_id, task_id),
-            TaskStatus::Pending | TaskStatus::Retrying
+            TaskStatus::Pending | TaskStatus::RetryPending
         )
     }
 
@@ -196,7 +196,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     result.max_attempts
                 );
             }
-            self.set_task_status(run_id, result.task_id, TaskStatus::Retrying);
+            self.set_task_status(run_id, result.task_id, TaskStatus::RetryPending);
             self.enqueue_task(
                 run_id,
                 result.task_id,
@@ -589,7 +589,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     "id": task_id.to_string(),
                     "name": name,
                     "next": next,
-                    "status": task_status.as_str(),
+                    "status": serde_json::to_string(task_status).unwrap(),
                 })
             })
             .collect()
@@ -694,7 +694,7 @@ fn get_styling_for_status(task_status: &TaskStatus) -> String {
         TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
         TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
         TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
-        TaskStatus::Retrying => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
+        TaskStatus::RetryPending => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
         TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
     }
 }

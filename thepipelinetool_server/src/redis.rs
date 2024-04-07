@@ -307,7 +307,7 @@ impl Backend for RedisBackend {
     fn get_task_status(&mut self, run_id: usize, task_id: usize) -> TaskStatus {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
-            TaskStatus::from_str(
+            serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
                     .query_async::<_, String>(&mut conn)
@@ -324,7 +324,7 @@ impl Backend for RedisBackend {
             let mut conn = self.pool.get().await.unwrap();
             cmd("SET")
                 .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
-                .arg(task_status.as_str())
+                .arg(serde_json::to_string(&task_status).unwrap())
                 .query_async::<_, String>(&mut conn)
                 .await
                 .unwrap();
