@@ -26,9 +26,8 @@ pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
 
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     runner: &mut (impl Runner<U> + Clone + Send + 'static),
+    max_parallelism: usize,
 ) {
-    let max_parallelism = get_max_parallelism();
-
     let (tx, rx) = channel();
     let mut thread_count = 0;
 

@@ -91,18 +91,18 @@ pub fn process_subcommands(
                         "max" => get_default_max_parallelism(),
                         any => any.parse::<usize>().unwrap(),
                     };
+                    assert!(max_parallelism > 0);
 
                     check_circular_dependencies(tasks, edges);
                     // let mut backend = runner.backend;
                     let mut runner = InMemoryRunner {
                         backend: Box::new(InMemoryBackend::new(tasks, edges)),
                         tpt_path: env::args().next().unwrap(),
-                        max_parallelism,
                         dag_path: dag_path.to_path_buf(),
                     };
                     let run_id = runner.backend.enqueue_run("", "", Utc::now());
 
-                    run(&mut runner);
+                    run(&mut runner, max_parallelism);
 
                     let exit_code = runner.backend.get_run_status(run_id);
 

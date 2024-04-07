@@ -13,6 +13,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
+#[derive(Clone, Default)]
 pub struct InMemoryBackend {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
     pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
@@ -31,31 +32,7 @@ impl InMemoryBackend {
         Self {
             edges: Arc::new(Mutex::new(edges.clone())),
             default_nodes: Arc::new(Mutex::new(nodes.to_vec())),
-            nodes: Arc::new(Mutex::new(vec![])),
-            task_results: Arc::new(Mutex::new(HashMap::new())),
-            task_statuses: Arc::new(Mutex::new(HashMap::new())),
-            attempts: Arc::new(Mutex::new(HashMap::new())),
-            dep_keys: Arc::new(Mutex::new(HashMap::new())),
-            task_logs: Arc::new(Mutex::new(HashMap::new())),
-            priority_queue: Arc::new(Mutex::new(BinaryHeap::new())),
-            task_depth: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-}
-
-impl Clone for InMemoryBackend {
-    fn clone(&self) -> Self {
-        Self {
-            task_results: self.task_results.clone(),
-            task_logs: self.task_logs.clone(),
-            task_statuses: self.task_statuses.clone(),
-            attempts: self.attempts.clone(),
-            dep_keys: self.dep_keys.clone(),
-            edges: self.edges.clone(),
-            default_nodes: self.default_nodes.clone(),
-            nodes: self.nodes.clone(),
-            task_depth: self.task_depth.clone(),
-            priority_queue: self.priority_queue.clone(),
+            ..Default::default()
         }
     }
 }
@@ -243,10 +220,6 @@ impl Backend for InMemoryBackend {
         self.nodes.lock()[task_id].clone()
     }
 
-    // fn get_dag_name(&self) -> String {
-    //     "in_memory".into()
-    // }
-
     fn get_all_tasks(&self, _run_id: usize) -> Vec<Task> {
         self.nodes.lock().clone()
     }
@@ -298,15 +271,12 @@ impl Backend for InMemoryBackend {
     }
 
     fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
-
-    // fn load_from_name(&mut self, _dag_name: &str) {}
 }
 
 #[derive(Clone)]
 pub struct InMemoryRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
     pub backend: Box<U>,
     pub tpt_path: String,
-    pub max_parallelism: usize,
     pub dag_path: PathBuf,
 }
 

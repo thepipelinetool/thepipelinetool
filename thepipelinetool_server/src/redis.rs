@@ -58,7 +58,6 @@ pub struct Run {
 pub struct RedisBackend {
     edges: Option<HashSet<(usize, usize)>>,
     nodes: Option<Vec<Task>>,
-    // name: String,
     pool: Pool,
 }
 
@@ -66,7 +65,6 @@ impl RedisBackend {
     #[timed(duration(printer = "debug!"))]
     pub fn dummy(pool: Pool) -> Self {
         Self {
-            // name: "".into(),
             edges: None,
             nodes: None,
             pool,
@@ -75,11 +73,7 @@ impl RedisBackend {
 
     // #[timed(duration(printer = "debug!"))]
     pub fn from(nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
-        // let nodes = _get_default_tasks(name);
-        // let edges = _get_default_edges(name);
-
         Self {
-            // name: name.into(),
             edges: Some(edges),
             nodes: Some(nodes),
             pool,
@@ -186,11 +180,6 @@ impl RedisBackend {
 }
 
 impl Backend for RedisBackend {
-    // fn load_from_name(&mut self, dag_name: &str) {
-    //     self.nodes = _get_default_tasks(dag_name);
-    //     self.edges = _get_default_edges(dag_name);
-    // }
-
     fn get_queue_length(&self) -> usize {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -264,11 +253,6 @@ impl Backend for RedisBackend {
             });
         })
     }
-
-    // #[timed(duration(printer = "debug!"))]
-    // fn get_dag_name(&self) -> String {
-    //     self.name.clone()
-    // }
 
     #[timed(duration(printer = "debug!"))]
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult {
@@ -642,22 +626,6 @@ impl Backend for RedisBackend {
             None
         })
     }
-
-    // #[timed(duration(printer = "debug!"))]
-    // fn push_priority_queue(&mut self, queued_task: OrderedQueuedTask) {
-    //     tokio::task::block_in_place(|| {
-    //         tokio::runtime::Handle::current().block_on(async {
-    //             let mut conn = self.pool.get().await.unwrap();
-    //             cmd("ZADD")
-    //                 .arg("queue")
-    //                 .arg(queued_task.score)
-    //                 .arg(serde_json::to_string(&queued_task.queued_task).unwrap())
-    //                 .query_async::<_, f64>(&mut conn)
-    //                 .await
-    //                 .unwrap();
-    //         });
-    //     });
-    // }
 
     fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
         block_on!({

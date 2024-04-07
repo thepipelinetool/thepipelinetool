@@ -1,6 +1,6 @@
 use std::{env, time::Duration};
-use thepipelinetool_runner::{backend::Backend, get_max_parallelism};
 use thepipelinetool_runner::run;
+use thepipelinetool_runner::{backend::Backend, get_max_parallelism};
 use thepipelinetool_server::{
     get_executor_command, get_redis_pool,
     redis::{LocalRunner, RedisBackend},
@@ -29,7 +29,7 @@ async fn main() {
             continue;
         }
 
-        run(&mut runner);
+        run(&mut runner, max_parallelism);
     }
 }
 
