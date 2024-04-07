@@ -385,7 +385,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             };
         }
 
-        // TODO pass run_id here
         task.execute(
             resolution_result,
             attempt,
@@ -395,6 +394,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             dag_path,
             tpt_path,
             scheduled_date_for_dag_run,
+            run_id,
         )
     }
 

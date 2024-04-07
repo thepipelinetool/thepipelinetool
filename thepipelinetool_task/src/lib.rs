@@ -56,6 +56,7 @@ impl Task {
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        run_id: usize,
     ) -> TaskResult
     where
         P: AsRef<OsStr>,
@@ -73,6 +74,7 @@ impl Task {
             .to_string();
 
         let mut cmd = create_command(&dag_path, use_timeout, &tpt_path);
+        cmd.env("run_id", run_id.to_string());
         command_timeout(
             &mut cmd,
             &dag_path,

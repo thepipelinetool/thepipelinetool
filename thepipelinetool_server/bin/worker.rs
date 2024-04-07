@@ -2,9 +2,7 @@ use std::{env, time::Duration};
 use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::run;
 use thepipelinetool_server::{
-    get_redis_pool,
-    redis::{RedisBackend, RedisRunner},
-    tpt_installed,
+    get_executor_command, get_redis_pool, redis::{RedisBackend, RedisRunner}, tpt_executor_installed, tpt_installed
 };
 use tokio::time::sleep;
 
@@ -15,15 +13,13 @@ async fn main() {
 
     env_logger::init();
 
-    assert!(tpt_installed());
-
     // TODO read from env
     let max_parallelism = 10usize;
 
     let mut runner = RedisRunner {
         backend: Box::new(RedisBackend::dummy(get_redis_pool())),
         tpt_path: env::args().next().unwrap(),
-        executor_path: "tpt_executor".to_string(),
+        executor_path: get_executor_command(),
         max_parallelism,
     };
     loop {
@@ -47,7 +43,6 @@ enum Executor {
 
 // fn execute(ordered_queued_task: OrderedQueuedTask) {
 //     let executor = Executor::Local;
-//     let tpt_path = "tpt".to_string();
 //     let dag_path = _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap();
 
 //     match executor {

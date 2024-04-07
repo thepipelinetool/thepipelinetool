@@ -257,19 +257,9 @@ fn _get_schedules_for_catchup(
 
 pub fn tpt_installed() -> bool {
     !matches!(
-        String::from_utf8_lossy(&Command::new("which").arg("tpt").output().unwrap().stdout)
-            .to_string()
-            .as_str()
-            .trim(),
-        ""
-    )
-}
-
-pub fn tpt_executor_installed() -> bool {
-    !matches!(
         String::from_utf8_lossy(
             &Command::new("which")
-                .arg("tpt_executor")
+                .arg(get_tpt_command())
                 .output()
                 .unwrap()
                 .stdout
@@ -279,6 +269,38 @@ pub fn tpt_executor_installed() -> bool {
         .trim(),
         ""
     )
+}
+
+pub fn tpt_executor_installed() -> bool {
+    !matches!(
+        String::from_utf8_lossy(
+            &Command::new("which")
+                .arg(get_executor_command())
+                .output()
+                .unwrap()
+                .stdout
+        )
+        .to_string()
+        .as_str()
+        .trim(),
+        ""
+    )
+}
+
+const DEFAULT_TPT_COMMAND: &str = "tpt";
+
+pub fn get_tpt_command() -> String {
+    env::var("TPT_CMD")
+        .unwrap_or(DEFAULT_TPT_COMMAND.to_string())
+        .to_string()
+}
+
+const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
+
+pub fn get_executor_command() -> String {
+    env::var("TPT_X_CMD")
+        .unwrap_or(DEFAULT_TPT_X_COMMAND.to_string())
+        .to_string()
 }
 
 #[cfg(test)]

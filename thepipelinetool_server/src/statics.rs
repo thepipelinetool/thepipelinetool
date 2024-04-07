@@ -11,7 +11,7 @@ use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::options::DagOptions;
 use timed::timed;
 
-use crate::{_get_dag_path_by_name, get_dags_dir};
+use crate::{_get_dag_path_by_name, get_dags_dir, get_tpt_command};
 
 type StaticServerTasks = Arc<Mutex<HashMap<String, Vec<Task>>>>;
 type StaticServerHashes = Arc<Mutex<HashMap<String, String>>>;
@@ -35,7 +35,7 @@ pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
             return None;
         }
 
-        let output = Command::new("tpt")
+        let output = Command::new(get_tpt_command())
             .arg(dag_path.unwrap())
             .arg("describe")
             .arg("tasks")
@@ -60,7 +60,7 @@ pub fn _get_hash(dag_name: &str) -> String {
     if !hashes.contains_key(dag_name) {
         let dags_dir = &get_dags_dir();
         let path: PathBuf = [dags_dir, dag_name].iter().collect();
-        let output = Command::new("tpt")
+        let output = Command::new(get_tpt_command())
             .arg(path)
             .arg("describe")
             .arg("hash")
@@ -87,7 +87,7 @@ pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
         if dag_path.is_none() {
             return None;
         }
-        let output = Command::new("tpt")
+        let output = Command::new(get_tpt_command())
             .arg(dag_path.unwrap())
             .arg("describe")
             .arg("edges")
@@ -115,7 +115,7 @@ pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
             return None;
         }
 
-        let output = Command::new("tpt")
+        let output = Command::new(get_tpt_command())
             .arg(dag_path.unwrap())
             .arg("describe")
             .arg("options")
