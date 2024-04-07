@@ -87,7 +87,6 @@ pub fn get_executor_type() -> Executor {
     .unwrap()
 }
 
-
 pub fn get_redis_url() -> String {
     env::var("REDIS_URL")
         .unwrap_or("redis://0.0.0.0:6379".to_string())

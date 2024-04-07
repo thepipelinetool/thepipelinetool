@@ -5,9 +5,7 @@ use thepipelinetool_core::dev::OrderedQueuedTask;
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
 use thepipelinetool_utils::spawn;
 
-use crate::env::{
-    get_executor_type, get_tpt_executor_command,
-};
+use crate::env::{get_executor_type, get_tpt_executor_command};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Executor {
@@ -35,7 +33,7 @@ impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for 
     fn run(&mut self, ordered_queued_task: &OrderedQueuedTask) {
         match self.executor {
             Executor::Local => {
-                let mut cmd = Command::new(&get_tpt_executor_command());
+                let mut cmd = Command::new(get_tpt_executor_command());
                 cmd.arg(serde_json::to_string(ordered_queued_task).unwrap());
                 let _ = spawn(
                     cmd,

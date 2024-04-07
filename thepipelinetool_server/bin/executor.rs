@@ -3,7 +3,10 @@ use std::env;
 use thepipelinetool_core::dev::OrderedQueuedTask;
 use thepipelinetool_runner::blanket_backend::BlanketBackend;
 use thepipelinetool_server::{
-    env::{get_dag_path_by_name, get_tpt_command}, get_redis_pool, redis_backend::RedisBackend, statics::{_get_default_edges, _get_default_tasks}
+    env::{get_dag_path_by_name, get_tpt_command},
+    get_redis_pool,
+    redis_backend::RedisBackend,
+    statics::{_get_default_edges, _get_default_tasks},
 };
 
 #[tokio::main]

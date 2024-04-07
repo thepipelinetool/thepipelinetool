@@ -4,7 +4,6 @@ use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
 
 use crate::{backend::Backend, blanket_backend::BlanketBackend, Runner};
 
-
 #[derive(Clone)]
 pub struct InMemoryRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
     pub backend: Box<U>,

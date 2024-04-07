@@ -1,9 +1,9 @@
 use axum::{http::Method, Router};
 use chrono::Utc;
-use thepipelinetool_server::env::{tpt_executor_installed, tpt_installed};
 use std::path::PathBuf;
 use thepipelinetool_server::catchup::spawn_catchup;
 use thepipelinetool_server::check_timeout::spawn_check_timeout;
+use thepipelinetool_server::env::{tpt_executor_installed, tpt_installed};
 use thepipelinetool_server::scheduler::spawn_scheduler;
 use thepipelinetool_server::{get_redis_pool, routes::*};
 use tokio::net::TcpListener;

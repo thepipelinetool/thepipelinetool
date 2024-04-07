@@ -1,10 +1,9 @@
-use std::{fs, io::ErrorKind, path::PathBuf, process::Command};
+use std::{fs, io::ErrorKind, path::PathBuf};
 
 use chrono::{DateTime, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use env::get_redis_url;
-use local_runner::Executor;
 use log::{debug, info};
 use redis_backend::{RedisBackend, Run};
 use saffron::{Cron, CronTimesIter};
@@ -14,17 +13,19 @@ use thepipelinetool_runner::{
 };
 use timed::timed;
 
-use crate::{env::get_dags_dir, statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options}};
+use crate::{
+    env::get_dags_dir,
+    statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
+};
 
 pub mod catchup;
 pub mod check_timeout;
+pub mod env;
 pub mod local_runner;
 pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;
 pub mod statics;
-pub mod env;
-
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {

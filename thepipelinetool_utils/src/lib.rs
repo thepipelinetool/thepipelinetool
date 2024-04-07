@@ -1,10 +1,9 @@
 use std::{
     cmp::max,
-    env,
     ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
-    path::{Path, PathBuf},
+    path::Path,
     process::{self, Command, ExitStatus, Stdio},
     thread::{self, available_parallelism},
 };
