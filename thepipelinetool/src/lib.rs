@@ -3,7 +3,7 @@ use std::{cmp::max, env, path::Path, process};
 use chrono::Utc;
 use circular_dependencies::check_circular_dependencies;
 use clap::ArgMatches;
-use graph::{display_graphite_graph, display_mermaid_graph};
+use graph::{display_default_graphite_graph, display_default_mermaid_graph};
 use hash::display_hash;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
@@ -57,8 +57,8 @@ pub fn process_subcommands(
             .unwrap()
             .as_str()
         {
-            "mermaid" => display_mermaid_graph(tasks, edges),
-            "graphite" => display_graphite_graph(tasks, edges),
+            "mermaid" => display_default_mermaid_graph(tasks, edges),
+            "graphite" => display_default_graphite_graph(tasks, edges),
             _ => {}
         },
 

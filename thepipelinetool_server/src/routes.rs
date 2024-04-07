@@ -151,22 +151,24 @@ pub async fn get_dags(State(pool): State<Pool>) -> Json<Value> {
     json!(result).into()
 }
 
-pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
-    json!(RedisBackend::dummy(pool).get_graphite_graph(run_id)).into()
-}
+// TODO
+// pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
+//     json!(RedisBackend::dummy(pool).get_graphite_graph(run_id)).into()
+// }
 
-pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
-    let nodes = _get_default_tasks(&dag_name);
-    let edges = _get_default_edges(&dag_name);
+// TODO
+// pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
+//     let nodes = _get_default_tasks(&dag_name);
+//     let edges = _get_default_edges(&dag_name);
 
-    // TODO handle error
-    assert!(nodes.is_some() && edges.is_some());
+//     // TODO handle error
+//     assert!(nodes.is_some() && edges.is_some());
 
-    let mut runner = InMemoryBackend::new(&nodes.unwrap(), &edges.unwrap());
-    runner.enqueue_run("in_memory", "", Utc::now()); // TODO check correctness
+//     let mut runner = InMemoryBackend::new(&nodes.unwrap(), &edges.unwrap());
+//     runner.enqueue_run("in_memory", "", Utc::now()); // TODO check correctness
 
-    json!(runner.get_graphite_graph(0)).into()
-}
+//     json!(runner.get_graphite_graph(0)).into()
+// }
 
 pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<usize> {
     // json!(

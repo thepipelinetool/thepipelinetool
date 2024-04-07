@@ -5,6 +5,7 @@
 mod cli;
 mod flow;
 mod functions;
+mod graph;
 mod helpers;
 mod ops;
 mod statics;
@@ -39,8 +40,8 @@ pub mod dev {
         })
     }
     // pub use crate::TaskRefInner;
-
     pub use crate::cli::*;
+    pub use crate::graph::*;
     pub use crate::helpers::*;
     pub use crate::prelude::*;
     pub use crate::statics::*;

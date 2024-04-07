@@ -1,21 +1,42 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use chrono::Utc;
-use thepipelinetool_core::dev::Task;
-use thepipelinetool_runner::{blanket_backend::BlanketBackend, in_memory::InMemoryBackend};
+use thepipelinetool_core::dev::{get_graphite_graph, get_mermaid_graph, Task, TaskStatus};
 
-pub fn display_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    let mut runner = InMemoryBackend::new(tasks, edges);
-    runner.enqueue_run("in_memory", "", Utc::now());
+pub fn display_default_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+    let task_statuses: Vec<(String, TaskStatus)> = tasks
+        .iter()
+        .map(|t| (t.name.clone(), TaskStatus::Pending))
+        .collect();
 
-    let graph = runner.get_mermaid_graph(0);
-    print!("{graph}");
+    let mut upstream_ids: HashMap<usize, Vec<usize>> =
+        HashMap::from_iter(tasks.iter().map(|t| (t.id, vec![])));
+    for (upstream_id, downstream_id) in edges {
+        upstream_ids
+            .get_mut(downstream_id)
+            .unwrap()
+            .push(*upstream_id);
+    }
+
+    print!("{}", get_mermaid_graph(&task_statuses, &upstream_ids));
 }
 
-pub fn display_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    let mut runner = InMemoryBackend::new(tasks, edges);
-    runner.enqueue_run("in_memory", "", Utc::now());
+pub fn display_default_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+    let task_statuses: Vec<(usize, String, TaskStatus)> = tasks
+        .iter()
+        .map(|task| (task.id, task.name.clone(), TaskStatus::Pending))
+        .collect();
 
-    let graph = runner.get_graphite_graph(0);
-    print!("{}", serde_json::to_string_pretty(&graph).unwrap());
+    let mut downstream_ids: HashMap<usize, Vec<usize>> =
+        HashMap::from_iter(tasks.iter().map(|t| (t.id, vec![])));
+    for (upstream_id, downstream_id) in edges {
+        downstream_ids
+            .get_mut(upstream_id)
+            .unwrap()
+            .push(*downstream_id);
+    }
+
+    print!(
+        "{}",
+        serde_json::to_string_pretty(&get_graphite_graph(&task_statuses, &downstream_ids)).unwrap()
+    );
 }

@@ -100,18 +100,16 @@ pub fn parse_cli() {
     let command = create_commands();
     let matches = command.get_matches();
     match matches.subcommand_name().unwrap() {
-        "describe" => {
-            match matches
-                .subcommand_matches("describe")
-                .unwrap()
-                .subcommand_name()
-                .unwrap()
-            {
-                "tasks" => display_tasks(),
-                "edges" => display_edges(),
-                _ => {}
-            }
-        }
+        "describe" => match matches
+            .subcommand_matches("describe")
+            .unwrap()
+            .subcommand_name()
+            .unwrap()
+        {
+            "tasks" => display_tasks(),
+            "edges" => display_edges(),
+            _ => {}
+        },
 
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();

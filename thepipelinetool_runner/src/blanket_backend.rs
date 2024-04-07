@@ -20,7 +20,6 @@ pub trait BlanketBackend {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
     fn get_run_status(&mut self, run_id: usize) -> i32;
 
-    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String; // TODO move to cli
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(
@@ -55,7 +54,7 @@ pub trait BlanketBackend {
         template_args: &Value,
         upstream_deps: &HashMap<(usize, String), String>,
     ) -> Result<Value, Error>;
-    fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value>;
+
     fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask);
 }
 
@@ -77,29 +76,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         self.get_upstream(run_id, task_id)
             .iter()
             .all(|edge| self.is_task_done(run_id, *edge))
-    }
-
-    fn get_mermaid_graph(&mut self, dag_run_id: usize) -> String {
-        let task_statuses: Vec<(String, TaskStatus)> = self
-            .get_all_tasks(dag_run_id)
-            .iter()
-            .map(|t| (t.name.clone(), self.get_task_status(dag_run_id, t.id)))
-            .collect();
-
-        let mut out = "".to_string();
-        out += "flowchart TD\n";
-
-        for (task_id, (task_name, task_status)) in task_statuses.iter().enumerate() {
-            let styling = get_styling_for_status(task_status);
-            out += &format!("  id{task_id}({task_name}_{task_id})\n");
-            out += &format!("  style id{task_id} {styling}\n");
-
-            for edge_id in self.get_upstream(dag_run_id, task_id) {
-                out += &format!("  id{edge_id}-->id{task_id}\n");
-            }
-        }
-
-        out
     }
 
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool {
@@ -563,38 +539,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);
     }
 
-    fn get_graphite_graph(&mut self, run_id: usize) -> Vec<Value> {
-        let task_statuses: Vec<(usize, String, TaskStatus)> = self
-            .get_all_tasks(run_id)
-            .iter()
-            .map(|task| {
-                (
-                    task.id,
-                    task.name.clone(),
-                    self.get_task_status(run_id, task.id),
-                )
-            })
-            .collect();
-
-        task_statuses
-            .iter()
-            .map(|(task_id, task_name, task_status)| {
-                let name = format!("{task_name}_{task_id}");
-                let next = self
-                    .get_downstream(run_id, *task_id)
-                    .iter()
-                    .map(|downstream_id| json!({"outcome": downstream_id.to_string()}))
-                    .collect::<Vec<Value>>();
-                json!({
-                    "id": task_id.to_string(),
-                    "name": name,
-                    "next": next,
-                    "status": serde_json::to_string(task_status).unwrap(),
-                })
-            })
-            .collect()
-    }
-
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize) {
         let template_args = self.get_template_args(run_id, downstream_id);
 
@@ -685,16 +629,5 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 }
             }
         }
-    }
-}
-
-fn get_styling_for_status(task_status: &TaskStatus) -> String {
-    match task_status {
-        TaskStatus::Pending => "color:black,stroke:grey,fill:white,stroke-width:4px".into(),
-        TaskStatus::Success => "color:black,stroke:green,fill:white,stroke-width:4px".into(),
-        TaskStatus::Failure => "color:black,stroke:red,fill:white,stroke-width:4px".into(),
-        TaskStatus::Running => "color:black,stroke:#90EE90,fill:white,stroke-width:4px".into(),
-        TaskStatus::RetryPending => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
-        TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
     }
 }
