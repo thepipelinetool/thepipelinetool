@@ -303,6 +303,14 @@ pub fn get_executor_command() -> String {
         .to_string()
 }
 
+pub fn get_max_parallelism() -> usize {
+    env::var("MAX_PARALLELISM")
+        .unwrap_or(get_default_max_parallelism().to_string())
+        .to_string()
+        .parse::<usize>()
+        .unwrap()
+}
+
 #[cfg(test)]
 
 mod tests2 {
