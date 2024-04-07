@@ -2,9 +2,7 @@ use std::time::Duration;
 use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::run;
 use thepipelinetool_server::{
-    get_max_parallelism, get_redis_pool,
-    local_runner::LocalRunner,
-    redis_backend::RedisBackend,
+     env::get_max_parallelism, get_redis_pool, local_runner::LocalRunner, redis_backend::RedisBackend
 };
 use tokio::time::sleep;
 

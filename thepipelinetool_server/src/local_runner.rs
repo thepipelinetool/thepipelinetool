@@ -5,7 +5,7 @@ use thepipelinetool_core::dev::OrderedQueuedTask;
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
 use thepipelinetool_utils::spawn;
 
-use crate::{
+use crate::env::{
     get_executor_type, get_tpt_executor_command,
 };
 

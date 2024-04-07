@@ -1,8 +1,9 @@
-use std::{env, fs, io::ErrorKind, path::PathBuf, process::Command};
+use std::{fs, io::ErrorKind, path::PathBuf, process::Command};
 
 use chrono::{DateTime, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
+use env::get_redis_url;
 use local_runner::Executor;
 use log::{debug, info};
 use redis_backend::{RedisBackend, Run};
@@ -13,7 +14,7 @@ use thepipelinetool_runner::{
 };
 use timed::timed;
 
-use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options};
+use crate::{env::get_dags_dir, statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options}};
 
 pub mod catchup;
 pub mod check_timeout;
@@ -22,12 +23,8 @@ pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;
 pub mod statics;
+pub mod env;
 
-fn get_redis_url() -> String {
-    env::var("REDIS_URL")
-        .unwrap_or("redis://0.0.0.0:6379".to_string())
-        .to_string()
-}
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {
@@ -255,80 +252,4 @@ fn _get_schedules_for_catchup(
         } else {
             server_start_date
         })
-}
-
-pub fn tpt_installed() -> bool {
-    !matches!(
-        String::from_utf8_lossy(
-            &Command::new("which")
-                .arg(get_tpt_command())
-                .output()
-                .unwrap()
-                .stdout
-        )
-        .to_string()
-        .as_str()
-        .trim(),
-        ""
-    )
-}
-
-pub fn tpt_executor_installed() -> bool {
-    !matches!(
-        String::from_utf8_lossy(
-            &Command::new("which")
-                .arg(get_tpt_executor_command())
-                .output()
-                .unwrap()
-                .stdout
-        )
-        .to_string()
-        .as_str()
-        .trim(),
-        ""
-    )
-}
-
-const DEFAULT_TPT_COMMAND: &str = "tpt";
-
-pub fn get_tpt_command() -> String {
-    env::var("TPT_CMD")
-        .unwrap_or(DEFAULT_TPT_COMMAND.to_string())
-        .to_string()
-}
-
-const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
-
-pub fn get_tpt_executor_command() -> String {
-    env::var("TPT_X_CMD")
-        .unwrap_or(DEFAULT_TPT_X_COMMAND.to_string())
-        .to_string()
-}
-
-pub fn get_max_parallelism() -> usize {
-    env::var("MAX_PARALLELISM")
-        .unwrap_or(get_default_max_parallelism().to_string())
-        .to_string()
-        .parse::<usize>()
-        .unwrap()
-}
-
-pub fn get_executor_type() -> Executor {
-    serde_json::from_str(
-        &env::var("EXECUTOR")
-            .unwrap_or(serde_json::to_string(&json!(Executor::Local)).unwrap())
-            .to_string(),
-    )
-    .unwrap()
-}
-
-#[cfg(test)]
-
-mod tests2 {
-    use crate::tpt_installed;
-
-    #[test]
-    fn installed() {
-        assert!(tpt_installed());
-    }
 }

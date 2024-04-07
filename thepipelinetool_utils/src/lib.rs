@@ -167,23 +167,6 @@ pub fn command_timeout<P, D>(
     command.args(["run", "function", function]);
 }
 
-pub fn get_dags_dir() -> String {
-    env::var("DAGS_DIR")
-        .unwrap_or("./bin".to_string())
-        .to_string()
-}
-
-pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
-    let dags_dir = &get_dags_dir();
-    let path: PathBuf = [dags_dir, dag_name].iter().collect();
-
-    if !path.exists() {
-        return None;
-    }
-
-    Some(path)
-}
-
 pub fn get_default_max_parallelism() -> usize {
     max(usize::from(available_parallelism().unwrap()) - 1, 1)
 }

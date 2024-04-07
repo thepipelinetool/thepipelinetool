@@ -11,7 +11,7 @@ use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::options::DagOptions;
 use timed::timed;
 
-use crate::{_get_dag_path_by_name, get_dags_dir, get_tpt_command};
+use crate::env::{get_dag_path_by_name, get_dags_dir, get_tpt_command};
 
 type StaticServerTasks = Arc<Mutex<HashMap<String, Vec<Task>>>>;
 type StaticServerHashes = Arc<Mutex<HashMap<String, String>>>;
@@ -30,7 +30,7 @@ pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
         .lock();
 
     if !tasks.contains_key(dag_name) {
-        let dag_path = _get_dag_path_by_name(dag_name);
+        let dag_path = get_dag_path_by_name(dag_name);
         if dag_path.is_none() {
             return None;
         }
@@ -83,7 +83,7 @@ pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
         .lock();
 
     if !edges.contains_key(dag_name) {
-        let dag_path = _get_dag_path_by_name(dag_name);
+        let dag_path = get_dag_path_by_name(dag_name);
         if dag_path.is_none() {
             return None;
         }
@@ -110,7 +110,7 @@ pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
         .lock();
 
     if !dag_options.contains_key(dag_name) {
-        let dag_path = _get_dag_path_by_name(dag_name);
+        let dag_path = get_dag_path_by_name(dag_name);
         if dag_path.is_none() {
             return None;
         }

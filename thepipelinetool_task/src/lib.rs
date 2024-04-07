@@ -24,7 +24,6 @@ fn get_json_dir() -> String {
         .to_string()
 }
 
-// TODO move these
 fn get_save_to_file() -> bool {
     env::var("SAVE_TO_FILE")
         .unwrap_or("false".to_string())

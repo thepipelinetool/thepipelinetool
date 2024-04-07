@@ -3,11 +3,8 @@ use std::env;
 use thepipelinetool_core::dev::OrderedQueuedTask;
 use thepipelinetool_runner::blanket_backend::BlanketBackend;
 use thepipelinetool_server::{
-    get_redis_pool, get_tpt_command,
-    redis_backend::RedisBackend,
-    statics::{_get_default_edges, _get_default_tasks},
+    env::{get_dag_path_by_name, get_tpt_command}, get_redis_pool, redis_backend::RedisBackend, statics::{_get_default_edges, _get_default_tasks}
 };
-use thepipelinetool_utils::_get_dag_path_by_name;
 
 #[tokio::main]
 async fn main() {
@@ -20,7 +17,7 @@ async fn main() {
     RedisBackend::from(tasks, edges, get_redis_pool()).work(
         ordered_queued_task.queued_task.run_id,
         &ordered_queued_task,
-        _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
+        get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
         get_tpt_command(),
         ordered_queued_task.queued_task.scheduled_date_for_dag_run,
     );
