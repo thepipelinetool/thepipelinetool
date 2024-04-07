@@ -2,18 +2,14 @@ use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
 use std::{
     collections::{HashMap, HashSet},
-    os::unix::process,
     process::Command,
 };
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
-use tokio::io::{AsyncBufReadExt, BufReader};
 
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use thepipelinetool_core::dev::*;
 use timed::timed;
-
-use crate::statics::{_get_default_edges, _get_default_tasks};
 
 const TASK_STATUS_KEY: &str = "ts";
 const TASK_RESULTS_KEY: &str = "trs";

@@ -1,4 +1,4 @@
-use std::{cmp::max, env, path::Path, process, thread::{self, JoinHandle}};
+use std::{cmp::max, env, path::Path, process};
 
 use chrono::Utc;
 use circular_dependencies::check_circular_dependencies;

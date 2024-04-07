@@ -267,10 +267,16 @@ pub fn tpt_installed() -> bool {
 
 pub fn tpt_executor_installed() -> bool {
     !matches!(
-        String::from_utf8_lossy(&Command::new("which").arg("tpt_executor").output().unwrap().stdout)
-            .to_string()
-            .as_str()
-            .trim(),
+        String::from_utf8_lossy(
+            &Command::new("which")
+                .arg("tpt_executor")
+                .output()
+                .unwrap()
+                .stdout
+        )
+        .to_string()
+        .as_str()
+        .trim(),
         ""
     )
 }

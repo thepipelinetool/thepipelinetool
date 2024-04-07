@@ -1,4 +1,4 @@
-use std::{env, ffi::OsStr, fs, path::PathBuf, process::Command, thread, time::Duration};
+use std::{env, ffi::OsStr, fs, path::PathBuf, thread, time::Duration};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
 use thepipelinetool_utils::{
-     command_timeout, create_command, spawn, value_from_file, value_to_file
+    command_timeout, create_command, spawn, value_from_file, value_to_file,
 };
 
 pub mod branch;

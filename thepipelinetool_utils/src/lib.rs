@@ -5,7 +5,7 @@ use std::{
     io::{BufRead, BufReader, Error, Read, Write},
     path::{Path, PathBuf},
     process::{self, Command, ExitStatus, Stdio},
-    thread::{self, JoinHandle},
+    thread,
 };
 
 use serde::{Deserialize, Serialize};
@@ -69,8 +69,7 @@ pub fn spawn(
     mut cmd: Command,
     handle_stdout_log: Box<dyn Fn(String) + Send>,
     handle_stderr_log: Box<dyn Fn(String) + Send>,
-) -> (ExitStatus, bool)
-{
+) -> (ExitStatus, bool) {
     let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -88,7 +87,7 @@ pub fn spawn(
         }
     }));
 
-    let stderr_handle =  thread::spawn(Box::new(move || {
+    let stderr_handle = thread::spawn(Box::new(move || {
         let reader = BufReader::new(&mut stderr);
         for line in reader.lines() {
             let line = format!("{}\n", line.expect("failed to read line from stdout"));
@@ -183,7 +182,6 @@ pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
 
     Some(path)
 }
-
 
 // pub fn _spawner(f: Box<dyn FnMut() + Send + 'static>) -> JoinHandle<()> {
 //     thread::spawn(f)

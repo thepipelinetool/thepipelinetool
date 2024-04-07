@@ -1,12 +1,9 @@
-use std::{
-    sync::mpsc::{channel, Sender},
-    thread::{self, JoinHandle},
-};
+use std::{sync::mpsc::channel, thread};
 
 use backend::Backend;
 use blanket_backend::BlanketBackend;
 
-use thepipelinetool_task::ordered_queued_task::{self, OrderedQueuedTask};
+use thepipelinetool_task::ordered_queued_task::OrderedQueuedTask;
 
 pub mod backend;
 pub mod blanket_backend;
@@ -23,9 +20,9 @@ pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     runner: &mut (impl Runner<U> + Clone + Send + 'static),
     // spawner: K,
-) 
+)
 // where
-    // K: Fn(Box<dyn FnMut() + Send + 'static>) -> JoinHandle<T>, // T: Send + 'static,
+// K: Fn(Box<dyn FnMut() + Send + 'static>) -> JoinHandle<T>, // T: Send + 'static,
 {
     // let mut backend = runner.backend.clone();
     let max_parallelism = runner.get_max_parallelism();

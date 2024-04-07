@@ -1,9 +1,4 @@
-use futures::executor;
-use std::{
-    env,
-    thread::{self, JoinHandle},
-    time::Duration,
-};
+use std::{env, time::Duration};
 use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::run;
 use thepipelinetool_server::{
@@ -42,28 +37,6 @@ async fn main() {
         run(&mut runner);
     }
 }
-
-// fn _spawn_thread(mut f: Box<dyn FnMut() + Send + 'static>) -> JoinHandle<()> {
-//     // tokio::task::block_in_place(|| {
-//     //     tokio::runtime::Handle::current().block_on(async {
-//     //         f();
-//     //     });
-//     // });
-//     // let handle = tokio::spawn(async move {
-//     //     f();
-//     // });
-//     // thread::spawn(move || {
-//         let handle = tokio::runtime::Handle::current();
-//         let _ = handle.enter();
-//         executor::block_on(async {
-//             f();
-//         });
-//     // })
-//     // handle.await;
-//     thread::spawn(|| {
-       
-//     })
-// }
 
 #[derive(Clone)]
 enum Executor {
