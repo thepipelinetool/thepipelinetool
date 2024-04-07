@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7.5"
-tokio = { version = "1.36.0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 serde_json = "1.0"
 serde = { version = "1.0.152", features = ["derive"] }
 timed = "0.2.1"
@@ -44,3 +44,7 @@ path = "bin/worker.rs"
 [[bin]]
 name = "kube"
 path = "bin/kube.rs"
+
+[[bin]]
+name = "tpt_executor"
+path = "bin/executor.rs"

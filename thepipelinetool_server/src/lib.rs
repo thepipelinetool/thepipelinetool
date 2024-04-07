@@ -4,26 +4,22 @@ use chrono::{DateTime, Utc};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use log::{debug, info};
-use redis_runner::{RedisRunner, Run};
+use redis::{RedisBackend, Run};
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::{blanket::BlanketRunner, options::DagOptions, Runner};
+use thepipelinetool_runner::{
+    backend::Backend, blanket_backend::BlanketBackend, options::DagOptions,
+};
 use timed::timed;
 
 use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options};
 
 pub mod catchup;
 pub mod check_timeout;
-pub mod redis_runner;
+pub mod redis;
 pub mod routes;
 pub mod scheduler;
 pub mod statics;
-
-pub fn get_dags_dir() -> String {
-    env::var("DAGS_DIR")
-        .unwrap_or("./bin".to_string())
-        .to_string()
-}
 
 fn get_redis_url() -> String {
     env::var("REDIS_URL")
@@ -31,45 +27,34 @@ fn get_redis_url() -> String {
         .to_string()
 }
 
-pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
-    let dags_dir = &get_dags_dir();
-    let path: PathBuf = [dags_dir, dag_name].iter().collect();
-
-    if !path.exists() {
-        return None;
-    }
-
-    Some(path)
-}
-
 #[timed(duration(printer = "debug!"))]
 pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {
-    RedisRunner::dummy(pool).get_all_tasks(run_id)
+    RedisBackend::dummy(pool).get_all_tasks(run_id)
 }
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_task(run_id: usize, task_id: usize, pool: Pool) -> Task {
-    RedisRunner::dummy(pool).get_task_by_id(run_id, task_id)
+    RedisBackend::dummy(pool).get_task_by_id(run_id, task_id)
 }
 
 #[timed(duration(printer = "debug!"))]
 pub async fn _get_all_task_results(run_id: usize, task_id: usize, pool: Pool) -> Vec<TaskResult> {
-    RedisRunner::get_all_results(run_id, task_id, pool).await
+    RedisBackend::get_all_results(run_id, task_id, pool).await
 }
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_task_status(run_id: usize, task_id: usize, pool: Pool) -> TaskStatus {
-    RedisRunner::dummy(pool).get_task_status(run_id, task_id)
+    RedisBackend::dummy(pool).get_task_status(run_id, task_id)
 }
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_run_status(run_id: usize, pool: Pool) -> i32 {
-    RedisRunner::dummy(pool).get_run_status(run_id)
+    RedisBackend::dummy(pool).get_run_status(run_id)
 }
 
 #[timed(duration(printer = "debug!"))]
 pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> TaskResult {
-    RedisRunner::dummy(pool).get_task_result(run_id, task_id)
+    RedisBackend::dummy(pool).get_task_result(run_id, task_id)
 }
 
 // TODO cache response to prevent disk read
@@ -108,12 +93,10 @@ pub async fn _trigger_run(
     pool: Pool,
 ) -> usize {
     let hash = _get_hash(dag_name);
-
-    // TODO handle error
     let nodes = _get_default_tasks(dag_name).unwrap();
     let edges = _get_default_edges(dag_name).unwrap();
 
-    RedisRunner::from(dag_name, nodes.clone(), edges.clone(), pool.clone()).enqueue_run(
+    RedisBackend::from(nodes, edges, pool.clone()).enqueue_run(
         dag_name,
         &hash,
         scheduled_date_for_dag_run,
@@ -201,7 +184,7 @@ pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
 }
 
 pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Vec<Run> {
-    let r = RedisRunner::get_last_run(dag_name, pool).await;
+    let r = RedisBackend::get_last_run(dag_name, pool).await;
 
     match r {
         Some(run) => vec![run],
@@ -210,7 +193,7 @@ pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Vec<Run> {
 }
 
 pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
-    RedisRunner::get_recent_runs(dag_name, pool).await
+    RedisBackend::get_recent_runs(dag_name, pool).await
 }
 
 pub async fn _trigger_run_from_schedules(
@@ -235,7 +218,7 @@ pub async fn _trigger_run_from_schedules(
             }
         }
         // check if date is already in db
-        if RedisRunner::contains_logical_date(
+        if RedisBackend::contains_logical_date(
             dag_name,
             &_get_hash(dag_name),
             scheduled_date,
@@ -275,6 +258,16 @@ fn _get_schedules_for_catchup(
 pub fn tpt_installed() -> bool {
     !matches!(
         String::from_utf8_lossy(&Command::new("which").arg("tpt").output().unwrap().stdout)
+            .to_string()
+            .as_str()
+            .trim(),
+        ""
+    )
+}
+
+pub fn tpt_executor_installed() -> bool {
+    !matches!(
+        String::from_utf8_lossy(&Command::new("which").arg("tpt_executor").output().unwrap().stdout)
             .to_string()
             .as_str()
             .trim(),

@@ -1,10 +1,14 @@
-use std::{sync::mpsc::channel, time::Duration};
-use thepipelinetool_core::dev::OrderedQueuedTask;
-use thepipelinetool_runner::{blanket::BlanketRunner, spawn_executor, Runner};
+use futures::executor;
+use std::{
+    env,
+    thread::{self, JoinHandle},
+    time::Duration,
+};
+use thepipelinetool_runner::backend::Backend;
+use thepipelinetool_runner::run;
 use thepipelinetool_server::{
-    _get_dag_path_by_name, get_redis_pool,
-    redis_runner::RedisRunner,
-    statics::{_get_default_edges, _get_default_tasks},
+    get_redis_pool,
+    redis::{RedisBackend, RedisRunner},
     tpt_installed,
 };
 use tokio::time::sleep;
@@ -12,56 +16,54 @@ use tokio::time::sleep;
 #[tokio::main]
 async fn main() {
     std::env::set_var("RUST_LOG", "debug");
+    std::env::set_var("RUST_BACKTRACE", "1");
+
     env_logger::init();
 
     assert!(tpt_installed());
 
-    let pool = get_redis_pool();
-    let mut dummy = RedisRunner::dummy(pool.clone());
+    // TODO read from env
+    let max_parallelism = 10usize;
 
+    let mut runner = RedisRunner {
+        backend: Box::new(RedisBackend::dummy(get_redis_pool())),
+        tpt_path: env::args().next().unwrap(),
+        executor_path: "tpt_executor".to_string(),
+        max_parallelism,
+    };
     loop {
-        let num_threads = 10usize;
-        let mut thread_count = dummy.get_running_tasks_count().await;
-
-        if dummy.get_queue_length() == 0 || thread_count >= num_threads {
+        if runner.backend.get_queue_length() == 0
+            || runner.backend.get_running_tasks_count().await >= max_parallelism
+        {
             sleep(Duration::new(2, 0)).await;
             continue;
         }
 
-        let (tx, rx) = channel();
-
-        'inner: for _ in 0..num_threads {
-            if let Some(ordered_queued_task) = dummy.pop_priority_queue() {
-                spawn_executor(tx.clone(), move || execute(ordered_queued_task));
-
-                thread_count += 1;
-                if thread_count >= num_threads {
-                    break 'inner;
-                }
-            } else {
-                break 'inner;
-            }
-        }
-
-        'inner: for _ in rx.iter() {
-            thread_count -= 1;
-
-            if let Some(ordered_queued_task) = dummy.pop_priority_queue() {
-                spawn_executor(tx.clone(), move || execute(ordered_queued_task));
-
-                thread_count += 1;
-
-                if thread_count >= num_threads {
-                    continue 'inner;
-                }
-            }
-            if thread_count == 0 {
-                drop(tx);
-                break 'inner;
-            }
-        }
+        run(&mut runner);
     }
 }
+
+// fn _spawn_thread(mut f: Box<dyn FnMut() + Send + 'static>) -> JoinHandle<()> {
+//     // tokio::task::block_in_place(|| {
+//     //     tokio::runtime::Handle::current().block_on(async {
+//     //         f();
+//     //     });
+//     // });
+//     // let handle = tokio::spawn(async move {
+//     //     f();
+//     // });
+//     // thread::spawn(move || {
+//         let handle = tokio::runtime::Handle::current();
+//         let _ = handle.enter();
+//         executor::block_on(async {
+//             f();
+//         });
+//     // })
+//     // handle.await;
+//     thread::spawn(|| {
+       
+//     })
+// }
 
 #[derive(Clone)]
 enum Executor {
@@ -70,34 +72,34 @@ enum Executor {
     // Kubernetes,
 }
 
-fn execute(ordered_queued_task: OrderedQueuedTask) {
-    let executor = Executor::Local;
-    let tpt_path = "tpt".to_string();
-    let dag_path = _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap();
+// fn execute(ordered_queued_task: OrderedQueuedTask) {
+//     let executor = Executor::Local;
+//     let tpt_path = "tpt".to_string();
+//     let dag_path = _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap();
 
-    match executor {
-        Executor::Local => {
-            let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
-            let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
+//     match executor {
+//         Executor::Local => {
+//             let nodes = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
+//             let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
 
-            RedisRunner::from(
-                &ordered_queued_task.queued_task.dag_name,
-                nodes,
-                edges,
-                get_redis_pool(),
-            )
-            .work(
-                ordered_queued_task.queued_task.run_id,
-                &ordered_queued_task,
-                dag_path,
-                tpt_path,
-                ordered_queued_task.queued_task.scheduled_date_for_dag_run,
-            );
-        } // Executor::Docker => {
-          //     todo!()
-          // }
-          // Executor::Kubernetes => {
-          //     todo!()
-          // }
-    }
-}
+//             RedisBackend::from(
+//                 &ordered_queued_task.queued_task.dag_name,
+//                 // nodes,
+//                 // edges,
+//                 // get_redis_pool(),
+//             )
+//             .work(
+//                 ordered_queued_task.queued_task.run_id,
+//                 &ordered_queued_task,
+//                 dag_path,
+//                 tpt_path,
+//                 ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+//             );
+//         } // Executor::Docker => {
+//           //     todo!()
+//           // }
+//           // Executor::Kubernetes => {
+//           //     todo!()
+//           // }
+//     }
+// }

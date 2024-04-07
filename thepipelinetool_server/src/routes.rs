@@ -6,7 +6,7 @@ use axum::{
 };
 
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::in_memory::InMemoryRunner;
+use thepipelinetool_runner::in_memory::InMemoryBackend;
 use timed::timed;
 
 use crate::*;
@@ -19,7 +19,7 @@ pub async fn ping() -> &'static str {
 // TODO paginate
 #[timed(duration(printer = "debug!"))]
 pub async fn get_runs(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<Value> {
-    json!(RedisRunner::get_runs(&dag_name, pool)
+    json!(RedisBackend::get_runs(&dag_name, pool)
         .await
         .iter()
         .map(|r| json!({
@@ -58,7 +58,7 @@ pub async fn get_runs_with_tasks(
 ) -> Json<Value> {
     let mut res = json!({});
 
-    for run in RedisRunner::get_runs(&dag_name, pool.clone()).await.iter() {
+    for run in RedisBackend::get_runs(&dag_name, pool.clone()).await.iter() {
         let mut tasks = json!({});
         for task in _get_all_tasks(run.run_id, pool.clone()) {
             tasks[format!("{}_{}", task.name, task.id)] = json!(task);
@@ -133,7 +133,7 @@ pub async fn get_task_log(
     Path((run_id, task_id, attempt)): Path<(usize, usize, usize)>,
     State(pool): State<Pool>,
 ) -> String {
-    RedisRunner::dummy(pool).get_log(run_id, task_id, attempt)
+    RedisBackend::dummy(pool).get_log(run_id, task_id, attempt)
 }
 
 pub async fn get_dags(State(pool): State<Pool>) -> Json<Value> {
@@ -152,7 +152,7 @@ pub async fn get_dags(State(pool): State<Pool>) -> Json<Value> {
 }
 
 pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
-    json!(RedisRunner::dummy(pool).get_graphite_graph(run_id)).into()
+    json!(RedisBackend::dummy(pool).get_graphite_graph(run_id)).into()
 }
 
 pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
@@ -162,7 +162,7 @@ pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
     // TODO handle error
     assert!(nodes.is_some() && edges.is_some());
 
-    let mut runner = InMemoryRunner::new(&nodes.unwrap(), &edges.unwrap());
+    let mut runner = InMemoryBackend::new(&nodes.unwrap(), &edges.unwrap());
     runner.enqueue_run("in_memory", "", Utc::now()); // TODO check correctness
 
     json!(runner.get_graphite_graph(0)).into()

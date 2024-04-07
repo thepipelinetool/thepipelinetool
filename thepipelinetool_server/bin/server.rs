@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use thepipelinetool_server::catchup::spawn_catchup;
 use thepipelinetool_server::check_timeout::spawn_check_timeout;
 use thepipelinetool_server::scheduler::spawn_scheduler;
-use thepipelinetool_server::{get_redis_pool, routes::*, tpt_installed};
+use thepipelinetool_server::{get_redis_pool, routes::*, tpt_executor_installed, tpt_installed};
 use tokio::net::TcpListener;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
@@ -19,6 +19,7 @@ async fn main() {
     env_logger::init();
 
     assert!(tpt_installed());
+    assert!(tpt_executor_installed());
 
     println!("connecting to redis...");
     let pool = get_redis_pool();

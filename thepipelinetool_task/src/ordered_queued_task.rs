@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::queued_task::QueuedTask;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OrderedQueuedTask {
     pub score: usize,
     pub queued_task: QueuedTask,

@@ -1,11 +1,17 @@
-use std::{cmp::max, env, path::Path, process};
+use std::{cmp::max, env, path::Path, process, thread::{self, JoinHandle}};
 
+use chrono::Utc;
 use circular_dependencies::check_circular_dependencies;
 use clap::ArgMatches;
 use graph::{display_graphite_graph, display_mermaid_graph};
 use hash::display_hash;
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::{in_memory::run_in_memory, options::DagOptions};
+use thepipelinetool_runner::{
+    blanket_backend::BlanketBackend,
+    in_memory::{InMemoryBackend, InMemoryRunner},
+    options::DagOptions,
+    run,
+};
 use tree::display_tree;
 
 pub mod circular_dependencies;
@@ -62,10 +68,10 @@ pub fn process_subcommands(
             let matches = matches.subcommand_matches("run").unwrap();
             match matches.subcommand_name().unwrap() {
                 "in_memory" => {
-                    let num_threads = match matches
+                    let max_parallelism = match matches
                         .subcommand_matches("in_memory")
                         .unwrap()
-                        .get_one::<String>("num_threads")
+                        .get_one::<String>("max_parallelism")
                         .unwrap()
                         .as_str()
                     {
@@ -77,13 +83,18 @@ pub fn process_subcommands(
                     };
 
                     check_circular_dependencies(tasks, edges);
-                    let exit_code = run_in_memory(
-                        tasks,
-                        edges,
-                        dag_name.to_string(),
-                        env::args().next().unwrap(),
-                        num_threads,
-                    );
+                    // let mut backend = runner.backend;
+                    let mut runner = InMemoryRunner {
+                        backend: Box::new(InMemoryBackend::new(tasks, edges)),
+                        tpt_path: env::args().next().unwrap(),
+                        max_parallelism,
+                        dag_path: dag_path.to_path_buf(),
+                    };
+                    let run_id = runner.backend.enqueue_run("", "", Utc::now());
+
+                    run(&mut runner);
+
+                    let exit_code = runner.backend.get_run_status(run_id);
 
                     process::exit(exit_code);
                 }

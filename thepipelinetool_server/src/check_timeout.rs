@@ -4,14 +4,14 @@ use chrono::Utc;
 
 use deadpool_redis::Pool;
 use thepipelinetool_core::dev::TaskResult;
-use thepipelinetool_runner::{blanket::BlanketRunner, Runner};
+use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend};
 use tokio::time::sleep;
 
-use crate::redis_runner::RedisRunner;
+use crate::redis::RedisBackend;
 
 pub fn spawn_check_timeout(pool: Pool) {
     tokio::spawn(async move {
-        let mut dummy = RedisRunner::dummy(pool);
+        let mut dummy = RedisBackend::dummy(pool);
         loop {
             for queued_task in dummy.get_temp_queue().await {
                 let task = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id);

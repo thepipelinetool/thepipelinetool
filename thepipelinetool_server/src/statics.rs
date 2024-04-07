@@ -121,25 +121,12 @@ pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
             .arg("options")
             .output()
             .expect("failed to run. is tpt installed?");
-        // dbg!(&dag_name);
-        // let mut path = _get_dag_path_by_name(dag_name);
-        // path.set_extension("json");
-
-        // if let Ok(options) = value_from_file::<DagOptions>(&path) {
-        //     dag_options.insert(dag_name.to_owned(), options);
-        // } else {
-        // dag_options.insert(dag_name.to_owned(), DagOptions::default());
 
         dag_options.insert(
             dag_name.to_owned(),
             serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(),
         );
         // TODO verify schedule string
-
-        // dbg!(dag_options.get(dag_name).unwrap());
-        // }
-
-        // dbg!(&String::from_utf8_lossy(&output.stdout));
     }
 
     Some(dag_options.get(dag_name).unwrap().clone())

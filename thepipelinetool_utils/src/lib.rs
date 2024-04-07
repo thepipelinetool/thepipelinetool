@@ -1,10 +1,11 @@
 use std::{
+    env,
     ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
     process::{self, Command, ExitStatus, Stdio},
-    thread,
+    thread::{self, JoinHandle},
 };
 
 use serde::{Deserialize, Serialize};
@@ -68,31 +69,32 @@ pub fn spawn(
     mut cmd: Command,
     handle_stdout_log: Box<dyn Fn(String) + Send>,
     handle_stderr_log: Box<dyn Fn(String) + Send>,
-) -> (ExitStatus, bool) {
+) -> (ExitStatus, bool)
+{
     let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("failed to start command");
 
-    let stdout = child.stdout.take().expect("failed to take stdout");
-    let stderr = child.stderr.take().expect("failed to take stderr");
+    let mut stdout = child.stdout.take().expect("failed to take stdout");
+    let mut stderr = child.stderr.take().expect("failed to take stderr");
 
-    let stdout_handle = thread::spawn(move || {
-        let reader = BufReader::new(stdout);
+    let stdout_handle = thread::spawn(Box::new(move || {
+        let reader = BufReader::new(&mut stdout);
         for line in reader.lines() {
             let line = format!("{}\n", line.expect("failed to read line from stdout"));
             handle_stdout_log(line);
         }
-    });
+    }));
 
-    let stderr_handle = thread::spawn(move || {
-        let reader = BufReader::new(stderr);
+    let stderr_handle =  thread::spawn(Box::new(move || {
+        let reader = BufReader::new(&mut stderr);
         for line in reader.lines() {
             let line = format!("{}\n", line.expect("failed to read line from stdout"));
             handle_stderr_log(line);
         }
-    });
+    }));
 
     let status = child.wait().expect("failed to wait on child");
     let timed_out = matches!(status.code(), Some(124));
@@ -136,7 +138,6 @@ where
     P: AsRef<OsStr>,
     D: AsRef<OsStr>,
 {
-    // dbg!(use_timeout);
     if use_timeout {
         Command::new("timeout")
     } else {
@@ -165,3 +166,25 @@ pub fn command_timeout<P, D>(
 
     command.args(["run", "function", function]);
 }
+
+pub fn get_dags_dir() -> String {
+    env::var("DAGS_DIR")
+        .unwrap_or("./bin".to_string())
+        .to_string()
+}
+
+pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
+    let dags_dir = &get_dags_dir();
+    let path: PathBuf = [dags_dir, dag_name].iter().collect();
+
+    if !path.exists() {
+        return None;
+    }
+
+    Some(path)
+}
+
+
+// pub fn _spawner(f: Box<dyn FnMut() + Send + 'static>) -> JoinHandle<()> {
+//     thread::spawn(f)
+// }

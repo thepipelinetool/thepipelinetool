@@ -14,9 +14,9 @@ use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
 
-use crate::Runner;
+use crate::Backend;
 
-pub trait BlanketRunner {
+pub trait BlanketBackend {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
     fn get_run_status(&mut self, run_id: usize) -> i32;
 
@@ -47,6 +47,7 @@ pub trait BlanketRunner {
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        dag_name: String,
     ) -> TaskResult;
     fn resolve_args(
         &mut self,
@@ -58,7 +59,7 @@ pub trait BlanketRunner {
     fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask);
 }
 
-impl<U: Runner + Send + Sync> BlanketRunner for U {
+impl<U: Backend + Send + Sync> BlanketBackend for U {
     fn get_run_status(&mut self, run_id: usize) -> i32 {
         if self
             .get_all_tasks(run_id)
@@ -147,7 +148,12 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
             .filter(|task| self.get_task_depth(run_id, task.id) == 0)
             .collect::<Vec<&Task>>()
         {
-            self.enqueue_task(run_id, task.id, scheduled_date_for_dag_run);
+            self.enqueue_task(
+                run_id,
+                task.id,
+                scheduled_date_for_dag_run,
+                dag_name.to_string(),
+            );
         }
 
         run_id
@@ -195,6 +201,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 run_id,
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
+                queued_task.dag_name.clone(),
             );
             return;
         }
@@ -231,6 +238,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 run_id,
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
+                queued_task.dag_name.clone(),
             );
         } else {
             for downstream in self
@@ -241,7 +249,12 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 })
                 .collect::<Vec<&usize>>()
             {
-                self.enqueue_task(run_id, *downstream, queued_task.scheduled_date_for_dag_run);
+                self.enqueue_task(
+                    run_id,
+                    *downstream,
+                    queued_task.scheduled_date_for_dag_run,
+                    queued_task.dag_name.clone(),
+                );
             }
         }
     }
@@ -255,6 +268,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        dag_name: String,
     ) -> TaskResult {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id);
@@ -330,13 +344,23 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
                     self.delete_task_depth(run_id, *d);
-                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run);
+                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run, dag_name.clone());
                 }
 
-                self.enqueue_task(run_id, collector_id, scheduled_date_for_dag_run);
+                self.enqueue_task(
+                    run_id,
+                    collector_id,
+                    scheduled_date_for_dag_run,
+                    dag_name.clone(),
+                );
             }
             for lazy_id in &lazy_ids {
-                self.enqueue_task(run_id, *lazy_id, scheduled_date_for_dag_run);
+                self.enqueue_task(
+                    run_id,
+                    *lazy_id,
+                    scheduled_date_for_dag_run,
+                    dag_name.clone(),
+                );
             }
 
             let start = Utc::now();
@@ -506,6 +530,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 run_id,
                 ordered_queued_task.queued_task.task_id,
                 scheduled_date_for_dag_run,
+                ordered_queued_task.queued_task.dag_name.clone(),
             );
             return;
         }
@@ -521,6 +546,7 @@ impl<U: Runner + Send + Sync> BlanketRunner for U {
                 dag_path,
                 tpt_path,
                 scheduled_date_for_dag_run,
+                ordered_queued_task.queued_task.dag_name.clone(),
             ),
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,

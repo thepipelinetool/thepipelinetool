@@ -1,13 +1,19 @@
 use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
-use std::collections::{HashMap, HashSet};
-use thepipelinetool_runner::Runner;
+use std::{
+    collections::{HashMap, HashSet},
+    os::unix::process,
+    process::Command,
+};
+use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use chrono::{DateTime, Utc};
 use std::str::FromStr;
 use thepipelinetool_core::dev::*;
-
 use timed::timed;
+
+use crate::statics::{_get_default_edges, _get_default_tasks};
 
 const TASK_STATUS_KEY: &str = "ts";
 const TASK_RESULTS_KEY: &str = "trs";
@@ -30,33 +36,34 @@ pub struct Run {
     pub scheduled_date_for_dag_run: DateTime<Utc>,
 }
 
-pub struct RedisRunner {
-    edges: HashSet<(usize, usize)>,
-    nodes: Vec<Task>,
-    name: String,
+#[derive(Clone)]
+pub struct RedisBackend {
+    edges: Option<HashSet<(usize, usize)>>,
+    nodes: Option<Vec<Task>>,
+    // name: String,
     pool: Pool,
 }
 
-impl RedisRunner {
+impl RedisBackend {
     #[timed(duration(printer = "debug!"))]
     pub fn dummy(pool: Pool) -> Self {
         Self {
-            name: "".into(),
-            edges: HashSet::new(),
-            nodes: vec![],
+            // name: "".into(),
+            edges: None,
+            nodes: None,
             pool,
         }
     }
 
     // #[timed(duration(printer = "debug!"))]
-    pub fn from(name: &str, nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
+    pub fn from(nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
         // let nodes = _get_default_tasks(name);
         // let edges = _get_default_edges(name);
 
         Self {
-            name: name.into(),
-            edges,
-            nodes,
+            // name: name.into(),
+            edges: Some(edges),
+            nodes: Some(nodes),
             pool,
         }
     }
@@ -160,7 +167,12 @@ impl RedisRunner {
     }
 }
 
-impl Runner for RedisRunner {
+impl Backend for RedisBackend {
+    // fn load_from_name(&mut self, dag_name: &str) {
+    //     self.nodes = _get_default_tasks(dag_name);
+    //     self.edges = _get_default_edges(dag_name);
+    // }
+
     fn get_queue_length(&self) -> usize {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -243,10 +255,10 @@ impl Runner for RedisRunner {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
-    fn get_dag_name(&self) -> String {
-        self.name.clone()
-    }
+    // #[timed(duration(printer = "debug!"))]
+    // fn get_dag_name(&self) -> String {
+    //     self.name.clone()
+    // }
 
     #[timed(duration(printer = "debug!"))]
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult {
@@ -487,11 +499,6 @@ impl Runner for RedisRunner {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_default_tasks(&self) -> Vec<Task> {
-        self.nodes.clone()
-    }
-
-    #[timed(duration(printer = "debug!"))]
     fn get_all_tasks(&self, run_id: usize) -> Vec<Task> {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -509,8 +516,13 @@ impl Runner for RedisRunner {
     }
 
     #[timed(duration(printer = "debug!"))]
+    fn get_default_tasks(&self) -> Vec<Task> {
+        self.nodes.clone().unwrap()
+    }
+
+    #[timed(duration(printer = "debug!"))]
     fn get_default_edges(&self) -> HashSet<(usize, usize)> {
-        self.edges.clone()
+        self.edges.clone().unwrap()
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -720,6 +732,7 @@ impl Runner for RedisRunner {
         run_id: usize,
         task_id: usize,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        dag_name: String,
     ) {
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
 
@@ -735,7 +748,7 @@ impl Runner for RedisRunner {
                         serde_json::to_string(&QueuedTask {
                             task_id,
                             run_id,
-                            dag_name: self.get_dag_name(),
+                            dag_name,
                             scheduled_date_for_dag_run,
                             attempt,
                         })
@@ -774,5 +787,44 @@ impl Runner for RedisRunner {
                 })
             })
         })
+    }
+}
+
+#[derive(Clone)]
+pub struct RedisRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
+    pub backend: Box<U>,
+    pub tpt_path: String,
+    pub executor_path: String,
+    pub max_parallelism: usize,
+}
+
+impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for RedisRunner<U> {
+    fn work(&mut self, ordered_queued_task: &OrderedQueuedTask) {
+        // self.backend
+        //     .load_from_name(&ordered_queued_task.queued_task.dag_name);
+        let mut cmd = Command::new(&self.executor_path);
+        cmd.arg(serde_json::to_string(ordered_queued_task).unwrap());
+        let _ = spawn(
+            cmd,
+            Box::new(|x| print!("{x}")),
+            Box::new(|x| eprint!("{x}")),
+        );
+
+        // todo!("THIS IS SUPPOSED TO BE HIT");
+        // self.backend.work(
+        //     ordered_queued_task.queued_task.run_id,
+        //     ordered_queued_task,
+        //     _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
+        //     self.tpt_path.clone(),
+        //     ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+        // );
+    }
+
+    fn get_max_parallelism(&self) -> usize {
+        self.max_parallelism
+    }
+
+    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
+        self.backend.pop_priority_queue()
     }
 }

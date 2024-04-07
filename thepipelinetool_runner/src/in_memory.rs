@@ -1,8 +1,10 @@
 use std::{
     collections::{BinaryHeap, HashMap, HashSet},
-    sync::{mpsc::channel, Arc},
+    path::PathBuf,
+    sync::Arc,
 };
 
+use crate::{blanket_backend::BlanketBackend, Backend, Runner};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
@@ -11,9 +13,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
-use crate::{blanket::BlanketRunner, spawn_executor, Runner};
-
-pub struct InMemoryRunner {
+pub struct InMemoryBackend {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
     pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub task_statuses: Arc<Mutex<HashMap<usize, TaskStatus>>>,
@@ -26,7 +26,7 @@ pub struct InMemoryRunner {
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
 }
 
-impl InMemoryRunner {
+impl InMemoryBackend {
     pub fn new(nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
             edges: Arc::new(Mutex::new(edges.clone())),
@@ -43,7 +43,7 @@ impl InMemoryRunner {
     }
 }
 
-impl Clone for InMemoryRunner {
+impl Clone for InMemoryBackend {
     fn clone(&self) -> Self {
         Self {
             task_results: self.task_results.clone(),
@@ -60,7 +60,7 @@ impl Clone for InMemoryRunner {
     }
 }
 
-impl Runner for InMemoryRunner {
+impl Backend for InMemoryBackend {
     fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
         if !self.task_depth.lock().contains_key(&task_id) {
             let depth = self
@@ -243,9 +243,9 @@ impl Runner for InMemoryRunner {
         self.nodes.lock()[task_id].clone()
     }
 
-    fn get_dag_name(&self) -> String {
-        "in_memory".into()
-    }
+    // fn get_dag_name(&self) -> String {
+    //     "in_memory".into()
+    // }
 
     fn get_all_tasks(&self, _run_id: usize) -> Vec<Task> {
         self.nodes.lock().clone()
@@ -264,6 +264,7 @@ impl Runner for InMemoryRunner {
         run_id: usize,
         task_id: usize,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        dag_name: String,
     ) {
         let depth = self.get_task_depth(run_id, task_id);
         let mut priority_queue = self.priority_queue.lock();
@@ -275,7 +276,7 @@ impl Runner for InMemoryRunner {
             queued_task: QueuedTask {
                 task_id,
                 run_id,
-                dag_name: self.get_dag_name(),
+                dag_name,
                 scheduled_date_for_dag_run,
                 attempt,
             },
@@ -297,79 +298,34 @@ impl Runner for InMemoryRunner {
     }
 
     fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
+
+    // fn load_from_name(&mut self, _dag_name: &str) {}
 }
 
-pub fn run_in_memory(
-    tasks: &[Task],
-    edges: &HashSet<(usize, usize)>,
-    dag_path: String,
-    tpt_path: String,
-    num_threads: usize,
-) -> i32 {
-    let scheduled_date_for_dag_run: DateTime<Utc> = Utc::now();
-    let mut runner = InMemoryRunner::new(tasks, edges);
-    let run_id = runner.enqueue_run("", "", Utc::now());
+#[derive(Clone)]
+pub struct InMemoryRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
+    pub backend: Box<U>,
+    pub tpt_path: String,
+    pub max_parallelism: usize,
+    pub dag_path: PathBuf,
+}
 
-    let (tx, rx) = channel();
-    let mut thread_count = 0;
-
-    for _ in 0..num_threads {
-        let mut runner = runner.clone();
-        let dag_path = dag_path.clone();
-        let tpt_path = tpt_path.clone();
-
-        if let Some(ordered_queued_task) = runner.pop_priority_queue() {
-            spawn_executor(tx.clone(), move || {
-                // env::set_var("run_id", ordered_queued_task.queued_task.run_id.to_string());
-
-                runner.work(
-                    run_id,
-                    &ordered_queued_task,
-                    dag_path,
-                    tpt_path,
-                    scheduled_date_for_dag_run,
-                );
-            });
-
-            thread_count += 1;
-            if thread_count >= num_threads {
-                break;
-            }
-        } else {
-            break;
-        }
+impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for InMemoryRunner<U> {
+    fn work(&mut self, ordered_queued_task: &OrderedQueuedTask) {
+        self.backend.work(
+            ordered_queued_task.queued_task.run_id,
+            ordered_queued_task,
+            self.dag_path.clone(),
+            self.tpt_path.clone(),
+            ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+        );
     }
 
-    for _ in rx.iter() {
-        thread_count -= 1;
-        let dag_path = dag_path.clone();
-        let tpt_path = tpt_path.clone();
-
-        let mut runner = runner.clone();
-        if let Some(ordered_queued_task) = runner.pop_priority_queue() {
-            spawn_executor(tx.clone(), move || {
-                // env::set_var("run_id", ordered_queued_task.queued_task.run_id.to_string());
-
-                runner.work(
-                    run_id,
-                    &ordered_queued_task,
-                    dag_path,
-                    tpt_path,
-                    scheduled_date_for_dag_run,
-                );
-            });
-
-            thread_count += 1;
-
-            if thread_count >= num_threads {
-                continue;
-            }
-        }
-        if thread_count == 0 {
-            drop(tx);
-            break;
-        }
+    fn get_max_parallelism(&self) -> usize {
+        self.max_parallelism
     }
 
-    runner.get_run_status(run_id)
+    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
+        self.backend.pop_priority_queue()
+    }
 }

@@ -2,10 +2,12 @@ use std::{collections::HashSet, path::Path};
 
 use chrono::Utc;
 use thepipelinetool_core::dev::Task;
-use thepipelinetool_runner::{blanket::BlanketRunner, in_memory::InMemoryRunner, Runner};
+use thepipelinetool_runner::{
+    backend::Backend, blanket_backend::BlanketBackend, in_memory::InMemoryBackend,
+};
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
-    let mut runner = InMemoryRunner::new(tasks, edges);
+    let mut runner = InMemoryBackend::new(tasks, edges);
     let run_id = runner.enqueue_run("in_memory", "", Utc::now());
     let tasks = runner
         .get_default_tasks()
@@ -36,7 +38,7 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &
 }
 
 fn get_tree(
-    runner: &dyn Runner,
+    runner: &dyn Backend,
     run_id: usize,
     task_id: usize,
     _depth: usize,

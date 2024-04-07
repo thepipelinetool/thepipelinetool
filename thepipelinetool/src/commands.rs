@@ -37,7 +37,7 @@ pub fn create_commands() -> CliCommand {
                         .about("Runs this DAG in memory")
                         .arg(
                             arg!(
-                                [num_threads] "Max number of threads for parallel execution"
+                                [max_parallelism] "Max number of threads for parallel execution"
                             )
                             .required(false)
                             .value_parser(value_parser!(String))
