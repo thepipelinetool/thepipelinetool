@@ -33,6 +33,26 @@ macro_rules! block_on {
     };
 }
 
+impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for LocalRunner<U> {
+    fn run(&mut self, ordered_queued_task: &OrderedQueuedTask) {
+        let mut cmd = Command::new(&self.executor_path);
+        cmd.arg(serde_json::to_string(ordered_queued_task).unwrap());
+        let _ = spawn(
+            cmd,
+            Box::new(|x| print!("{x}")),
+            Box::new(|x| eprint!("{x}")),
+        );
+    }
+
+    fn get_max_parallelism(&self) -> usize {
+        self.max_parallelism
+    }
+
+    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
+        self.backend.pop_priority_queue()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Run {
     pub run_id: usize,
@@ -746,40 +766,9 @@ impl Backend for RedisBackend {
 }
 
 #[derive(Clone)]
-pub struct RedisRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
+pub struct LocalRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
     pub backend: Box<U>,
     pub tpt_path: String,
     pub executor_path: String,
     pub max_parallelism: usize,
-}
-
-impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for RedisRunner<U> {
-    fn work(&mut self, ordered_queued_task: &OrderedQueuedTask) {
-        // self.backend
-        //     .load_from_name(&ordered_queued_task.queued_task.dag_name);
-        let mut cmd = Command::new(&self.executor_path);
-        cmd.arg(serde_json::to_string(ordered_queued_task).unwrap());
-        let _ = spawn(
-            cmd,
-            Box::new(|x| print!("{x}")),
-            Box::new(|x| eprint!("{x}")),
-        );
-
-        // todo!("THIS IS SUPPOSED TO BE HIT");
-        // self.backend.work(
-        //     ordered_queued_task.queued_task.run_id,
-        //     ordered_queued_task,
-        //     _get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
-        //     self.tpt_path.clone(),
-        //     ordered_queued_task.queued_task.scheduled_date_for_dag_run,
-        // );
-    }
-
-    fn get_max_parallelism(&self) -> usize {
-        self.max_parallelism
-    }
-
-    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
-        self.backend.pop_priority_queue()
-    }
 }

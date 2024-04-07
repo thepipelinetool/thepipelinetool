@@ -1,11 +1,12 @@
 use std::{
+    cmp::max,
     env,
     ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
     path::{Path, PathBuf},
     process::{self, Command, ExitStatus, Stdio},
-    thread,
+    thread::{self, available_parallelism},
 };
 
 use serde::{Deserialize, Serialize};
@@ -183,6 +184,6 @@ pub fn _get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
     Some(path)
 }
 
-// pub fn _spawner(f: Box<dyn FnMut() + Send + 'static>) -> JoinHandle<()> {
-//     thread::spawn(f)
-// }
+pub fn get_default_max_parallelism() -> usize {
+    max(usize::from(available_parallelism().unwrap()) - 1, 1)
+}

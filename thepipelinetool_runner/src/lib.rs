@@ -11,7 +11,7 @@ pub mod in_memory;
 pub mod options;
 
 pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
-    fn work(&mut self, ordered_queued_task: &OrderedQueuedTask);
+    fn run(&mut self, ordered_queued_task: &OrderedQueuedTask);
 
     fn get_max_parallelism(&self) -> usize;
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
@@ -19,12 +19,7 @@ pub trait Runner<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> {
 
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     runner: &mut (impl Runner<U> + Clone + Send + 'static),
-    // spawner: K,
-)
-// where
-// K: Fn(Box<dyn FnMut() + Send + 'static>) -> JoinHandle<T>, // T: Send + 'static,
-{
-    // let mut backend = runner.backend.clone();
+) {
     let max_parallelism = runner.get_max_parallelism();
 
     let (tx, rx) = channel();
@@ -34,12 +29,9 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
         if let Some(ordered_queued_task) = runner.pop_priority_queue() {
             let tx = tx.clone();
             let mut runner = runner.clone();
-            // let k = move || {
-            //     runner.work(&ordered_queued_task);
-            //     tx.send(()).unwrap();
-            // };
+
             thread::spawn(Box::new(move || {
-                runner.work(&ordered_queued_task);
+                runner.run(&ordered_queued_task);
                 tx.send(()).unwrap();
             }));
 
@@ -58,12 +50,9 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
         if let Some(ordered_queued_task) = runner.pop_priority_queue() {
             let tx = tx.clone();
             let mut runner = runner.clone();
-            // thread::spawn(move || {
-            //     runner.work(&ordered_queued_task);
-            //     tx.send(()).unwrap();
-            // });
+
             thread::spawn(Box::new(move || {
-                runner.work(&ordered_queued_task);
+                runner.run(&ordered_queued_task);
                 tx.send(()).unwrap();
             }));
             thread_count += 1;
@@ -78,16 +67,3 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
         }
     }
 }
-
-// fn spawn<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
-//     tx: Sender<()>,
-//     runner: &mut (impl Runner<U> + Clone + Send + 'static),
-//     ordered_queued_task: &OrderedQueuedTask,
-// ) {
-//     runner.work(&ordered_queued_task);
-//     tx.send(()).unwrap();
-// }
-
-// fn _run<F: Fn() + Send + 'static>(f: F) {
-//     thread::spawn(f);
-// }

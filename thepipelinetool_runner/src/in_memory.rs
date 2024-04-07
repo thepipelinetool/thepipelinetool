@@ -311,7 +311,7 @@ pub struct InMemoryRunner<U: Backend + BlanketBackend + Send + Sync + Clone + 's
 }
 
 impl<U: Backend + BlanketBackend + Send + Sync + Clone + 'static> Runner<U> for InMemoryRunner<U> {
-    fn work(&mut self, ordered_queued_task: &OrderedQueuedTask) {
+    fn run(&mut self, ordered_queued_task: &OrderedQueuedTask) {
         self.backend.work(
             ordered_queued_task.queued_task.run_id,
             ordered_queued_task,

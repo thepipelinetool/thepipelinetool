@@ -75,10 +75,7 @@ pub fn process_subcommands(
                         .unwrap()
                         .as_str()
                     {
-                        "max" => max(
-                            usize::from(std::thread::available_parallelism().unwrap()) - 1,
-                            1,
-                        ),
+                        "max" => get_default_max_parallelism(),
                         any => any.parse::<usize>().unwrap(),
                     };
 
