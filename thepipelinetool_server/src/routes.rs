@@ -1,4 +1,4 @@
-use std::str::from_utf8;
+use std::{collections::HashMap, str::from_utf8};
 
 use axum::{
     extract::{Path, State},
@@ -6,7 +6,6 @@ use axum::{
 };
 
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::in_memory::InMemoryBackend;
 use timed::timed;
 
 use crate::*;
@@ -151,31 +150,38 @@ pub async fn get_dags(State(pool): State<Pool>) -> Json<Value> {
     json!(result).into()
 }
 
-// TODO
-// pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
-//     json!(RedisBackend::dummy(pool).get_graphite_graph(run_id)).into()
-// }
+pub async fn get_run_graph(Path(run_id): Path<usize>, State(pool): State<Pool>) -> Json<Value> {
+    let backend = RedisBackend::dummy(pool);
+    let tasks = backend.get_all_tasks(run_id);
+    let task_statuses: Vec<(usize, String, TaskStatus)> = tasks
+        .iter()
+        .map(|task| {
+            (
+                task.id,
+                task.name.clone(),
+                backend.get_task_status(run_id, task.id),
+            )
+        })
+        .collect();
 
-// TODO
-// pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
-//     let nodes = _get_default_tasks(&dag_name);
-//     let edges = _get_default_edges(&dag_name);
+    let downstream_ids: HashMap<usize, Vec<usize>> = HashMap::from_iter(
+        tasks
+            .iter()
+            .map(|t| (t.id, backend.get_downstream(run_id, t.id))),
+    );
+    json!(get_graphite_graph(&task_statuses, &downstream_ids)).into()
+}
 
-//     // TODO handle error
-//     assert!(nodes.is_some() && edges.is_some());
+pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
+    let tasks = _get_default_tasks(&dag_name).unwrap();
+    let edges = _get_default_edges(&dag_name).unwrap();
 
-//     let mut runner = InMemoryBackend::new(&nodes.unwrap(), &edges.unwrap());
-//     runner.enqueue_run("in_memory", "", Utc::now()); // TODO check correctness
-
-//     json!(runner.get_graphite_graph(0)).into()
-// }
+    json!(get_default_graphite_graph(&tasks, &edges)).into()
+}
 
 pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<usize> {
-    // json!(
     tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool).await }) // TODO check correctness
         .await
         .unwrap()
         .into()
-    // )
-    // .into()
 }

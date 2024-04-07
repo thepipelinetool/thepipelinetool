@@ -41,7 +41,7 @@ pub trait Backend {
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult;
     fn insert_task_results(&mut self, run_id: usize, result: &TaskResult);
 
-    fn get_task_status(&mut self, run_id: usize, task_id: usize) -> TaskStatus;
+    fn get_task_status(&self, run_id: usize, task_id: usize) -> TaskStatus;
     fn set_task_status(&mut self, run_id: usize, task_id: usize, task_status: TaskStatus);
 
     fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize>;

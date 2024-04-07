@@ -7,7 +7,6 @@ use std::{
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend, Runner};
 
 use chrono::{DateTime, Utc};
-use std::str::FromStr;
 use thepipelinetool_core::dev::*;
 use timed::timed;
 
@@ -304,7 +303,7 @@ impl Backend for RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_task_status(&mut self, run_id: usize, task_id: usize) -> TaskStatus {
+    fn get_task_status(&self, run_id: usize, task_id: usize) -> TaskStatus {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
             serde_json::from_str(

@@ -54,8 +54,8 @@ async fn main() {
         .route("/tasks/:run_id/:task_id", get(get_task))
         .route("/tasks/default/:dag_name", get(get_default_tasks))
         .route("/tasks/default/:dag_name/:task_id", get(get_default_task))
-        // .route("/graphs/:run_id", get(get_run_graph))
-        // .route("/graphs/default/:dag_name", get(get_default_graph))
+        .route("/graphs/:run_id", get(get_run_graph))
+        .route("/graphs/default/:dag_name", get(get_default_graph))
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])

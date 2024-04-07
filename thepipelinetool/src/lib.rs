@@ -1,9 +1,8 @@
-use std::{cmp::max, env, path::Path, process};
+use std::{env, path::Path, process};
 
 use chrono::Utc;
 use circular_dependencies::check_circular_dependencies;
 use clap::ArgMatches;
-use graph::{display_default_graphite_graph, display_default_mermaid_graph};
 use hash::display_hash;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
@@ -14,14 +13,28 @@ use thepipelinetool_runner::{
 };
 use tree::display_tree;
 
+use std::collections::HashSet;
+
+use thepipelinetool_core::dev::{get_default_graphite_graph, get_default_mermaid_graph, Task};
+
 pub mod circular_dependencies;
 pub mod commands;
 pub mod executable;
-pub mod graph;
 pub mod hash;
 pub mod template;
 pub mod tree;
 pub mod yaml;
+
+pub fn display_default_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+    print!("{}", get_default_mermaid_graph(tasks, edges));
+}
+
+pub fn display_default_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+    print!(
+        "{}",
+        serde_json::to_string_pretty(&get_default_graphite_graph(tasks, edges)).unwrap()
+    );
+}
 
 fn display_options(options: &DagOptions) {
     print!("{}", serde_json::to_string_pretty(options).unwrap());

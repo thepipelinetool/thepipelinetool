@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
-use thepipelinetool_task::task_status::TaskStatus;
+use thepipelinetool_task::{task_status::TaskStatus, Task};
 
 pub fn get_mermaid_graph(
     task_statuses: &[(String, TaskStatus)],
@@ -60,4 +60,39 @@ fn get_styling_for_status(task_status: &TaskStatus) -> String {
         TaskStatus::RetryPending => "color:black,stroke:orange,fill:white,stroke-width:4px".into(),
         TaskStatus::Skipped => "color:black,stroke:pink,fill:white,stroke-width:4px".into(),
     }
+}
+
+pub fn get_default_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) -> Vec<Value> {
+    let task_statuses: Vec<(usize, String, TaskStatus)> = tasks
+        .iter()
+        .map(|task| (task.id, task.name.clone(), TaskStatus::Pending))
+        .collect();
+
+    let mut downstream_ids: HashMap<usize, Vec<usize>> =
+        HashMap::from_iter(tasks.iter().map(|t| (t.id, vec![])));
+    for (upstream_id, downstream_id) in edges {
+        downstream_ids
+            .get_mut(upstream_id)
+            .unwrap()
+            .push(*downstream_id);
+    }
+    get_graphite_graph(&task_statuses, &downstream_ids)
+}
+
+pub fn get_default_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) -> String {
+    let task_statuses: Vec<(String, TaskStatus)> = tasks
+        .iter()
+        .map(|t| (t.name.clone(), TaskStatus::Pending))
+        .collect();
+
+    let mut upstream_ids: HashMap<usize, Vec<usize>> =
+        HashMap::from_iter(tasks.iter().map(|t| (t.id, vec![])));
+    for (upstream_id, downstream_id) in edges {
+        upstream_ids
+            .get_mut(downstream_id)
+            .unwrap()
+            .push(*upstream_id);
+    }
+
+    get_mermaid_graph(&task_statuses, &upstream_ids)
 }

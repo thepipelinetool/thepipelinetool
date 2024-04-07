@@ -4,7 +4,6 @@ use thepipelinetool_runner::run;
 use thepipelinetool_server::{
     get_executor_command, get_max_parallelism, get_redis_pool,
     redis::{LocalRunner, RedisBackend},
-    tpt_executor_installed, tpt_installed,
 };
 use tokio::time::sleep;
 
