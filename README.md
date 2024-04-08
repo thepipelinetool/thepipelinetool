@@ -44,7 +44,22 @@ cargo install thepipelinetool
 
 ## Usage
 ```bash
-tpt [pipeline_file] <COMMAND>
+Usage: tpt [dag] <COMMAND>
+
+Commands:
+  describe  Run complete pipeline or function by name
+  check     Check for circular depencencies
+  graph     Displays graph
+  tree      Displays tree
+  run       Run complete pipeline or function by name
+  help      Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [dag]  
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 ## Examples
 Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
@@ -59,12 +74,12 @@ Get started by cloning the [template](https://github.com/thepipelinetool/thepipe
 git clone https://github.com/thepipelinetool/thepipelinetool_template
 ```
 
-Or create a new project and add `thepipelinetool` dependency
+Or create a new project and add `thepipelinetool_core` dependency
 ```bash
 mkdir your_dag_name
 cd your_dag_name
 cargo init --bin
-cargo add thepipelinetool
+cargo add thepipelinetool_core
 ```
 Add the following to `src/main.rs`
 ```rust 
