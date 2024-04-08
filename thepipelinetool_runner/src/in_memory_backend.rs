@@ -204,7 +204,7 @@ impl Backend for InMemoryBackend {
             lazy_expand,
             is_dynamic,
             is_branch,
-            use_trigger_params
+            use_trigger_params,
         });
         new_id
     }

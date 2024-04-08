@@ -521,7 +521,7 @@ impl Backend for RedisBackend {
                 lazy_expand,
                 is_dynamic,
                 is_branch,
-                use_trigger_params
+                use_trigger_params,
             };
             cmd("SADD")
                 .arg(format!("{TASKS_KEY}:{run_id}"))

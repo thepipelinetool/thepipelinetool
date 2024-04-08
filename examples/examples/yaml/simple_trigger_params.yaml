@@ -1,0 +1,4 @@
+tasks:
+  print:
+    operator: print_operator
+    use_trigger_params: true

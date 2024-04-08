@@ -64,7 +64,7 @@ where
             options,
             &function_name,
             &function_name,
-            false
+            false,
         )
 }
 
@@ -93,13 +93,7 @@ where
 {
     let function_name = register_function(function);
 
-    _add_task_with_function_name::<T, G>(
-        Value::Null,
-        options,
-        &function_name,
-        &function_name,
-        true,
-    )
+    _add_task_with_function_name::<T, G>(Value::Null, options, &function_name, &function_name, true)
 }
 
 pub fn branch<F, K, T, L, J, R, M>(
