@@ -1,5 +1,4 @@
 use clap::{arg, command, value_parser, Command as CliCommand};
-use serde_json::Value;
 
 pub fn create_commands() -> CliCommand {
     command!()

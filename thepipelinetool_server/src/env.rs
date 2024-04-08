@@ -1,9 +1,8 @@
 use std::{env, path::PathBuf, process::Command};
 
 use serde_json::json;
+use thepipelinetool_runner::{get_tpt_executor_command, Executor};
 use thepipelinetool_utils::get_default_max_parallelism;
-
-use crate::local_runner::Executor;
 
 pub fn get_dags_dir() -> String {
     env::var("DAGS_DIR")
@@ -59,14 +58,6 @@ const DEFAULT_TPT_COMMAND: &str = "tpt";
 pub fn get_tpt_command() -> String {
     env::var("TPT_CMD")
         .unwrap_or(DEFAULT_TPT_COMMAND.to_string())
-        .to_string()
-}
-
-const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
-
-pub fn get_tpt_executor_command() -> String {
-    env::var("TPT_X_CMD")
-        .unwrap_or(DEFAULT_TPT_X_COMMAND.to_string())
         .to_string()
 }
 

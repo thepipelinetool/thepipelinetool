@@ -21,7 +21,6 @@ use crate::{
 pub mod catchup;
 pub mod check_timeout;
 pub mod env;
-pub mod local_runner;
 pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;

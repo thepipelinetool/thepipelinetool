@@ -7,8 +7,8 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
-    in_memory_runner::InMemoryRunner, options::DagOptions, run,
+    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::DagOptions, run,
+    Executor,
 };
 
 use std::collections::HashSet;
@@ -104,18 +104,27 @@ pub fn process_subcommands(
 
                     check_for_cycles(tasks, edges);
                     // let mut backend = runner.backend;
-                    let mut runner = InMemoryRunner {
-                        backend: Box::new(InMemoryBackend::new(tasks, edges)),
-                        tpt_path: env::args().next().unwrap(),
-                        dag_path: dag_path.to_path_buf(),
-                    };
-                    let run_id = runner
-                        .backend
-                        .enqueue_run("", "", Utc::now(), trigger_params);
+                    // let mut runner =
+                    //  InMemoryRunner {
+                    //     backend: Box::new(
+                    //         InMemoryBackend::new(tasks, edges)),
+                    //     tpt_path: env::args().next().unwrap(),
+                    //     dag_path: dag_path.to_path_buf(),
+                    // };
+                    // let run_id = runner
+                    //     .backend
+                    let mut backend = InMemoryBackend::new(tasks, edges);
+                    let run_id = backend.enqueue_run("", "", Utc::now(), trigger_params);
 
-                    run(&mut runner, max_parallelism);
+                    run(
+                        &mut backend,
+                        max_parallelism,
+                        Some(dag_path.to_path_buf().to_str().unwrap().to_string()),
+                        Some(env::args().next().unwrap()),
+                        Executor::InMemory,
+                    );
 
-                    let exit_code = runner.backend.get_run_status(run_id);
+                    let exit_code = backend.get_run_status(run_id);
 
                     process::exit(exit_code);
                 }
