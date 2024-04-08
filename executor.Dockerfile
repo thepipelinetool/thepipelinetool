@@ -10,6 +10,6 @@ FROM rust:latest
 WORKDIR /worker
 
 COPY --from=server_builder /usr/local/cargo/bin/tpt /usr/local/bin/tpt
-COPY --from=server_builder /usr/local/cargo/bin/worker /usr/local/bin/tpt_executor
+COPY --from=server_builder /usr/local/cargo/bin/tpt_executor /usr/local/bin/tpt_executor
 
 ENTRYPOINT tpt_executor
