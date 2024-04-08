@@ -75,6 +75,7 @@ fn main() {
     // define your tasks here
 }
 ```
+Find advanced usage [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool_core)
 
 ## License
 AGPLv3
