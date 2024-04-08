@@ -47,7 +47,7 @@ cargo install thepipelinetool
 Usage: tpt [dag] <COMMAND>
 
 Commands:
-  describe  Run complete pipeline or function by name
+  describe  Describe pipeline tasks or edges
   check     Check for circular depencencies
   graph     Displays graph
   tree      Displays tree

@@ -48,7 +48,7 @@ fn create_commands() -> CliCommand {
         .about("tpt")
         .subcommand(
             CliCommand::new("describe")
-                .about("Run complete pipeline or function by name")
+                .about("Describe pipeline tasks or edges")
                 .arg_required_else_help(true)
                 .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
                 .subcommand(CliCommand::new("edges").about("Displays edges as JSON")),
