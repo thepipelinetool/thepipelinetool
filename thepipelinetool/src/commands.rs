@@ -6,7 +6,7 @@ pub fn create_commands() -> CliCommand {
         .about("tpt")
         .subcommand(
             CliCommand::new("describe")
-                .about("Run complete DAG or function by name")
+                .about("Run complete pipeline or function by name")
                 .arg_required_else_help(true)
                 .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
                 .subcommand(CliCommand::new("edges").about("Displays edges as JSON"))
@@ -31,11 +31,11 @@ pub fn create_commands() -> CliCommand {
         .subcommand(CliCommand::new("tree").about("Displays tree"))
         .subcommand(
             CliCommand::new("run")
-                .about("Run complete DAG or function by name")
+                .about("Run complete pipeline or function by name")
                 .arg_required_else_help(true)
                 .subcommand(
                     CliCommand::new("in_memory")
-                        .about("Runs this DAG in memory")
+                        .about("Runs this pipeline in memory")
                         .arg(
                             arg!(
                                 --max_parallelism <max_parallelism> "Max number of threads for parallel execution"

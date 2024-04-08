@@ -45,17 +45,17 @@ pub fn run_function(matches: &ArgMatches) {
 
 fn create_commands() -> CliCommand {
     command!()
-        .about("DAG CLI Tool")
+        .about("tpt")
         .subcommand(
             CliCommand::new("describe")
-                .about("Run complete DAG or function by name")
+                .about("Run complete pipeline or function by name")
                 .arg_required_else_help(true)
                 .subcommand(CliCommand::new("tasks").about("Displays tasks as JSON"))
                 .subcommand(CliCommand::new("edges").about("Displays edges as JSON")),
         )
         .subcommand(
             CliCommand::new("run")
-                .about("Run complete DAG or function by name")
+                .about("Run complete pipeline or function by name")
                 .arg_required_else_help(true)
                 .subcommand(
                     CliCommand::new("function")

@@ -203,7 +203,7 @@ fn main() {
 Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
 
 ## Deployment
-To deploy DAGs, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
+To deploy pipelines, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
 Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
 
 ## License
