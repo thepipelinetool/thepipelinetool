@@ -23,7 +23,7 @@ Orchestrate your pipelines using `tpt`. [Deploy](https://github.com/thepipelinet
 
 ## Features
 - write your pipeline YAML or Rust code and let `tpt` handle execution order, parallelism, timeouts, and retries
-- create multiple [dynamic](#dynamic-tasks) tasks from upstream results or control flow using [branching](#branching-tasks) tasks
+- create multiple dynamic tasks from upstream results or control flow using branching tasks
 - easy testing
   - test both YAML and Rust pipelines locally
   - rust's compile-time checks ensure code safety and prevent common bugs
