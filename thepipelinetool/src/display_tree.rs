@@ -8,7 +8,7 @@ use thepipelinetool_runner::{
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
     let mut runner = InMemoryBackend::new(tasks, edges);
-    let run_id = runner.enqueue_run("in_memory", "", Utc::now());
+    let run_id = runner.enqueue_run("in_memory", "", Utc::now(), None);
     let tasks = runner
         .get_default_tasks()
         .iter()

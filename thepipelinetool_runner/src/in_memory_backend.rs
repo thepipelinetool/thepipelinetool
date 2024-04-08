@@ -191,6 +191,7 @@ impl Backend for InMemoryBackend {
         lazy_expand: bool,
         is_dynamic: bool,
         is_branch: bool,
+        use_trigger_params: bool,
     ) -> usize {
         let mut nodes = self.nodes.lock();
         let new_id = nodes.len();
@@ -203,6 +204,7 @@ impl Backend for InMemoryBackend {
             lazy_expand,
             is_dynamic,
             is_branch,
+            use_trigger_params
         });
         new_id
     }

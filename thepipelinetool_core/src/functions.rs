@@ -32,6 +32,7 @@ where
                     lazy_expand: false,
                     is_dynamic: false,
                     is_branch: false,
+                    use_trigger_params: false,
                 },
             );
         }
@@ -63,6 +64,7 @@ where
             options,
             &function_name,
             &function_name,
+            false
         )
 }
 
@@ -79,6 +81,24 @@ where
         options,
         &function_name,
         &function_name,
+        false,
+    )
+}
+
+pub fn add_task_using_trigger_params<F, T, G>(function: F, options: &TaskOptions) -> TaskRef<G>
+where
+    T: Serialize + DeserializeOwned + 'static,
+    G: Serialize + 'static,
+    F: Fn(T) -> G + 'static + Sync + Send,
+{
+    let function_name = register_function(function);
+
+    _add_task_with_function_name::<T, G>(
+        Value::Null,
+        options,
+        &function_name,
+        &function_name,
+        true,
     )
 }
 
@@ -113,6 +133,7 @@ where
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: true,
+                use_trigger_params: false,
             },
         );
     }

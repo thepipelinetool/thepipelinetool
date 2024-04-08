@@ -500,6 +500,7 @@ impl Backend for RedisBackend {
         lazy_expand: bool,
         is_dynamic: bool,
         is_branch: bool,
+        use_trigger_params: bool,
     ) -> usize {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -520,6 +521,7 @@ impl Backend for RedisBackend {
                 lazy_expand,
                 is_dynamic,
                 is_branch,
+                use_trigger_params
             };
             cmd("SADD")
                 .arg(format!("{TASKS_KEY}:{run_id}"))

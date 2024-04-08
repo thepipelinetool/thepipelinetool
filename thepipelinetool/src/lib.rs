@@ -91,6 +91,17 @@ pub fn process_subcommands(
                     };
                     assert!(max_parallelism > 0);
 
+                    let trigger_params = match matches
+                        .subcommand_matches("in_memory")
+                        .unwrap()
+                        .get_one::<String>("params")
+                        .unwrap()
+                        .as_str()
+                    {
+                        "" => None,
+                        any => Some(serde_json::from_str(any).expect("error parsing params")),
+                    };
+
                     check_for_cycles(tasks, edges);
                     // let mut backend = runner.backend;
                     let mut runner = InMemoryRunner {
@@ -98,7 +109,9 @@ pub fn process_subcommands(
                         tpt_path: env::args().next().unwrap(),
                         dag_path: dag_path.to_path_buf(),
                     };
-                    let run_id = runner.backend.enqueue_run("", "", Utc::now());
+                    let run_id = runner
+                        .backend
+                        .enqueue_run("", "", Utc::now(), trigger_params);
 
                     run(&mut runner, max_parallelism);
 

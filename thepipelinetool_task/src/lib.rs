@@ -42,6 +42,7 @@ pub struct Task {
     pub lazy_expand: bool,
     pub is_dynamic: bool,
     pub is_branch: bool,
+    pub use_trigger_params: bool,
 }
 
 impl Task {

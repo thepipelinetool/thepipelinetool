@@ -1,4 +1,5 @@
 use clap::{arg, command, value_parser, Command as CliCommand};
+use serde_json::Value;
 
 pub fn create_commands() -> CliCommand {
     command!()
@@ -37,12 +38,21 @@ pub fn create_commands() -> CliCommand {
                         .about("Runs this DAG in memory")
                         .arg(
                             arg!(
-                                [max_parallelism] "Max number of threads for parallel execution"
+                                --max_parallelism <max_parallelism> "Max number of threads for parallel execution"
                             )
                             .required(false)
                             .value_parser(value_parser!(String))
                             .default_value("max")
                             .default_missing_value("max"),
+                        )
+                        .arg(
+                            arg!(
+                                --params <params> "Trigger params"
+                            )
+                            .required(false)
+                            .value_parser(value_parser!(String))
+                            .default_value("")
+                            .default_missing_value(""),
                         ),
                 )
                 .subcommand(

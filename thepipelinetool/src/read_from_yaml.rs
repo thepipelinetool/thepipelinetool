@@ -34,6 +34,7 @@ pub fn read_from_yaml(dag_path: &Path) {
 
         for (template_task, value) in template_tasks.iter_mut() {
             let id = *task_id_by_name.get(&template_task.name).unwrap();
+            let use_trigger_params = value.is_object() && value["use_trigger_params"].as_bool().unwrap_or(false);
 
             // create edges
             let depends_on: Vec<usize> = template_task
@@ -92,6 +93,7 @@ pub fn read_from_yaml(dag_path: &Path) {
                     &template_task.options,
                     &template_task.name,
                     &template_task.operator,
+                    use_trigger_params,
                 );
             }
         }

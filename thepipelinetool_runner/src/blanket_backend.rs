@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_ref_inner::TaskRefInner,
-    task_result::TaskResult, task_status::TaskStatus, Task,
+    task_result::TaskResult, task_status::TaskStatus, trigger_rules, Task,
 };
 use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
@@ -27,6 +27,7 @@ pub trait BlanketBackend {
         dag_name: &str,
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        trigger_params: Option<Value>,
     ) -> usize;
     fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
@@ -97,19 +98,27 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         dag_name: &str,
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
+        trigger_params: Option<Value>,
     ) -> usize {
         let run_id = self.create_new_run(dag_name, dag_hash, scheduled_date_for_dag_run);
         let default_tasks = self.get_default_tasks();
+        let trigger_params = trigger_params.unwrap_or(Value::Null);
+
         for task in &default_tasks {
             self.append_new_task_and_set_status_to_pending(
                 run_id,
                 &task.name,
                 &task.function,
-                &task.template_args,
+                if task.use_trigger_params {
+                    &trigger_params
+                } else {
+                    &task.template_args
+                },
                 &task.options,
                 task.lazy_expand,
                 task.is_dynamic,
                 task.is_branch,
+                task.use_trigger_params,
             );
             self.update_referenced_dependencies(run_id, task.id);
         }
@@ -260,6 +269,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     false,
                     true,
                     false,
+                    false,
                 );
 
                 lazy_ids.push(new_id);
@@ -284,6 +294,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     &task.options,
                     false,
                     true,
+                    false,
                     false,
                 );
                 self.update_referenced_dependencies(run_id, collector_id);

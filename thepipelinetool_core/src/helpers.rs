@@ -9,6 +9,7 @@ pub fn _add_task_with_function_name<T, G>(
     options: &TaskOptions,
     name: &str,
     function_name: &str,
+    use_trigger_params: bool,
 ) -> TaskRef<G>
 where
     T: Serialize + DeserializeOwned + 'static,
@@ -28,6 +29,7 @@ where
                 lazy_expand: false,
                 is_dynamic: false,
                 is_branch: false,
+                use_trigger_params,
             },
         );
     }
@@ -76,6 +78,7 @@ where
                 lazy_expand: true,
                 is_dynamic: false,
                 is_branch: false,
+                use_trigger_params: false,
             },
         );
     }

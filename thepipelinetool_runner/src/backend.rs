@@ -93,5 +93,6 @@ pub trait Backend {
         lazy_expand: bool,
         is_dynamic: bool,
         is_branch: bool,
+        use_trigger_params: bool,
     ) -> usize;
 }
