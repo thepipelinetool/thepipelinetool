@@ -43,7 +43,7 @@ cargo install thepipelinetool
 ```
 
 ## Usage
-```bash
+```
 Usage: tpt [dag] <COMMAND>
 
 Commands:
