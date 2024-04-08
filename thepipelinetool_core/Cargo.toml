@@ -1,6 +1,6 @@
 [package]
 name = "thepipelinetool_core"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "An *experimental* pipeline orchestration tool drawing on concepts from Apache Airflow"
 license = "MIT OR Apache-2.0"
@@ -10,9 +10,9 @@ repository = "https://github.com/thepipelinetool/thepipelinetool"
 
 [dependencies]
 serde_json = "1.0"
-thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.2.2" }
-thepipelinetool_operators = { path = "../thepipelinetool_operators", version = "0.2.2" }
-thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.2" }
+thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.2.3" }
+thepipelinetool_operators = { path = "../thepipelinetool_operators", version = "0.2.3" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.3" }
 thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.1.0" }
 serde = "1.0.189"
 clap = { version = "4.4.7", features = [ "cargo" ] }
