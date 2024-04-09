@@ -118,7 +118,6 @@ pub fn process_subcommands(
 
                     run(
                         &mut backend,
-                        0,
                         max_parallelism,
                         Some(dag_path.to_path_buf().to_str().unwrap().to_string()),
                         Some(env::args().next().unwrap()),

@@ -90,7 +90,6 @@ pub fn get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
 
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     backend: &mut U,
-    running_tasks_count: usize,
     max_parallelism: usize,
     dag_path: Option<String>,
     tpt_path: Option<String>,
@@ -99,7 +98,7 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     let (tx, rx) = channel();
     let mut current_parallel_tasks_count = 0;
 
-    for _ in running_tasks_count..max_parallelism {
+    for _ in 0..max_parallelism {
         if let Some(ordered_queued_task) = backend.pop_priority_queue() {
             let tx = tx.clone();
             let backend = backend.clone();
