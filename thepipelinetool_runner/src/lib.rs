@@ -36,6 +36,7 @@ pub fn _run<U: Backend + BlanketBackend>(
                 tpt_path.unwrap(),
                 ordered_queued_task.queued_task.scheduled_date_for_dag_run,
             );
+            backend.remove_from_temp_queue(&ordered_queued_task.queued_task);
         }
         Executor::Local => {
             let mut cmd = Command::new(get_tpt_executor_command());

@@ -191,7 +191,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 queued_task.dag_name.clone(),
                 false,
             );
-            self.remove_from_temp_queue(queued_task);
             return;
         }
 
@@ -246,7 +245,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 );
             }
         }
-        self.remove_from_temp_queue(queued_task);
     }
 
     fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
@@ -522,7 +520,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
-            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
@@ -533,7 +530,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 ordered_queued_task.queued_task.dag_name.clone(),
                 false,
             );
-            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             return;
         }
 

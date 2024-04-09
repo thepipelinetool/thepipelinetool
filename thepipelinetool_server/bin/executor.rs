@@ -1,6 +1,7 @@
 use std::env;
 
 use thepipelinetool_core::dev::OrderedQueuedTask;
+use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::{blanket_backend::BlanketBackend, get_dag_path_by_name};
 use thepipelinetool_server::{
     env::get_tpt_command,
@@ -17,11 +18,13 @@ async fn main() {
     let tasks = _get_default_tasks(&ordered_queued_task.queued_task.dag_name).unwrap();
     let edges = _get_default_edges(&ordered_queued_task.queued_task.dag_name).unwrap();
 
-    RedisBackend::from(tasks, edges, get_redis_pool()).work(
+    let mut backend = RedisBackend::from(tasks, edges, get_redis_pool());
+    backend.work(
         ordered_queued_task.queued_task.run_id,
         &ordered_queued_task,
         get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name).unwrap(),
         get_tpt_command(),
         ordered_queued_task.queued_task.scheduled_date_for_dag_run,
     );
+    backend.remove_from_temp_queue(&ordered_queued_task.queued_task);
 }
