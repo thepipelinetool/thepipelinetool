@@ -241,12 +241,12 @@ impl Backend for RedisBackend {
         })
     }
 
-    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize) -> usize {
+    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize, is_dynamic: bool) -> usize {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
 
             cmd("INCR")
-                .arg(format!("{TASK_ATTEMPT_KEY}:{run_id}:{task_id}"))
+                .arg(format!("{TASK_ATTEMPT_KEY}:{run_id}:{task_id}:{is_dynamic}"))
                 .query_async::<_, usize>(&mut conn)
                 .await
                 .unwrap()
@@ -615,11 +615,12 @@ impl Backend for RedisBackend {
         task_id: usize,
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
+        is_dynamic: bool,
     ) {
         block_on!({
             let depth = self.get_task_depth(run_id, task_id);
             let mut conn = self.pool.get().await.unwrap();
-            let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
+            let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic);
             let members = cmd("ZRANGEBYSCORE")
                 .arg("queue")
                 .arg("-inf")

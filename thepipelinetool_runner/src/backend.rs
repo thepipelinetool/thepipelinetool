@@ -21,6 +21,7 @@ pub trait Backend {
         task_id: usize,
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
+        is_dynamic: bool,
     );
 
     // fn get_dag_name(&self) -> String;
@@ -71,7 +72,7 @@ pub trait Backend {
     fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize);
     fn delete_task_depth(&mut self, run_id: usize, task_id: usize);
 
-    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize) -> usize;
+    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize, is_dynamic: bool) -> usize;
 
     fn create_new_run(
         &mut self,

@@ -21,7 +21,7 @@ pub struct InMemoryBackend {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
     pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub task_statuses: Arc<Mutex<HashMap<usize, TaskStatus>>>,
-    pub attempts: Arc<Mutex<HashMap<usize, usize>>>,
+    pub attempts: Arc<Mutex<HashMap<String, usize>>>,
     pub dep_keys: Arc<Mutex<HashMap<usize, HashMap<(usize, String), String>>>>,
     pub edges: Arc<Mutex<HashSet<(usize, usize)>>>,
     pub default_nodes: Arc<Mutex<Vec<Task>>>,
@@ -102,12 +102,13 @@ impl Backend for InMemoryBackend {
         self.task_results.lock()[&task_id].clone()
     }
 
-    fn get_attempt_by_task_id(&self, _run_id: usize, task_id: usize) -> usize {
-        if !self.attempts.lock().contains_key(&task_id) {
-            self.attempts.lock().insert(task_id, 0);
+    fn get_attempt_by_task_id(&self, _run_id: usize, task_id: usize, is_dynamic: bool) -> usize {
+        let key = format!("{task_id}{is_dynamic}");
+        if !self.attempts.lock().contains_key(&key) {
+            self.attempts.lock().insert(key.to_string(), 0);
         }
-        let new_id = self.attempts.lock().get(&task_id).unwrap() + 1;
-        self.attempts.lock().insert(task_id, new_id);
+        let new_id = self.attempts.lock().get(&key).unwrap() + 1;
+        self.attempts.lock().insert(key, new_id);
         new_id
     }
 
@@ -252,13 +253,14 @@ impl Backend for InMemoryBackend {
         task_id: usize,
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
+        is_dynamic: bool,
     ) {
         let depth = self.get_task_depth(run_id, task_id);
         let mut priority_queue = self.priority_queue.lock();
 
         // remove previous attempts
         priority_queue.retain(|x| x.queued_task.task_id != task_id);
-        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
+        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic);
 
         priority_queue.push(OrderedQueuedTask {
             score: depth,

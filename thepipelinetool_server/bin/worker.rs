@@ -27,6 +27,7 @@ async fn main() {
             Executor::Local,
         );
         sleep(Duration::new(2, 0)).await;
+        // dbg!(backend.get_running_tasks_count().await);
     }
 }
 

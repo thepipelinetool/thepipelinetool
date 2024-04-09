@@ -138,6 +138,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 task.id,
                 scheduled_date_for_dag_run,
                 dag_name.to_string(),
+                false,
             );
         }
 
@@ -187,6 +188,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
                 queued_task.dag_name.clone(),
+                false,
             );
             self.remove_from_temp_queue(queued_task);
             return;
@@ -223,6 +225,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
                 queued_task.dag_name.clone(),
+                false,
             );
         } else {
             for downstream in self
@@ -238,6 +241,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     *downstream,
                     queued_task.scheduled_date_for_dag_run,
                     queued_task.dag_name.clone(),
+                    false,
                 );
             }
         }
@@ -331,7 +335,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
                     self.delete_task_depth(run_id, *d);
-                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run, dag_name.clone());
+                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run, dag_name.clone(), true);
                 }
 
                 self.enqueue_task(
@@ -339,6 +343,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     collector_id,
                     scheduled_date_for_dag_run,
                     dag_name.clone(),
+                    true,
                 );
             }
             for lazy_id in &lazy_ids {
@@ -347,6 +352,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     *lazy_id,
                     scheduled_date_for_dag_run,
                     dag_name.clone(),
+                    true,
                 );
             }
 
@@ -518,6 +524,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 ordered_queued_task.queued_task.task_id,
                 scheduled_date_for_dag_run,
                 ordered_queued_task.queued_task.dag_name.clone(),
+                false,
             );
             return;
         }
