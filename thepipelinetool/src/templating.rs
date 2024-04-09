@@ -50,7 +50,7 @@ pub fn create_template_args_by_operator(
         Some(Operator::BashOperator) => create_template_args_from_string(
             id,
             &serde_json::from_value::<TemplateBashTaskArgs>(value.clone())
-                .unwrap()
+                .expect("error parsing template bash args")
                 .script,
             task_id_by_name,
         ),

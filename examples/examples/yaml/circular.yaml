@@ -1,7 +1,0 @@
-tasks:
-  produce_data:
-    script: ["echo", "{{taska}}"]
-  print_data:
-    script: ["echo", "{{produce_data}}"]
-  taska:
-    script: ["echo", "{{print_data}}"]
