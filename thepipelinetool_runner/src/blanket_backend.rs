@@ -29,7 +29,7 @@ pub trait BlanketBackend {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         trigger_params: Option<Value>,
-    ) -> usize;
+    );
     fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
@@ -101,7 +101,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         trigger_params: Option<Value>,
-    ) -> usize {
+    ) {
         let default_tasks = self.get_default_tasks();
         let trigger_params = trigger_params.unwrap_or(Value::Null);
 
@@ -142,8 +142,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 false,
             );
         }
-
-        run_id
     }
 
     fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask) {

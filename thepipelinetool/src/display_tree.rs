@@ -8,11 +8,12 @@ use thepipelinetool_runner::{
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
     let mut runner = InMemoryBackend::new(tasks, edges);
-    let run_id = runner.enqueue_run(0, "in_memory", "", Utc::now(), None);
+    let dummy_run_id = 0;
+    runner.enqueue_run(dummy_run_id, "in_memory", "", Utc::now(), None);
     let tasks = runner
         .get_default_tasks()
         .iter()
-        .filter(|t| runner.get_task_depth(run_id, t.id) == 0)
+        .filter(|t| runner.get_task_depth(dummy_run_id, t.id) == 0)
         .map(|t| t.id)
         .collect::<Vec<usize>>();
 
@@ -26,7 +27,7 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &
         task_ids_in_order.push(*child);
         output.push_str(&get_tree(
             &runner,
-            run_id,
+            dummy_run_id,
             *child,
             1,
             connector,

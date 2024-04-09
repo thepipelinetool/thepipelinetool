@@ -1,6 +1,6 @@
 use std::time::Duration;
 use thepipelinetool_runner::run;
-use thepipelinetool_runner::{backend::Backend, Executor};
+use thepipelinetool_runner::Executor;
 use thepipelinetool_server::{
     env::{get_max_parallelism, get_tpt_command},
     get_redis_pool,
@@ -27,7 +27,7 @@ async fn main() {
             Executor::Local,
         );
         sleep(Duration::new(2, 0)).await;
-        // dbg!(backend.get_running_tasks_count().await);
+        dbg!(backend.get_running_tasks_count().await);
     }
 }
 

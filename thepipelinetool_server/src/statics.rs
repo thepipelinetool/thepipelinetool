@@ -5,11 +5,9 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use log::info;
 use parking_lot::Mutex;
 use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{get_dag_path_by_name, get_dags_dir, options::DagOptions};
-use timed::timed;
 
 use crate::env::get_tpt_command;
 

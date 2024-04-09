@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, process::Command};
+use std::{env, process::Command};
 
 use serde_json::json;
 use thepipelinetool_runner::{get_tpt_executor_command, Executor};

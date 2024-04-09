@@ -6,7 +6,6 @@ use axum::{
 };
 
 use thepipelinetool_core::dev::*;
-use timed::timed;
 
 use crate::{statics::_get_options, *};
 
@@ -184,7 +183,7 @@ pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> 
     let run_id = backend.create_new_run(&dag_name, &hash, scheduled_date);
 
     tokio::spawn(async move {
-        _trigger_run(run_id, &dag_name, scheduled_date, pool, None, backend).await
+        backend.enqueue_run(run_id, &dag_name, &hash, scheduled_date, None);
     });
 
     run_id.into()
@@ -203,15 +202,7 @@ pub async fn trigger_with_params(
     let run_id = backend.create_new_run(&dag_name, &hash, scheduled_date);
 
     tokio::spawn(async move {
-        _trigger_run(
-            run_id,
-            &dag_name,
-            scheduled_date,
-            pool,
-            Some(params),
-            backend,
-        )
-        .await
+        backend.enqueue_run(run_id, &dag_name, &hash, scheduled_date, Some(params))
     });
 
     run_id.into()
