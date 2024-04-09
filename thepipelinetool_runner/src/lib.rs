@@ -1,4 +1,4 @@
-use std::{env, process::Command, sync::mpsc::channel, thread};
+use std::{env, path::PathBuf, process::Command, sync::mpsc::channel, thread};
 
 use backend::Backend;
 use blanket_backend::BlanketBackend;
@@ -20,10 +20,10 @@ pub enum Executor {
     Kubernetes,
 }
 
-fn _run<U: Backend + BlanketBackend>(
+pub fn _run<U: Backend + BlanketBackend>(
     ordered_queued_task: &OrderedQueuedTask,
     mut backend: U,
-    dag_path: Option<String>,
+    dag_path: String,
     tpt_path: Option<String>,
     executor: Executor,
 ) {
@@ -32,7 +32,7 @@ fn _run<U: Backend + BlanketBackend>(
             backend.work(
                 ordered_queued_task.queued_task.run_id,
                 ordered_queued_task,
-                dag_path.unwrap(), // TODO
+                dag_path,
                 tpt_path.unwrap(),
                 ordered_queued_task.queued_task.scheduled_date_for_dag_run,
             );
@@ -71,8 +71,26 @@ pub fn get_tpt_executor_command() -> String {
 //     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
 // }
 
+pub fn get_dags_dir() -> String {
+    env::var("DAGS_DIR")
+        .unwrap_or("./bin".to_string())
+        .to_string()
+}
+
+pub fn get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
+    let dags_dir = &get_dags_dir();
+    let path: PathBuf = [dags_dir, dag_name].iter().collect();
+
+    if !path.exists() {
+        return None;
+    }
+
+    Some(path)
+}
+
 pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     backend: &mut U,
+    running_tasks_count: usize,
     max_parallelism: usize,
     dag_path: Option<String>,
     tpt_path: Option<String>,
@@ -81,11 +99,18 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
     let (tx, rx) = channel();
     let mut current_parallel_tasks_count = 0;
 
-    for _ in 0..max_parallelism {
+    for _ in running_tasks_count..max_parallelism {
         if let Some(ordered_queued_task) = backend.pop_priority_queue() {
             let tx = tx.clone();
             let backend = backend.clone();
             let (dag_path, tpt_path) = (dag_path.clone(), tpt_path.clone());
+            let dag_path = dag_path.unwrap_or(
+                get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
 
             thread::spawn(move || {
                 _run(&ordered_queued_task, backend, dag_path, tpt_path, executor);
@@ -101,6 +126,11 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
         }
     }
 
+    if current_parallel_tasks_count == 0 {
+        drop(tx);
+        return;
+    }
+
     for _ in rx.iter() {
         current_parallel_tasks_count -= 1;
 
@@ -108,6 +138,13 @@ pub fn run<U: Backend + BlanketBackend + Send + Sync + Clone + 'static>(
             let tx = tx.clone();
             let backend = backend.clone();
             let (dag_path, tpt_path) = (dag_path.clone(), tpt_path.clone());
+            let dag_path = dag_path.unwrap_or(
+                get_dag_path_by_name(&ordered_queued_task.queued_task.dag_name)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
 
             thread::spawn(move || {
                 _run(&ordered_queued_task, backend, dag_path, tpt_path, executor);

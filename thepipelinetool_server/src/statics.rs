@@ -5,13 +5,13 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use log::debug;
+use log::info;
 use parking_lot::Mutex;
 use thepipelinetool_core::dev::Task;
-use thepipelinetool_runner::options::DagOptions;
+use thepipelinetool_runner::{get_dag_path_by_name, get_dags_dir, options::DagOptions};
 use timed::timed;
 
-use crate::env::{get_dag_path_by_name, get_dags_dir, get_tpt_command};
+use crate::env::get_tpt_command;
 
 type StaticServerTasks = Arc<Mutex<HashMap<String, Vec<Task>>>>;
 type StaticServerHashes = Arc<Mutex<HashMap<String, String>>>;
@@ -23,7 +23,6 @@ static HASHES: OnceLock<StaticServerHashes> = OnceLock::new();
 static EDGES: OnceLock<StaticServerEdges> = OnceLock::new();
 static DAG_OPTIONS: OnceLock<StaticServerDagOptions> = OnceLock::new();
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
     let mut tasks = TASKS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -51,7 +50,6 @@ pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
     Some(tasks.get(dag_name).unwrap().clone())
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_hash(dag_name: &str) -> String {
     let mut hashes = HASHES
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -76,7 +74,6 @@ pub fn _get_hash(dag_name: &str) -> String {
     hashes.get(dag_name).unwrap().to_string()
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
     let mut edges = EDGES
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -103,7 +100,6 @@ pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
     Some(edges.get(dag_name).unwrap().clone())
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
     let mut dag_options = DAG_OPTIONS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
@@ -132,7 +128,7 @@ pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
     Some(dag_options.get(dag_name).unwrap().clone())
 }
 
-// #[timed(duration(printer = "debug!"))]
+//
 // pub fn _set_options(dag_name: &str, options: DagOptions) {
 //     let mut path = _get_dag_path_by_name(dag_name);
 //     path.set_extension("json");

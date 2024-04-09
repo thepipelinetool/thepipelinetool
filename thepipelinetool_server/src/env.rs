@@ -4,23 +4,6 @@ use serde_json::json;
 use thepipelinetool_runner::{get_tpt_executor_command, Executor};
 use thepipelinetool_utils::get_default_max_parallelism;
 
-pub fn get_dags_dir() -> String {
-    env::var("DAGS_DIR")
-        .unwrap_or("./bin".to_string())
-        .to_string()
-}
-
-pub fn get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
-    let dags_dir = &get_dags_dir();
-    let path: PathBuf = [dags_dir, dag_name].iter().collect();
-
-    if !path.exists() {
-        return None;
-    }
-
-    Some(path)
-}
-
 pub fn tpt_installed() -> bool {
     !matches!(
         String::from_utf8_lossy(

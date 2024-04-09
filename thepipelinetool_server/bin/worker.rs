@@ -19,20 +19,16 @@ async fn main() {
     let mut backend = RedisBackend::dummy(get_redis_pool());
 
     loop {
-        if backend.get_queue_length() == 0
-            || backend.get_running_tasks_count().await >= max_parallelism
-        {
-            sleep(Duration::new(2, 0)).await;
-            continue;
-        }
-
+        let running_tasks_count = backend.get_running_tasks_count().await;
         run(
             &mut backend,
+            running_tasks_count,
             max_parallelism,
             None,
             Some(get_tpt_command()),
-            Executor::InMemory,
+            Executor::Local,
         );
+        sleep(Duration::new(2, 0)).await;
     }
 }
 

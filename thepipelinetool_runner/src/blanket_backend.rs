@@ -188,6 +188,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 queued_task.scheduled_date_for_dag_run,
                 queued_task.dag_name.clone(),
             );
+            self.remove_from_temp_queue(queued_task);
             return;
         }
 
@@ -216,8 +217,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             },
         );
 
-        self.remove_from_temp_queue(queued_task);
-
         if !result.premature_failure && self.task_needs_running(run_id, result.task_id) {
             self.enqueue_task(
                 run_id,
@@ -242,6 +241,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 );
             }
         }
+        self.remove_from_temp_queue(queued_task);
     }
 
     fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(

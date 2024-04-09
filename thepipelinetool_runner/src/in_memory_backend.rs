@@ -8,8 +8,12 @@ use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
 use thepipelinetool_task::{
-    ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
-    task_result::TaskResult, task_status::TaskStatus, Task,
+    ordered_queued_task::{self, OrderedQueuedTask},
+    queued_task::QueuedTask,
+    task_options::TaskOptions,
+    task_result::TaskResult,
+    task_status::TaskStatus,
+    Task,
 };
 
 #[derive(Clone, Default)]
@@ -24,6 +28,7 @@ pub struct InMemoryBackend {
     pub nodes: Arc<Mutex<Vec<Task>>>,
     pub task_depth: Arc<Mutex<HashMap<usize, usize>>>,
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
+    pub temp_queue: Arc<Mutex<HashSet<QueuedTask>>>,
 }
 
 impl InMemoryBackend {
@@ -78,7 +83,7 @@ impl Backend for InMemoryBackend {
     }
 
     fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) {
-        self.attempts.lock().insert(result.task_id, result.attempt);
+        // self.attempts.lock().insert(result.task_id, result.attempt);
         self.task_results
             .lock()
             .insert(result.task_id, result.clone());
@@ -99,9 +104,11 @@ impl Backend for InMemoryBackend {
 
     fn get_attempt_by_task_id(&self, _run_id: usize, task_id: usize) -> usize {
         if !self.attempts.lock().contains_key(&task_id) {
-            return 1;
+            self.attempts.lock().insert(task_id, 0);
         }
-        *self.attempts.lock().get(&task_id).unwrap() + 1
+        let new_id = self.attempts.lock().get(&task_id).unwrap() + 1;
+        self.attempts.lock().insert(task_id, new_id);
+        new_id
     }
 
     fn get_task_status(&self, _run_id: usize, task_id: usize) -> TaskStatus {
@@ -230,7 +237,13 @@ impl Backend for InMemoryBackend {
     }
 
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
-        self.priority_queue.lock().pop()
+        let popped = self.priority_queue.lock().pop();
+        if let Some(ordered_queued_task) = &popped {
+            self.temp_queue
+                .lock()
+                .insert(ordered_queued_task.queued_task.clone());
+        }
+        popped
     }
 
     fn enqueue_task(
@@ -242,6 +255,8 @@ impl Backend for InMemoryBackend {
     ) {
         let depth = self.get_task_depth(run_id, task_id);
         let mut priority_queue = self.priority_queue.lock();
+
+        // remove previous attempts
         priority_queue.retain(|x| x.queued_task.task_id != task_id);
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
 
@@ -271,5 +286,7 @@ impl Backend for InMemoryBackend {
         self.priority_queue.lock().len()
     }
 
-    fn remove_from_temp_queue(&self, _queued_task: &QueuedTask) {}
+    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
+        self.temp_queue.lock().remove(queued_task);
+    }
 }

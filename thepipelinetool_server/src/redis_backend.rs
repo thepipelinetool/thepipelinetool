@@ -1,5 +1,5 @@
 use deadpool_redis::{redis::cmd, Pool};
-use log::debug;
+use log::info;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_runner::backend::Backend;
 
@@ -43,7 +43,6 @@ pub struct RedisBackend {
 }
 
 impl RedisBackend {
-    #[timed(duration(printer = "debug!"))]
     pub fn dummy(pool: Pool) -> Self {
         Self {
             edges: None,
@@ -52,7 +51,7 @@ impl RedisBackend {
         }
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    //
     pub fn from(nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
         Self {
             edges: Some(edges),
@@ -61,7 +60,6 @@ impl RedisBackend {
         }
     }
 
-    #[timed(duration(printer = "debug!"))]
     pub async fn get_temp_queue(&self) -> Vec<QueuedTask> {
         let mut conn = self.pool.get().await.unwrap();
 
@@ -75,7 +73,6 @@ impl RedisBackend {
             .collect()
     }
 
-    #[timed(duration(printer = "debug!"))]
     pub async fn get_all_results(run_id: usize, task_id: usize, pool: Pool) -> Vec<TaskResult> {
         let mut conn = pool.get().await.unwrap();
         cmd("LRANGE")
@@ -90,7 +87,6 @@ impl RedisBackend {
             .collect()
     }
 
-    #[timed(duration(printer = "debug!"))]
     pub async fn get_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
         let mut conn = pool.get().await.unwrap();
         cmd("LRANGE")
@@ -105,7 +101,6 @@ impl RedisBackend {
             .collect()
     }
 
-    #[timed(duration(printer = "debug!"))]
     pub async fn get_last_run(dag_name: &str, pool: Pool) -> Option<Run> {
         let mut conn = pool.get().await.unwrap();
         cmd("LRANGE")
@@ -119,7 +114,7 @@ impl RedisBackend {
             .map(|run| serde_json::from_str(run).unwrap())
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    //
     pub async fn get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
         let mut conn = pool.get().await.unwrap();
         cmd("LRANGE")
@@ -134,7 +129,6 @@ impl RedisBackend {
             .collect()
     }
 
-    #[timed(duration(printer = "debug!"))]
     pub async fn contains_logical_date(
         dag_name: &str,
         dag_hash: &str,
@@ -181,7 +175,7 @@ impl Backend for RedisBackend {
             cmd("SREM")
                 .arg("tmpqueue")
                 .arg(serde_json::to_string(queued_task).unwrap())
-                .query_async::<_, ()>(&mut conn)
+                .query_async::<_, usize>(&mut conn)
                 .await
                 .unwrap();
         })
@@ -199,7 +193,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -214,7 +207,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_log_handle_closure(
         &mut self,
         run_id: usize,
@@ -235,7 +227,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -250,7 +241,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize) -> usize {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -263,7 +253,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_task_status(&self, run_id: usize, task_id: usize) -> TaskStatus {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -278,7 +267,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn set_task_status(&mut self, run_id: usize, task_id: usize, task_status: TaskStatus) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -291,7 +279,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn create_new_run(
         &mut self,
         dag_name: &str,
@@ -305,7 +292,8 @@ impl Backend for RedisBackend {
                 .arg("run")
                 .query_async::<_, usize>(&mut conn)
                 .await
-                .unwrap();
+                .unwrap()
+                - 1;
 
             cmd("RPUSH")
                 .arg(format!("{RUNS_KEY}:{dag_name}"))
@@ -323,7 +311,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn insert_task_results(&mut self, run_id: usize, result: &TaskResult) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -345,7 +332,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_dependency_keys(
         &mut self,
         run_id: usize,
@@ -366,7 +352,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn set_dependency_keys(
         &mut self,
         run_id: usize,
@@ -385,7 +370,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -401,7 +385,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_upstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -417,7 +400,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -436,7 +418,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -449,7 +430,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_all_tasks(&self, run_id: usize) -> Vec<Task> {
         block_on!({
             let mut conn: deadpool_redis::Connection = self.pool.get().await.unwrap();
@@ -464,17 +444,14 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_default_tasks(&self) -> Vec<Task> {
         self.nodes.clone().unwrap()
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_default_edges(&self) -> HashSet<(usize, usize)> {
         self.edges.clone().unwrap()
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Task {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -489,7 +466,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         run_id: usize,
@@ -546,13 +522,11 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn get_template_args(&self, run_id: usize, task_id: usize) -> serde_json::Value {
         let task = self.get_task_by_id(run_id, task_id);
         task.template_args
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn set_template_args(&mut self, run_id: usize, task_id: usize, template_args_str: &str) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -568,22 +542,9 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
-
-            let parallel_task_count = cmd("SCARD")
-                .arg("tmpqueue") // TODO timeout arg
-                .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
-
-            let max_threads = 10;
-
-            if parallel_task_count >= max_threads {
-                return None;
-            }
 
             let res = cmd("ZPOPMIN")
                 .arg(&["queue".to_string(), "1".to_string()]) // TODO timeout arg
@@ -636,7 +597,6 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) {
         block_on!({
             let mut conn = self.pool.get().await.unwrap();
@@ -649,7 +609,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn enqueue_task(
         &mut self,
         run_id: usize,
@@ -657,12 +616,30 @@ impl Backend for RedisBackend {
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
     ) {
-        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
-
         block_on!({
             let depth = self.get_task_depth(run_id, task_id);
             let mut conn = self.pool.get().await.unwrap();
-
+            let attempt: usize = self.get_attempt_by_task_id(run_id, task_id);
+            let members = cmd("ZRANGEBYSCORE")
+                .arg("queue")
+                .arg("-inf")
+                .arg("+inf")
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await
+                .unwrap();
+            for m in members {
+                let queued_task: QueuedTask = serde_json::from_str(&m).unwrap();
+                if queued_task.run_id == run_id && queued_task.task_id == task_id {
+                    cmd("ZREM")
+                        .arg(&[
+                            "queue".to_string(),
+                            serde_json::to_string(&queued_task).unwrap(),
+                        ])
+                        .query_async::<_, usize>(&mut conn)
+                        .await
+                        .unwrap();
+                }
+            }
             cmd("ZADD")
                 .arg(&[
                     "queue".to_string(),
@@ -682,7 +659,6 @@ impl Backend for RedisBackend {
         });
     }
 
-    #[timed(duration(printer = "debug!"))]
     fn print_priority_queue(&mut self) {}
 
     fn take_last_stdout_line(

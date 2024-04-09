@@ -9,14 +9,11 @@ use redis_backend::{RedisBackend, Run};
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    backend::Backend, blanket_backend::BlanketBackend, options::DagOptions,
+    backend::Backend, blanket_backend::BlanketBackend, get_dags_dir, options::DagOptions,
 };
 use timed::timed;
 
-use crate::{
-    env::get_dags_dir,
-    statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
-};
+use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
 
 pub mod catchup;
 pub mod check_timeout;
@@ -26,38 +23,32 @@ pub mod routes;
 pub mod scheduler;
 pub mod statics;
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {
     RedisBackend::dummy(pool).get_all_tasks(run_id)
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_task(run_id: usize, task_id: usize, pool: Pool) -> Task {
     RedisBackend::dummy(pool).get_task_by_id(run_id, task_id)
 }
 
-#[timed(duration(printer = "debug!"))]
 pub async fn _get_all_task_results(run_id: usize, task_id: usize, pool: Pool) -> Vec<TaskResult> {
     RedisBackend::get_all_results(run_id, task_id, pool).await
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_task_status(run_id: usize, task_id: usize, pool: Pool) -> TaskStatus {
     RedisBackend::dummy(pool).get_task_status(run_id, task_id)
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_run_status(run_id: usize, pool: Pool) -> i32 {
     RedisBackend::dummy(pool).get_run_status(run_id)
 }
 
-#[timed(duration(printer = "debug!"))]
 pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> TaskResult {
     RedisBackend::dummy(pool).get_task_result(run_id, task_id)
 }
 
 // TODO cache response to prevent disk read
-#[timed(duration(printer = "debug!"))]
+
 pub fn _get_dags() -> Vec<String> {
     let paths: Vec<PathBuf> = match fs::read_dir(get_dags_dir()) {
         Err(e) if e.kind() == ErrorKind::NotFound => vec![],
@@ -85,25 +76,25 @@ pub fn _get_dags() -> Vec<String> {
         .collect()
 }
 
-#[timed(duration(printer = "debug!"))]
 pub async fn _trigger_run(
     dag_name: &str,
     scheduled_date_for_dag_run: DateTime<Utc>,
     pool: Pool,
+    trigger_params: Option<Value>,
 ) -> usize {
     let hash = _get_hash(dag_name);
-    let nodes = _get_default_tasks(dag_name).unwrap();
+    let nodes = _get_default_tasks(dag_name).unwrap(); // TODO handle missing dag error
     let edges = _get_default_edges(dag_name).unwrap();
 
     RedisBackend::from(nodes, edges, pool.clone()).enqueue_run(
         dag_name,
         &hash,
         scheduled_date_for_dag_run,
-        todo!(),
+        trigger_params,
     )
 }
 
-// #[timed(duration(printer = "debug!"))]
+//
 pub fn get_redis_pool() -> Pool {
     let cfg = Config::from_url(get_redis_url());
     cfg.create_pool(Some(Runtime::Tokio1)).unwrap()
@@ -229,7 +220,7 @@ pub async fn _trigger_run_from_schedules(
             continue;
         }
 
-        _trigger_run(dag_name, scheduled_date, pool.clone()).await;
+        _trigger_run(dag_name, scheduled_date, pool.clone(), None).await;
         println!(
             "scheduling catchup {dag_name} {}",
             scheduled_date.format("%F %R")

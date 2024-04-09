@@ -1,22 +1,21 @@
 use std::{collections::HashMap, str::from_utf8};
 
 use axum::{
-    extract::{Path, State},
+    extract::{self, Path, State},
     Json,
 };
 
 use thepipelinetool_core::dev::*;
 use timed::timed;
 
-use crate::*;
+use crate::{statics::_get_options, *};
 
-#[timed(duration(printer = "debug!"))]
 pub async fn ping() -> &'static str {
     "pong"
 }
 
 // TODO paginate
-#[timed(duration(printer = "debug!"))]
+
 pub async fn get_runs(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<Value> {
     json!(RedisBackend::get_runs(&dag_name, pool)
         .await
@@ -29,7 +28,6 @@ pub async fn get_runs(Path(dag_name): Path<String>, State(pool): State<Pool>) ->
     .into()
 }
 
-#[timed(duration(printer = "debug!"))]
 pub async fn get_next_run(Path(dag_name): Path<String>) -> Json<Value> {
     // TODO handle error
     let options = _get_options(&dag_name).unwrap();
@@ -37,12 +35,10 @@ pub async fn get_next_run(Path(dag_name): Path<String>) -> Json<Value> {
     json!(_get_next_run(&options)).into()
 }
 
-#[timed(duration(printer = "debug!"))]
 pub async fn get_last_run(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<Value> {
     json!(_get_last_run(&dag_name, pool).await).into()
 }
 
-#[timed(duration(printer = "debug!"))]
 pub async fn get_recent_runs(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
@@ -180,7 +176,18 @@ pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
 }
 
 pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<usize> {
-    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool).await }) // TODO check correctness
+    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool, None).await }) // TODO check correctness
+        .await
+        .unwrap()
+        .into()
+}
+
+pub async fn trigger_with_params(
+    Path(dag_name): Path<String>,
+    State(pool): State<Pool>,
+    extract::Json(params): extract::Json<Value>,
+) -> Json<usize> {
+    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool, Some(params)).await }) // TODO check correctness
         .await
         .unwrap()
         .into()

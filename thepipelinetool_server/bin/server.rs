@@ -16,7 +16,7 @@ use axum::routing::get;
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "info");
+    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
     assert!(tpt_installed());
@@ -45,7 +45,7 @@ async fn main() {
         .route("/runs/last/:dag_name", get(get_last_run))
         .route("/runs/recent/:dag_name", get(get_recent_runs)) // TODO change to recent results?
         .route("/runs/all/:dag_name", get(get_runs_with_tasks))
-        .route("/trigger/:dag_name", get(trigger))
+        .route("/trigger/:dag_name", get(trigger).post(trigger_with_params))
         .route("/statuses/:run_id", get(get_run_status))
         .route("/statuses/:run_id/:task_id", get(get_task_status))
         .route("/results/:run_id/:task_id", get(get_task_result))
