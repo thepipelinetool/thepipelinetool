@@ -43,6 +43,7 @@ pub struct RedisBackend {
 }
 
 impl RedisBackend {
+    // TODO remove below and replace with struct
     pub fn dummy(pool: Pool) -> Self {
         Self {
             edges: None,
