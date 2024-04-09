@@ -114,7 +114,7 @@ pub fn process_subcommands(
                     // let run_id = runner
                     //     .backend
                     let mut backend = InMemoryBackend::new(tasks, edges);
-                    let run_id = backend.enqueue_run("", "", Utc::now(), trigger_params);
+                    let run_id = backend.enqueue_run(0, "", "", Utc::now(), trigger_params);
 
                     run(
                         &mut backend,

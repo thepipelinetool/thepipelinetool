@@ -176,10 +176,18 @@ pub async fn get_default_graph(Path(dag_name): Path<String>) -> Json<Value> {
 }
 
 pub async fn trigger(Path(dag_name): Path<String>, State(pool): State<Pool>) -> Json<usize> {
-    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool, None).await }) // TODO check correctness
-        .await
-        .unwrap()
-        .into()
+    let nodes = _get_default_tasks(&dag_name).unwrap(); // TODO handle missing dag error
+    let edges = _get_default_edges(&dag_name).unwrap();
+    let hash = _get_hash(&dag_name);
+    let scheduled_date = Utc::now();
+    let mut backend = RedisBackend::from(nodes, edges, pool.clone());
+    let run_id = backend.create_new_run(&dag_name, &hash, scheduled_date);
+
+    tokio::spawn(async move {
+        _trigger_run(run_id, &dag_name, scheduled_date, pool, None, backend).await
+    });
+
+    run_id.into()
 }
 
 pub async fn trigger_with_params(
@@ -187,8 +195,24 @@ pub async fn trigger_with_params(
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,
 ) -> Json<usize> {
-    tokio::spawn(async move { _trigger_run(&dag_name, Utc::now(), pool, Some(params)).await }) // TODO check correctness
+    let nodes = _get_default_tasks(&dag_name).unwrap(); // TODO handle missing dag error
+    let edges = _get_default_edges(&dag_name).unwrap();
+    let hash = _get_hash(&dag_name);
+    let scheduled_date = Utc::now();
+    let mut backend = RedisBackend::from(nodes, edges, pool.clone());
+    let run_id = backend.create_new_run(&dag_name, &hash, scheduled_date);
+
+    tokio::spawn(async move {
+        _trigger_run(
+            run_id,
+            &dag_name,
+            scheduled_date,
+            pool,
+            Some(params),
+            backend,
+        )
         .await
-        .unwrap()
-        .into()
+    });
+
+    run_id.into()
 }

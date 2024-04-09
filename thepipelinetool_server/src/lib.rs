@@ -76,17 +76,20 @@ pub fn _get_dags() -> Vec<String> {
         .collect()
 }
 
-pub async fn _trigger_run(
+pub async fn _trigger_run<T>(
+    run_id: usize,
     dag_name: &str,
     scheduled_date_for_dag_run: DateTime<Utc>,
     pool: Pool,
     trigger_params: Option<Value>,
-) -> usize {
+    mut backend: T,
+) -> usize
+where
+    T: BlanketBackend,
+{
     let hash = _get_hash(dag_name);
-    let nodes = _get_default_tasks(dag_name).unwrap(); // TODO handle missing dag error
-    let edges = _get_default_edges(dag_name).unwrap();
-
-    RedisBackend::from(nodes, edges, pool.clone()).enqueue_run(
+    backend.enqueue_run(
+        run_id,
         dag_name,
         &hash,
         scheduled_date_for_dag_run,
@@ -219,8 +222,21 @@ pub async fn _trigger_run_from_schedules(
         {
             continue;
         }
+        let nodes = _get_default_tasks(dag_name).unwrap(); // TODO handle missing dag error
+        let edges = _get_default_edges(dag_name).unwrap();
+        let hash = _get_hash(dag_name);
 
-        _trigger_run(dag_name, scheduled_date, pool.clone(), None).await;
+        let mut backend = RedisBackend::from(nodes, edges, pool.clone());
+        let run_id = backend.create_new_run(dag_name, &hash, scheduled_date);
+        _trigger_run(
+            run_id,
+            dag_name,
+            scheduled_date,
+            pool.clone(),
+            None,
+            backend,
+        )
+        .await;
         println!(
             "scheduling catchup {dag_name} {}",
             scheduled_date.format("%F %R")

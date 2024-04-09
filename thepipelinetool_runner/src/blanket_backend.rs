@@ -24,6 +24,7 @@ pub trait BlanketBackend {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
     fn enqueue_run(
         &mut self,
+        run_id: usize,
         dag_name: &str,
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
@@ -95,12 +96,12 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
     fn enqueue_run(
         &mut self,
+        run_id: usize,
         dag_name: &str,
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         trigger_params: Option<Value>,
     ) -> usize {
-        let run_id = self.create_new_run(dag_name, dag_hash, scheduled_date_for_dag_run);
         let default_tasks = self.get_default_tasks();
         let trigger_params = trigger_params.unwrap_or(Value::Null);
 
