@@ -65,7 +65,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         if self
             .get_all_tasks(run_id)
             .iter()
-            .all(|t| self.get_task_status(run_id, t.id) == TaskStatus::Success)
+            .all(|t| match self.get_task_status(run_id, t.id) {
+                TaskStatus::Success | TaskStatus::Skipped => true,
+                _ => false,
+            })
         {
             0
         } else {

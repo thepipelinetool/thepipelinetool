@@ -6,7 +6,7 @@ fn hi(args: Value) -> Value {
     println!("{}", args);
 
     for i in 0..10 {
-        sleep(Duration::from_secs(3));
+        // sleep(Duration::from_secs(3));
         println!("hello {i}");
     }
 

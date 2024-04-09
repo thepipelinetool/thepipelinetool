@@ -6,7 +6,7 @@ on:
       - '**'
     paths:
       - .github/workflows/build.yml
-      - examples/
+      - examples/**
       - thepipelinetool/**
       - thepipelinetool_core/**
       - thepipelinetool_operators/**
@@ -16,6 +16,7 @@ on:
       - thepipelinetool_task/**
       - thepipelinetool_utils/**
       - Cargo.toml
+      - scripts/**
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,7 +31,4 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build
-      - run: pwd
-
-      - run: cargo install --path thepipelinetool
+      - run: ./scripts/run_all_examples.sh

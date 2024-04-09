@@ -126,7 +126,7 @@ pub fn process_subcommands(
                     );
 
                     let exit_code = backend.get_run_status(dummy_run_id);
-                    dbg!(backend.temp_queue);
+                    // dbg!(backend.temp_queue);
 
                     process::exit(exit_code);
                 }
