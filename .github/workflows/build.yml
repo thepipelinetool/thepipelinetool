@@ -32,6 +32,7 @@ jobs:
         with:
           toolchain: stable
       - run: cargo build -p thepipelinetool --release
-      - run: cargo build -p thepipelinetool_examples --release
+      - run: ./scripts/build_examples.sh
+      - run: cargo install --path thepipelinetool --force
       - run: ./scripts/run_all_examples.sh 1
       - run: ./scripts/run_all_examples.sh max      
