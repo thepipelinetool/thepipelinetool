@@ -336,7 +336,13 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     self.remove_edge(run_id, (task.id, *d));
                     self.update_referenced_dependencies(run_id, *d);
                     self.delete_task_depth(run_id, *d);
-                    self.enqueue_task(run_id, *d, scheduled_date_for_dag_run, dag_name.clone(), true);
+                    self.enqueue_task(
+                        run_id,
+                        *d,
+                        scheduled_date_for_dag_run,
+                        dag_name.clone(),
+                        true,
+                    );
                 }
 
                 self.enqueue_task(
@@ -516,10 +522,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) {
         if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
+            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             return;
         }
         if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
-            // self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             self.enqueue_task(
                 run_id,
                 ordered_queued_task.queued_task.task_id,
@@ -527,6 +533,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 ordered_queued_task.queued_task.dag_name.clone(),
                 false,
             );
+            self.remove_from_temp_queue(&ordered_queued_task.queued_task);
             return;
         }
 

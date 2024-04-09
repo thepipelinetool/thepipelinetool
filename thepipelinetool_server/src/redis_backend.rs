@@ -246,7 +246,9 @@ impl Backend for RedisBackend {
             let mut conn = self.pool.get().await.unwrap();
 
             cmd("INCR")
-                .arg(format!("{TASK_ATTEMPT_KEY}:{run_id}:{task_id}:{is_dynamic}"))
+                .arg(format!(
+                    "{TASK_ATTEMPT_KEY}:{run_id}:{task_id}:{is_dynamic}"
+                ))
                 .query_async::<_, usize>(&mut conn)
                 .await
                 .unwrap()
@@ -621,26 +623,26 @@ impl Backend for RedisBackend {
             let depth = self.get_task_depth(run_id, task_id);
             let mut conn = self.pool.get().await.unwrap();
             let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic);
-            let members = cmd("ZRANGEBYSCORE")
-                .arg("queue")
-                .arg("-inf")
-                .arg("+inf")
-                .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap();
-            for m in members {
-                let queued_task: QueuedTask = serde_json::from_str(&m).unwrap();
-                if queued_task.run_id == run_id && queued_task.task_id == task_id {
-                    cmd("ZREM")
-                        .arg(&[
-                            "queue".to_string(),
-                            serde_json::to_string(&queued_task).unwrap(),
-                        ])
-                        .query_async::<_, usize>(&mut conn)
-                        .await
-                        .unwrap();
-                }
-            }
+            // let members = cmd("ZRANGEBYSCORE")
+            //     .arg("queue")
+            //     .arg("-inf")
+            //     .arg("+inf")
+            //     .query_async::<_, Vec<String>>(&mut conn)
+            //     .await
+            //     .unwrap();
+            // for m in members {
+            //     let queued_task: QueuedTask = serde_json::from_str(&m).unwrap();
+            //     if queued_task.run_id == run_id && queued_task.task_id == task_id {
+            //         cmd("ZREM")
+            //             .arg(&[
+            //                 "queue".to_string(),
+            //                 serde_json::to_string(&queued_task).unwrap(),
+            //             ])
+            //             .query_async::<_, usize>(&mut conn)
+            //             .await
+            //             .unwrap();
+            //     }
+            // }
             cmd("ZADD")
                 .arg(&[
                     "queue".to_string(),
