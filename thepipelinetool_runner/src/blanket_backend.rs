@@ -520,19 +520,19 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
     ) {
-        if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
-            return;
-        }
-        if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
-            self.enqueue_task(
-                run_id,
-                ordered_queued_task.queued_task.task_id,
-                scheduled_date_for_dag_run,
-                ordered_queued_task.queued_task.dag_name.clone(),
-                false,
-            );
-            return;
-        }
+        // if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
+        //     return;
+        // }
+        // if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
+        //     self.enqueue_task(
+        //         run_id,
+        //         ordered_queued_task.queued_task.task_id,
+        //         scheduled_date_for_dag_run,
+        //         ordered_queued_task.queued_task.dag_name.clone(),
+        //         false,
+        //     );
+        //     return;
+        // }
 
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
         let dependency_keys = self.get_dependency_keys(run_id, task.id);
