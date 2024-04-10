@@ -1,27 +1,23 @@
 services:
-  # dag-server:
-  #   container_name: dag-server
-  #   build:
-  #     context: .
-  #     args:
-  #       - VERSION=v0.1.215
-  #     dockerfile: server.Dockerfile
-  #   ports:
-  #     - 8000:8000
-  #   environment:
-  #     - REDIS_URL=redis://cache:6379
-  # dag-worker:
-  #   build:
-  #     context: .
-  #     args:
-  #       - VERSION=v0.1.215
-  #     dockerfile: worker.Dockerfile
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 2
-  #   restart: always
-  #   environment:
-  #     - REDIS_URL=redis://cache:6379
+  tpt-server:
+    container_name: dag-server
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      - REDIS_URL=redis://cache:6379
+  tpt-worker:
+    build:
+      context: .
+      dockerfile: worker.Dockerfile
+    deploy:
+      mode: replicated
+      replicas: 2
+    restart: always
+    environment:
+      - REDIS_URL=redis://cache:6379
   cache:
       container_name: cache
       image: redis
