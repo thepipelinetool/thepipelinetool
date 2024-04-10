@@ -28,8 +28,14 @@ fn main() {
         cmd.args(&mut args[2..]);
         let (exit_status, _) = spawn(
             cmd,
-            Box::new(|x| print!("{x}")),
-            Box::new(|x| eprint!("{x}")),
+            Box::new(|x| {
+                print!("{x}");
+                Ok(())
+            }),
+            Box::new(|x| {
+                eprint!("{x}");
+                Ok(())
+            }),
         );
         process::exit(exit_status.code().unwrap());
     } else if is_executable {

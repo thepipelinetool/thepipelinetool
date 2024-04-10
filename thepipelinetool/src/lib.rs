@@ -108,7 +108,9 @@ pub fn process_subcommands(
 
                     let mut backend = InMemoryBackend::new(tasks, edges);
                     let dummy_run_id = 0;
-                    backend.enqueue_run(dummy_run_id, "", "", Utc::now(), trigger_params);
+                    backend
+                        .enqueue_run(dummy_run_id, "", "", Utc::now(), trigger_params)
+                        .unwrap();
 
                     run_in_memory(
                         &mut backend,
@@ -117,7 +119,7 @@ pub fn process_subcommands(
                         env::args().next().unwrap(),
                     );
 
-                    let exit_code = backend.get_run_status(dummy_run_id);
+                    let exit_code = backend.get_run_status(dummy_run_id).unwrap();
                     // dbg!(backend.temp_queue);
 
                     process::exit(exit_code);

@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     ffi::OsStr,
-    io::{Error, ErrorKind},
 };
 
 use chrono::{DateTime, Utc};
@@ -15,13 +14,14 @@ use thepipelinetool_utils::{
 };
 
 use crate::Backend;
+use anyhow::Result;
 
 pub trait BlanketBackend {
-    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool;
-    fn get_run_status(&mut self, run_id: usize) -> i32;
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
+    fn get_run_status(&mut self, run_id: usize) -> Result<i32>;
 
-    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool;
-    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool;
+    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
+    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
     fn enqueue_run(
         &mut self,
         run_id: usize,
@@ -29,7 +29,7 @@ pub trait BlanketBackend {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         trigger_params: Option<Value>,
-    );
+    ) -> Result<()>;
     fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
@@ -37,8 +37,9 @@ pub trait BlanketBackend {
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
-    );
-    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize);
+    ) -> Result<()>;
+    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize)
+        -> Result<()>;
     fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
@@ -49,52 +50,74 @@ pub trait BlanketBackend {
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
-    ) -> TaskResult;
+    ) -> Result<TaskResult>;
     fn resolve_args(
         &mut self,
         run_id: usize,
         template_args: &Value,
         upstream_deps: &HashMap<(usize, String), String>,
-    ) -> Result<Value, Error>;
+    ) -> Result<Value>;
 
-    fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask);
+    fn handle_task_result(
+        &mut self,
+        run_id: usize,
+        result: TaskResult,
+        queued_task: &QueuedTask,
+    ) -> Result<()>;
 }
 
 impl<U: Backend + Send + Sync> BlanketBackend for U {
-    fn get_run_status(&mut self, run_id: usize) -> i32 {
-        if self
-            .get_all_tasks(run_id)
-            .iter()
-            .all(|t| match self.get_task_status(run_id, t.id) {
-                TaskStatus::Success | TaskStatus::Skipped => true,
-                _ => false,
-            })
-        {
-            0
-        } else {
-            -1
+    fn get_run_status(&mut self, run_id: usize) -> Result<i32> {
+        // Ok(if self
+        //     .get_all_tasks(run_id)?
+        //     .iter()
+        //     .all(|t| match self.get_task_status(run_id, t.id)? {
+        //         TaskStatus::Success | TaskStatus::Skipped => true,
+        //         _ => false,
+        //     })
+        // {
+        //     0
+        // } else {
+        //     -1
+        // });
+
+        for task in self.get_all_tasks(run_id)? {
+            let status = self.get_task_status(run_id, task.id)?;
+
+            match status {
+                TaskStatus::Success | TaskStatus::Skipped => {
+                    continue;
+                }
+                _ => {
+                    return Ok(-1);
+                }
+            };
         }
+        Ok(0)
     }
-    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> bool {
+    fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
         // TODO implement more trigger rules, e.g. run on upstream failure(s)
 
-        self.get_upstream(run_id, task_id)
-            .iter()
-            .all(|edge| self.is_task_done(run_id, *edge))
+        for upstream_id in self.get_upstream(run_id, task_id)? {
+            if !self.is_task_done(run_id, upstream_id)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
-    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> bool {
-        match self.get_task_status(run_id, task_id) {
+    fn is_task_done(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
+        Ok(match self.get_task_status(run_id, task_id)? {
             TaskStatus::Pending | TaskStatus::Running | TaskStatus::RetryPending => false,
             TaskStatus::Success | TaskStatus::Failure | TaskStatus::Skipped => true,
-        }
+        })
     }
 
-    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> bool {
-        matches!(
-            self.get_task_status(run_id, task_id),
+    fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
+        Ok(matches!(
+            self.get_task_status(run_id, task_id)?,
             TaskStatus::Pending | TaskStatus::RetryPending
-        )
+        ))
     }
 
     fn enqueue_run(
@@ -104,12 +127,12 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         trigger_params: Option<Value>,
-    ) {
-        let default_tasks = self.get_default_tasks();
+    ) -> Result<()> {
+        let default_tasks = self.get_default_tasks()?;
         let trigger_params = trigger_params.unwrap_or(Value::Null);
 
         for task in &default_tasks {
-            self.append_new_task_and_set_status_to_pending(
+            let _ = self.append_new_task_and_set_status_to_pending(
                 run_id,
                 &task.name,
                 &task.function,
@@ -123,31 +146,36 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 task.is_dynamic,
                 task.is_branch,
                 task.use_trigger_params,
-            );
-            self.update_referenced_dependencies(run_id, task.id);
+            )?;
+            self.update_referenced_dependencies(run_id, task.id)?;
         }
 
-        for (upstream_id, downstream_id) in self.get_default_edges() {
-            self.insert_edge(run_id, (upstream_id, downstream_id));
+        for (upstream_id, downstream_id) in self.get_default_edges()? {
+            self.insert_edge(run_id, (upstream_id, downstream_id))?;
         }
 
         // only enqueue default tasks with no upstream dependencies
-        for task in default_tasks
-            .iter()
-            .filter(|task| self.get_task_depth(run_id, task.id) == 0)
-            .collect::<Vec<&Task>>()
-        {
-            self.enqueue_task(
-                run_id,
-                task.id,
-                scheduled_date_for_dag_run,
-                dag_name.to_string(),
-                false,
-            );
+        for task in default_tasks {
+            if self.get_task_depth(run_id, task.id)? == 0 {
+                self.enqueue_task(
+                    run_id,
+                    task.id,
+                    scheduled_date_for_dag_run,
+                    dag_name.to_string(),
+                    false,
+                )?;
+            }
         }
+
+        Ok(())
     }
 
-    fn handle_task_result(&mut self, run_id: usize, result: TaskResult, queued_task: &QueuedTask) {
+    fn handle_task_result(
+        &mut self,
+        run_id: usize,
+        result: TaskResult,
+        queued_task: &QueuedTask,
+    ) -> Result<()> {
         // TODO check if this result has been handled, ignore handling if so
 
         let mut result = result;
@@ -164,11 +192,11 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             };
         }
 
-        self.insert_task_results(run_id, &result);
+        self.insert_task_results(run_id, &result)?;
 
         result.print_task_result(
-            self.get_template_args(run_id, result.task_id),
-            self.get_log(run_id, result.task_id, result.attempt),
+            self.get_template_args(run_id, result.task_id)?,
+            self.get_log(run_id, result.task_id, result.attempt)?,
         );
 
         if result.needs_retry() {
@@ -184,15 +212,15 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     result.max_attempts
                 );
             }
-            self.set_task_status(run_id, result.task_id, TaskStatus::RetryPending);
+            self.set_task_status(run_id, result.task_id, TaskStatus::RetryPending)?;
             self.enqueue_task(
                 run_id,
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
                 queued_task.dag_name.clone(),
                 false,
-            );
-            return;
+            )?;
+            return Ok(());
         }
 
         if result.is_branch && result.success {
@@ -202,11 +230,11 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 result.task_id + 1
             };
             let mut to_skip = vec![skip_task];
-            to_skip.append(&mut self.get_downstream(run_id, skip_task));
+            to_skip.append(&mut self.get_downstream(run_id, skip_task)?);
 
             while let Some(curr) = to_skip.pop() {
-                to_skip.append(&mut self.get_downstream(run_id, curr));
-                self.set_task_status(run_id, curr, TaskStatus::Skipped);
+                to_skip.append(&mut self.get_downstream(run_id, curr)?);
+                self.set_task_status(run_id, curr, TaskStatus::Skipped)?;
             }
         }
 
@@ -218,34 +246,32 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             } else {
                 TaskStatus::Failure
             },
-        );
+        )?;
 
-        if !result.premature_failure && self.task_needs_running(run_id, result.task_id) {
+        if !result.premature_failure && self.task_needs_running(run_id, result.task_id)? {
             self.enqueue_task(
                 run_id,
                 result.task_id,
                 queued_task.scheduled_date_for_dag_run,
                 queued_task.dag_name.clone(),
                 false,
-            );
+            )?;
         } else {
-            for downstream in self
-                .get_downstream(run_id, result.task_id)
-                .iter()
-                .filter(|d| {
-                    !self.is_task_done(run_id, **d) && self.trigger_rules_satisfied(run_id, **d)
-                })
-                .collect::<Vec<&usize>>()
-            {
-                self.enqueue_task(
-                    run_id,
-                    *downstream,
-                    queued_task.scheduled_date_for_dag_run,
-                    queued_task.dag_name.clone(),
-                    false,
-                );
+            for downstream in self.get_downstream(run_id, result.task_id)? {
+                if !self.is_task_done(run_id, downstream)?
+                    && self.trigger_rules_satisfied(run_id, downstream)?
+                {
+                    self.enqueue_task(
+                        run_id,
+                        downstream,
+                        queued_task.scheduled_date_for_dag_run,
+                        queued_task.dag_name.clone(),
+                        false,
+                    )?;
+                }
             }
         }
+        Ok(())
     }
 
     fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
@@ -258,9 +284,9 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
-    ) -> TaskResult {
+    ) -> Result<TaskResult> {
         if task.lazy_expand {
-            let downstream = self.get_downstream(run_id, task.id);
+            let downstream = self.get_downstream(run_id, task.id)?;
 
             let mut lazy_ids = vec![];
             for res in resolution_result.as_array().unwrap() {
@@ -274,10 +300,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     true,
                     false,
                     false,
-                );
+                )?;
 
                 lazy_ids.push(new_id);
-                self.insert_edge(run_id, (task.id, new_id));
+                self.insert_edge(run_id, (task.id, new_id))?;
             }
 
             if !downstream.is_empty() {
@@ -300,20 +326,20 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     true,
                     false,
                     false,
-                );
-                self.update_referenced_dependencies(run_id, collector_id);
+                )?;
+                self.update_referenced_dependencies(run_id, collector_id)?;
 
                 for lazy_id in &lazy_ids {
-                    self.insert_edge(run_id, (*lazy_id, collector_id));
+                    self.insert_edge(run_id, (*lazy_id, collector_id))?;
                 }
 
                 for d in &downstream {
-                    self.insert_edge(run_id, (collector_id, *d));
+                    self.insert_edge(run_id, (collector_id, *d))?;
 
                     self.set_template_args(
                         run_id,
                         *d,
-                        &serde_json::to_string(&self.get_template_args(run_id, *d))
+                        &serde_json::to_string(&self.get_template_args(run_id, *d)?)
                             .unwrap()
                             .replace(
                                 &serde_json::to_string(&TaskRefInner::<Value> {
@@ -329,19 +355,19 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                                 })
                                 .unwrap(),
                             ),
-                    );
+                    )?;
                 }
                 for d in &downstream {
-                    self.remove_edge(run_id, (task.id, *d));
-                    self.update_referenced_dependencies(run_id, *d);
-                    self.delete_task_depth(run_id, *d);
+                    self.remove_edge(run_id, (task.id, *d))?;
+                    self.update_referenced_dependencies(run_id, *d)?;
+                    self.delete_task_depth(run_id, *d)?;
                     self.enqueue_task(
                         run_id,
                         *d,
                         scheduled_date_for_dag_run,
                         dag_name.clone(),
                         true,
-                    );
+                    )?;
                 }
 
                 self.enqueue_task(
@@ -350,7 +376,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     scheduled_date_for_dag_run,
                     dag_name.clone(),
                     true,
-                );
+                )?;
             }
             for lazy_id in &lazy_ids {
                 self.enqueue_task(
@@ -359,12 +385,12 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     scheduled_date_for_dag_run,
                     dag_name.clone(),
                     true,
-                );
+                )?;
             }
 
             let start = Utc::now();
 
-            return TaskResult {
+            return Ok(TaskResult {
                 task_id: task.id,
                 result: Value::Null,
                 attempt,
@@ -381,20 +407,20 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
                 scheduled_date_for_dag_run,
-            };
+            });
         }
 
-        task.execute(
+        Ok(task.execute(
             resolution_result,
             attempt,
-            self.get_log_handle_closure(run_id, task.id, attempt),
-            self.get_log_handle_closure(run_id, task.id, attempt),
-            self.take_last_stdout_line(run_id, task.id, attempt),
+            self.get_log_handle_closure(run_id, task.id, attempt)?,
+            self.get_log_handle_closure(run_id, task.id, attempt)?,
+            self.take_last_stdout_line(run_id, task.id, attempt)?,
             dag_path,
             tpt_path,
             scheduled_date_for_dag_run,
             run_id,
-        )
+        ))
     }
 
     fn resolve_args(
@@ -402,7 +428,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         run_id: usize,
         template_args: &Value,
         upstream_deps: &HashMap<(usize, String), String>,
-    ) -> Result<Value, Error> {
+    ) -> Result<Value> {
         let mut results: HashMap<usize, Value> = HashMap::new();
         for ((upstream_id, _), key) in upstream_deps {
             if results.contains_key(upstream_id) {
@@ -415,13 +441,13 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             //         format!("upstream task_id {} does not exist!", upstream_task_id),
             //     ));
             // }
-            let task_result = self.get_task_result(run_id, *upstream_id);
+            let task_result = self.get_task_result(run_id, *upstream_id)?;
             results.insert(*upstream_id, task_result.result.clone());
             if !task_result.success {
-                return Err(Error::new(
-                    ErrorKind::NotFound,
-                    format!("upstream task_id {} failed!", upstream_id,),
-                ));
+                return Err(anyhow::Error::msg(format!(
+                    "upstream task_id {} failed!",
+                    upstream_id
+                )));
             }
 
             if key.is_empty() {
@@ -432,25 +458,19 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 let upstream_results_map = task_result.result.as_object().unwrap();
 
                 if !upstream_results_map.contains_key(key) {
-                    return Err(Error::new(
-                        ErrorKind::NotFound,
-                        format!(
-                            "upstream task_id {} result does not contain key {}",
-                            upstream_id, key
-                        ),
-                    ));
+                    return Err(anyhow::Error::msg(format!(
+                        "upstream task_id {} result does not contain key {}",
+                        upstream_id, key
+                    )));
                 }
 
                 continue;
             }
 
-            return Err(Error::new(
-                ErrorKind::NotFound,
-                format!(
-                    "upstream_task_id {} result type '{:?}' is not a map",
-                    upstream_id, task_result.result
-                ),
-            ));
+            return Err(anyhow::Error::msg(format!(
+                "upstream_task_id {} result type '{:?}' is not a map",
+                upstream_id, task_result.result
+            )));
         }
 
         let mut resolved_args: Value = template_args.clone();
@@ -519,7 +539,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
-    ) {
+    ) -> Result<()> {
         // if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
         //     return;
         // }
@@ -534,8 +554,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         //     return;
         // }
 
-        let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id);
-        let dependency_keys = self.get_dependency_keys(run_id, task.id);
+        let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id)?;
+        let dependency_keys = self.get_dependency_keys(run_id, task.id)?;
         let result = match self.resolve_args(run_id, &task.template_args, &dependency_keys) {
             Ok(resolution_result) => self.run_task(
                 run_id,
@@ -546,7 +566,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 tpt_path,
                 scheduled_date_for_dag_run,
                 ordered_queued_task.queued_task.dag_name.clone(),
-            ),
+            )?,
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
                 ordered_queued_task.queued_task.attempt,
@@ -559,11 +579,16 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 scheduled_date_for_dag_run,
             ),
         };
-        self.handle_task_result(run_id, result, &ordered_queued_task.queued_task);
+        self.handle_task_result(run_id, result, &ordered_queued_task.queued_task)?;
+        Ok(())
     }
 
-    fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize) {
-        let template_args = self.get_template_args(run_id, downstream_id);
+    fn update_referenced_dependencies(
+        &mut self,
+        run_id: usize,
+        downstream_id: usize,
+    ) -> Result<()> {
+        let template_args = self.get_template_args(run_id, downstream_id)?;
 
         if template_args.is_array() {
             for value in template_args
@@ -594,8 +619,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                         } else {
                             "".into()
                         },
-                    );
-                    self.insert_edge(run_id, (upstream_id, downstream_id));
+                    )?;
+                    self.insert_edge(run_id, (upstream_id, downstream_id))?;
                 }
             }
         } else if template_args.is_object() {
@@ -620,11 +645,11 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     } else {
                         "".into()
                     },
-                );
+                )?;
 
-                self.insert_edge(run_id, (upstream_id, downstream_id));
+                self.insert_edge(run_id, (upstream_id, downstream_id))?;
 
-                return;
+                return Ok(());
             }
 
             for (key, value) in template_args.iter().filter(|(_, v)| v.is_object()) {
@@ -646,11 +671,13 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                         } else {
                             "".into()
                         },
-                    );
+                    )?;
 
-                    self.insert_edge(run_id, (upstream_id, downstream_id));
+                    self.insert_edge(run_id, (upstream_id, downstream_id))?;
                 }
             }
         }
+
+        Ok(())
     }
 }

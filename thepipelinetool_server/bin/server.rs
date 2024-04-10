@@ -12,18 +12,19 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
+use anyhow::Result;
 use axum::routing::get;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
-    assert!(tpt_installed());
-    assert!(tpt_executor_installed());
+    assert!(tpt_installed()?);
+    assert!(tpt_executor_installed()?);
 
     println!("connecting to redis...");
-    let pool = get_redis_pool();
+    let pool = get_redis_pool()?;
 
     let now = Utc::now();
 
@@ -70,9 +71,9 @@ async fn main() {
 
     println!("Running tpt server on {bind_address}");
 
-    let listener = TcpListener::bind(bind_address).await.unwrap();
+    let listener = TcpListener::bind(bind_address).await?;
 
-    axum::serve(listener, app.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(listener, app.into_make_service()).await?;
+
+    Ok(())
 }

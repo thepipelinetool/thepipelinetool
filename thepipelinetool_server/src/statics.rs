@@ -10,6 +10,8 @@ use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{get_dag_path_by_name, get_dags_dir, options::DagOptions};
 
 use crate::env::get_tpt_command;
+use anyhow::anyhow;
+use anyhow::Result;
 
 type StaticServerTasks = Arc<Mutex<HashMap<String, Vec<Task>>>>;
 type StaticServerHashes = Arc<Mutex<HashMap<String, String>>>;
@@ -21,34 +23,33 @@ static HASHES: OnceLock<StaticServerHashes> = OnceLock::new();
 static EDGES: OnceLock<StaticServerEdges> = OnceLock::new();
 static DAG_OPTIONS: OnceLock<StaticServerDagOptions> = OnceLock::new();
 
-pub fn _get_default_tasks(dag_name: &str) -> Option<Vec<Task>> {
+pub fn _get_default_tasks(dag_name: &str) -> Result<Vec<Task>> {
     let mut tasks = TASKS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !tasks.contains_key(dag_name) {
-        let dag_path = get_dag_path_by_name(dag_name);
-        if dag_path.is_none() {
-            return None;
-        }
+        let dag_path = get_dag_path_by_name(dag_name)?;
 
         let output = Command::new(get_tpt_command())
-            .arg(dag_path.unwrap())
+            .arg(dag_path)
             .arg("describe")
             .arg("tasks")
-            .output()
-            .expect("failed to run");
+            .output()?;
 
         tasks.insert(
             dag_name.to_owned(),
-            serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(),
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?,
         );
     }
 
-    Some(tasks.get(dag_name).unwrap().clone())
+    Ok(tasks
+        .get(dag_name)
+        .ok_or(anyhow!(format!("{dag_name} does not exist")))?
+        .clone())
 }
 
-pub fn _get_hash(dag_name: &str) -> String {
+pub fn _get_hash(dag_name: &str) -> Result<String> {
     let mut hashes = HASHES
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
@@ -60,70 +61,73 @@ pub fn _get_hash(dag_name: &str) -> String {
             .arg(path)
             .arg("describe")
             .arg("hash")
-            .output()
-            .expect("failed to run");
+            .output()?;
 
         hashes.insert(
             dag_name.to_owned(),
             String::from_utf8_lossy(&output.stdout).to_string(),
         );
+    } else {
+        return Err(anyhow!(format!("{dag_name} does not exist")));
     }
 
-    hashes.get(dag_name).unwrap().to_string()
+    Ok(hashes
+        .get(dag_name)
+        .ok_or(anyhow!(format!("{dag_name} does not exist")))?
+        .to_string())
 }
 
-pub fn _get_default_edges(dag_name: &str) -> Option<HashSet<(usize, usize)>> {
+pub fn _get_default_edges(dag_name: &str) -> Result<HashSet<(usize, usize)>> {
     let mut edges = EDGES
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !edges.contains_key(dag_name) {
-        let dag_path = get_dag_path_by_name(dag_name);
-        if dag_path.is_none() {
-            return None;
-        }
+        let dag_path = get_dag_path_by_name(dag_name)?;
+
         let output = Command::new(get_tpt_command())
-            .arg(dag_path.unwrap())
+            .arg(dag_path)
             .arg("describe")
             .arg("edges")
-            .output()
-            .expect("failed to run");
+            .output()?;
 
         edges.insert(
             dag_name.to_owned(),
-            serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(),
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?,
         );
     }
 
-    Some(edges.get(dag_name).unwrap().clone())
+    Ok(edges
+        .get(dag_name)
+        .ok_or(anyhow!(format!("{dag_name} does not exist")))?
+        .clone())
 }
 
-pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
+pub fn _get_options(dag_name: &str) -> Result<DagOptions> {
     let mut dag_options = DAG_OPTIONS
         .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
         .lock();
 
     if !dag_options.contains_key(dag_name) {
-        let dag_path = get_dag_path_by_name(dag_name);
-        if dag_path.is_none() {
-            return None;
-        }
+        let dag_path = get_dag_path_by_name(dag_name)?;
 
         let output = Command::new(get_tpt_command())
-            .arg(dag_path.unwrap())
+            .arg(dag_path)
             .arg("describe")
             .arg("options")
-            .output()
-            .expect("failed to run. is tpt installed?");
+            .output()?;
 
         dag_options.insert(
             dag_name.to_owned(),
-            serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(), // TODO ignore/handle errors for all io
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?, // TODO ignore/handle errors for all io
         );
         // TODO verify schedule string
     }
 
-    Some(dag_options.get(dag_name).unwrap().clone())
+    Ok(dag_options
+        .get(dag_name)
+        .ok_or(anyhow!(format!("{dag_name} does not exist")))?
+        .clone())
 }
 
 //

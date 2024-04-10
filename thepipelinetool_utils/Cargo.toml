@@ -10,3 +10,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 serde_json = "1.0"
 serde = "1.0.189"
+anyhow = "1.0.81"

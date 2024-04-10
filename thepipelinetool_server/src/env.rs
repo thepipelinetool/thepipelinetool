@@ -5,37 +5,36 @@ use thepipelinetool_runner::get_tpt_executor_command;
 use thepipelinetool_utils::get_default_max_parallelism;
 
 use crate::Executor;
+use anyhow::Result;
 
-pub fn tpt_installed() -> bool {
-    !matches!(
+pub fn tpt_installed() -> Result<bool> {
+    Ok(!matches!(
         String::from_utf8_lossy(
             &Command::new("which")
                 .arg(get_tpt_command())
-                .output()
-                .unwrap()
+                .output()?
                 .stdout
         )
         .to_string()
         .as_str()
         .trim(),
         ""
-    )
+    ))
 }
 
-pub fn tpt_executor_installed() -> bool {
-    !matches!(
+pub fn tpt_executor_installed() -> Result<bool> {
+    Ok(!matches!(
         String::from_utf8_lossy(
             &Command::new("which")
                 .arg(get_tpt_executor_command())
-                .output()
-                .unwrap()
+                .output()?
                 .stdout
         )
         .to_string()
         .as_str()
         .trim(),
         ""
-    )
+    ))
 }
 
 const DEFAULT_TPT_COMMAND: &str = "tpt";
@@ -46,21 +45,19 @@ pub fn get_tpt_command() -> String {
         .to_string()
 }
 
-pub fn get_max_parallelism() -> usize {
-    env::var("MAX_PARALLELISM")
+pub fn get_max_parallelism() -> Result<usize> {
+    Ok(env::var("MAX_PARALLELISM")
         .unwrap_or(get_default_max_parallelism().to_string())
         .to_string()
-        .parse::<usize>()
-        .unwrap()
+        .parse::<usize>()?)
 }
 
-pub fn get_executor_type() -> Executor {
-    serde_json::from_str(
+pub fn get_executor_type() -> Result<Executor> {
+    Ok(serde_json::from_str(
         &env::var("EXECUTOR")
-            .unwrap_or(serde_json::to_string(&json!(Executor::Local)).unwrap())
+            .unwrap_or(serde_json::to_string(&json!(Executor::Local)).expect(""))
             .to_string(),
-    )
-    .unwrap()
+    )?)
 }
 
 pub fn get_redis_url() -> String {

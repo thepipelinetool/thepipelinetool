@@ -3,6 +3,7 @@ use log::debug;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_runner::backend::Backend;
 
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use thepipelinetool_core::dev::*;
 use timed::timed;
@@ -62,77 +63,92 @@ impl RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_temp_queue(&self) -> Vec<QueuedTask> {
-        let mut conn = self.pool.get().await.unwrap();
+    pub async fn get_temp_queue(&self) -> Result<Vec<QueuedTask>> {
+        let mut conn = self.pool.get().await?;
 
-        cmd("SMEMBERS")
+        let members = cmd("SMEMBERS")
             .arg("tmpqueue") // TODO timeout arg
             .query_async::<_, Vec<String>>(&mut conn)
-            .await
-            .unwrap()
-            .iter()
-            .map(|s| serde_json::from_str(s).unwrap())
-            .collect()
+            .await?;
+
+        let mut v = vec![];
+
+        for s in members {
+            v.push(serde_json::from_str(&s)?);
+        }
+        Ok(v)
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_all_results(run_id: usize, task_id: usize, pool: Pool) -> Vec<TaskResult> {
-        let mut conn = pool.get().await.unwrap();
-        cmd("LRANGE")
+    pub async fn get_all_results(
+        run_id: usize,
+        task_id: usize,
+        pool: Pool,
+    ) -> Result<Vec<TaskResult>> {
+        let mut conn = pool.get().await?;
+        let members = cmd("LRANGE")
             .arg(format!("{TASK_RESULTS_KEY}:{run_id}:{task_id}"))
             .arg(0)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
-            .await
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_str(v).unwrap())
-            .collect()
+            .await?;
+
+        let mut v = vec![];
+
+        for s in members {
+            v.push(serde_json::from_str(&s)?);
+        }
+        Ok(v)
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
-        let mut conn = pool.get().await.unwrap();
-        cmd("LRANGE")
+    pub async fn get_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
+        let mut conn = pool.get().await?;
+        let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{dag_name}"))
             .arg(0)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
-            .await
-            .unwrap()
-            .iter()
-            .map(|v| serde_json::from_str(v).unwrap())
-            .collect()
+            .await?;
+
+        let mut v = vec![];
+
+        for s in members {
+            v.push(serde_json::from_str(&s)?);
+        }
+        Ok(v)
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_last_run(dag_name: &str, pool: Pool) -> Option<Run> {
-        let mut conn = pool.get().await.unwrap();
-        cmd("LRANGE")
+    pub async fn get_last_run(dag_name: &str, pool: Pool) -> Result<Option<Run>> {
+        let mut conn = pool.get().await?;
+        let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{dag_name}"))
             .arg(-1)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
-            .await
-            .unwrap_or_default()
-            .first()
-            .map(|run| serde_json::from_str(run).unwrap())
+            .await?;
+
+        Ok(serde_json::from_str(&members[0])?)
     }
 
     //
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
-        let mut conn = pool.get().await.unwrap();
-        cmd("LRANGE")
+    pub async fn get_recent_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
+        let mut conn = pool.get().await?;
+        let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{dag_name}"))
             .arg(-10)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
-            .await
-            .unwrap_or_default()
-            .iter()
-            .map(|run| serde_json::from_str(run).unwrap())
-            .collect()
+            .await?;
+
+        let mut v = vec![];
+
+        for s in members {
+            v.push(serde_json::from_str(&s)?);
+        }
+        Ok(v)
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -141,161 +157,166 @@ impl RedisBackend {
         dag_hash: &str,
         scheduled_date_for_dag_run: DateTime<Utc>,
         pool: Pool,
-    ) -> bool {
-        let mut conn = pool.get().await.unwrap();
-        cmd("SISMEMBER")
+    ) -> Result<bool> {
+        let mut conn = pool.get().await?;
+        Ok(cmd("SISMEMBER")
             .arg(format!("{LOGICAL_DATES_KEY}:{dag_name}:{dag_hash}"))
             .arg(scheduled_date_for_dag_run.to_string())
             .query_async::<_, bool>(&mut conn)
-            .await
-            .unwrap()
+            .await?)
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_running_tasks_count(&self) -> usize {
-        let mut conn = self.pool.get().await.unwrap();
-        cmd("SCARD")
+    pub async fn get_running_tasks_count(&self) -> Result<usize> {
+        let mut conn = self.pool.get().await?;
+        Ok(cmd("SCARD")
             .arg("tmpqueue")
             .query_async::<_, usize>(&mut conn)
-            .await
-            .unwrap()
+            .await?)
     }
 }
 
 impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
-    fn get_queue_length(&self) -> usize {
+    fn get_queue_length(&self) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
-            cmd("ZCOUNT")
+            Ok(cmd("ZCOUNT")
                 .arg("queue")
                 .arg(i32::MIN)
                 .arg(i32::MAX)
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap()
+                .await?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
+    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
             cmd("SREM")
                 .arg("tmpqueue")
-                .arg(serde_json::to_string(queued_task).unwrap())
+                .arg(serde_json::to_string(queued_task)?)
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
+            Ok(())
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn delete_task_depth(&mut self, run_id: usize, task_id: usize) {
+    fn delete_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             cmd("DEL")
                 .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
-        });
-    }
+                .await?;
 
-    #[timed(duration(printer = "debug!"))]
-    fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> String {
-        block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            cmd("LRANGE")
-                .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
-                .arg(0)
-                .arg(-1)
-                .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap_or_default()
-                .join("\n")
+            Ok(())
         })
     }
 
     #[timed(duration(printer = "debug!"))]
+    fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> Result<String> {
+        block_on!({
+            let mut conn = self.pool.get().await?;
+            let members = cmd("LRANGE")
+                .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
+                .arg(0)
+                .arg(-1)
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await?;
+
+            Ok(members.join("\n"))
+        })
+    }
+
+    // #[timed(duration(printer = "debug!"))]
     fn get_log_handle_closure(
         &mut self,
         run_id: usize,
         task_id: usize,
         attempt: usize,
-    ) -> Box<dyn Fn(String) + Send> {
+    ) -> Result<Box<dyn Fn(String) -> Result<()> + Send>> {
         let pool = self.pool.clone();
-        Box::new(move |s| {
-            tokio::runtime::Runtime::new().unwrap().block_on(async {
-                let mut conn = pool.get().await.unwrap();
+        Ok(Box::new(move |s| {
+            tokio::runtime::Runtime::new()?.block_on(async {
+                let mut conn = pool.get().await?;
                 cmd("RPUSH")
                     .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
                     .arg(s)
                     .query_async::<_, usize>(&mut conn)
-                    .await
-                    .unwrap()
-            });
-        })
+                    .await?;
+
+                Ok(())
+            })
+        }))
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_task_result(&mut self, run_id: usize, task_id: usize) -> TaskResult {
+    fn get_task_result(&mut self, run_id: usize, task_id: usize) -> Result<TaskResult> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            serde_json::from_str(
+            let mut conn = self.pool.get().await?;
+            Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
                     .query_async::<_, String>(&mut conn)
-                    .await
-                    .unwrap(),
-            )
-            .unwrap()
+                    .await?,
+            )?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_attempt_by_task_id(&self, run_id: usize, task_id: usize, is_dynamic: bool) -> usize {
+    fn get_attempt_by_task_id(
+        &self,
+        run_id: usize,
+        task_id: usize,
+        is_dynamic: bool,
+    ) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
-            cmd("INCR")
+            Ok(cmd("INCR")
                 .arg(format!(
                     "{TASK_ATTEMPT_KEY}:{run_id}:{task_id}:{is_dynamic}"
                 ))
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap()
+                .await?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_task_status(&self, run_id: usize, task_id: usize) -> TaskStatus {
+    fn get_task_status(&self, run_id: usize, task_id: usize) -> Result<TaskStatus> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            serde_json::from_str(
+            let mut conn = self.pool.get().await?;
+            Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
                     .query_async::<_, String>(&mut conn)
-                    .await
-                    .unwrap(),
-            )
-            .unwrap()
+                    .await?,
+            )?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn set_task_status(&mut self, run_id: usize, task_id: usize, task_status: TaskStatus) {
+    fn set_task_status(
+        &mut self,
+        run_id: usize,
+        task_id: usize,
+        task_status: TaskStatus,
+    ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
             cmd("SET")
                 .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
-                .arg(serde_json::to_string(&task_status).unwrap())
+                .arg(serde_json::to_string(&task_status)?)
                 .query_async::<_, String>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+
+            Ok(())
+        })
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -304,73 +325,70 @@ impl Backend for RedisBackend {
         dag_name: &str,
         _dag_hash: &str, // TODO
         scheduled_date_for_dag_run: DateTime<Utc>,
-    ) -> usize {
+    ) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             let run_id = cmd("INCR")
                 .arg("run")
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap()
+                .await?
                 - 1;
 
             cmd("RPUSH")
                 .arg(format!("{RUNS_KEY}:{dag_name}"))
-                .arg(
-                    serde_json::to_string(&Run {
-                        run_id,
-                        scheduled_date_for_dag_run,
-                    })
-                    .unwrap(),
-                )
+                .arg(serde_json::to_string(&Run {
+                    run_id,
+                    scheduled_date_for_dag_run,
+                })?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
-            run_id
+                .await?;
+            Ok(run_id)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn insert_task_results(&mut self, run_id: usize, result: &TaskResult) {
+    fn insert_task_results(&mut self, run_id: usize, result: &TaskResult) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            let res = serde_json::to_string(result).unwrap();
+            let mut conn = self.pool.get().await?;
+            let res = serde_json::to_string(result)?;
             let task_id = result.task_id;
 
             cmd("RPUSH")
                 .arg(format!("{TASK_RESULTS_KEY}:{run_id}:{task_id}"))
                 .arg(&res)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
             cmd("SET")
                 .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
                 .arg(res)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+
+            Ok(())
+        })
     }
 
-    #[timed(duration(printer = "debug!"))]
+    // #[timed(duration(printer = "debug!"))]
     fn get_dependency_keys(
         &mut self,
         run_id: usize,
         task_id: usize,
-    ) -> HashMap<(usize, String), String> {
+    ) -> Result<HashMap<(usize, String), String>> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
-            let k: Vec<((usize, String), String)> = cmd("SMEMBERS")
+            let members = cmd("SMEMBERS")
                 .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap_or_default()
-                .iter()
-                .map(|v| serde_json::from_str(v).unwrap())
-                .collect();
-            k.into_iter().collect()
+                .await?;
+
+            let mut k: Vec<((usize, String), String)> = vec![];
+
+            for v in members {
+                k.push(serde_json::from_str(&v)?);
+            }
+            Ok(HashMap::from_iter(k.into_iter()))
         })
     }
 
@@ -381,123 +399,135 @@ impl Backend for RedisBackend {
         task_id: usize,
         upstream: (usize, String),
         v: String,
-    ) {
+    ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
             cmd("SADD")
                 .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
-                .arg(serde_json::to_string(&(upstream, v)).unwrap())
+                .arg(serde_json::to_string(&(upstream, v))?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
+
+            Ok(())
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_downstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
+    fn get_downstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            cmd("SMEMBERS")
+            let mut conn = self.pool.get().await?;
+            let members = cmd("SMEMBERS")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap()
-                .iter()
-                .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
-                .filter_map(|(up, down)| if up == task_id { Some(down) } else { None })
-                .collect()
+                .await?;
+            let mut downstream = vec![];
+            for f in members {
+                let (up, down): (usize, usize) = serde_json::from_str(&f)?;
+                if up == task_id {
+                    downstream.push(down)
+                }
+            }
+            Ok(downstream)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_upstream(&self, run_id: usize, task_id: usize) -> Vec<usize> {
+    fn get_upstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            cmd("SMEMBERS")
+            let mut conn = self.pool.get().await?;
+            let members = cmd("SMEMBERS")
                 .arg(&[format!("{EDGES_KEY}:{run_id}")])
                 .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap()
-                .iter()
-                .map(|f| serde_json::from_str::<(usize, usize)>(f).unwrap())
-                .filter_map(|(up, down)| if down == task_id { Some(up) } else { None })
-                .collect()
+                .await?;
+
+            let mut upstream = vec![];
+            for f in members {
+                let (up, down): (usize, usize) = serde_json::from_str(&f)?;
+                if down == task_id {
+                    upstream.push(up)
+                }
+            }
+            Ok(upstream)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) {
+    fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
             cmd("SREM")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
-                .arg(serde_json::to_string(&edge).unwrap())
+                .arg(serde_json::to_string(&edge)?)
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
             cmd("SREM")
                 .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{}", edge.1))
-                .arg(serde_json::to_string(&((edge.0, ""), "")).unwrap())
+                .arg(serde_json::to_string(&((edge.0, ""), ""))?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+
+            Ok(())
+        })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) {
+    fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
             cmd("SADD")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
-                .arg(serde_json::to_string(&edge).unwrap())
+                .arg(serde_json::to_string(&edge)?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
+
+            Ok(())
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_all_tasks(&self, run_id: usize) -> Vec<Task> {
+    fn get_all_tasks(&self, run_id: usize) -> Result<Vec<Task>> {
         block_on!({
-            let mut conn: deadpool_redis::Connection = self.pool.get().await.unwrap();
-            cmd("SMEMBERS")
+            let mut conn: deadpool_redis::Connection = self.pool.get().await?;
+            let members = cmd("SMEMBERS")
                 .arg(format!("{TASKS_KEY}:{run_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
-                .await
-                .unwrap()
-                .iter()
-                .map(|t| serde_json::from_str(t).unwrap())
-                .collect()
+                .await?;
+
+            let mut tasks = vec![];
+
+            for m in members {
+                tasks.push(serde_json::from_str(&m)?)
+            }
+
+            Ok(tasks)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_default_tasks(&self) -> Vec<Task> {
-        self.nodes.clone().unwrap()
+    fn get_default_tasks(&self) -> Result<Vec<Task>> {
+        // TODO
+        Ok(self.nodes.clone().expect(""))
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_default_edges(&self) -> HashSet<(usize, usize)> {
-        self.edges.clone().unwrap()
+    fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>> {
+        Ok(self.edges.clone().expect(""))
     }
 
-    #[timed(duration(printer = "debug!"))]
-    fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Task {
+    // #[timed(duration(printer = "debug!"))]
+    fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Result<Task> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            serde_json::from_str(
+            let mut conn = self.pool.get().await?;
+            Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
                     .query_async::<_, String>(&mut conn)
-                    .await
-                    .unwrap(),
-            )
-            .unwrap()
+                    .await?,
+            )?)
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
+    // #[timed(duration(printer = "debug!"))]
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         run_id: usize,
@@ -509,15 +539,14 @@ impl Backend for RedisBackend {
         is_dynamic: bool,
         is_branch: bool,
         use_trigger_params: bool,
-    ) -> usize {
+    ) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             let task_id = cmd("INCR")
                 .arg(format!("{TASK_ID_KEY}:{run_id}"))
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap()
+                .await?
                 - 1;
 
             let task = Task {
@@ -533,53 +562,56 @@ impl Backend for RedisBackend {
             };
             cmd("SADD")
                 .arg(format!("{TASKS_KEY}:{run_id}"))
-                .arg(serde_json::to_string(&task).unwrap())
+                .arg(serde_json::to_string(&task)?)
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
             cmd("SET")
                 .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
-                .arg(serde_json::to_string(&task).unwrap())
+                .arg(serde_json::to_string(&task)?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
+                .await?;
             cmd("SET")
                 .arg(format!("{TEMPLATE_ARGS_KEY}:{run_id}:{task_id}"))
-                .arg(serde_json::to_string(&task.template_args).unwrap())
+                .arg(serde_json::to_string(&task.template_args)?)
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
-            self.set_task_status(run_id, task_id, TaskStatus::Pending);
-            task_id
+                .await?;
+            self.set_task_status(run_id, task_id, TaskStatus::Pending)?;
+            Ok(task_id)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_template_args(&self, run_id: usize, task_id: usize) -> serde_json::Value {
-        let task = self.get_task_by_id(run_id, task_id);
-        task.template_args
+    fn get_template_args(&self, run_id: usize, task_id: usize) -> Result<Value> {
+        let task = self.get_task_by_id(run_id, task_id)?;
+        Ok(task.template_args)
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn set_template_args(&mut self, run_id: usize, task_id: usize, template_args_str: &str) {
+    fn set_template_args(
+        &mut self,
+        run_id: usize,
+        task_id: usize,
+        template_args_str: &str,
+    ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
-            let mut task = self.get_task_by_id(run_id, task_id);
-            task.template_args = serde_json::from_str(template_args_str).unwrap();
+            let mut conn = self.pool.get().await?;
+            let mut task = self.get_task_by_id(run_id, task_id)?;
+            task.template_args = serde_json::from_str(template_args_str)?;
 
             cmd("SET")
                 .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
-                .arg(serde_json::to_string(&task).unwrap())
+                .arg(serde_json::to_string(&task)?)
                 .query_async::<_, String>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+
+            Ok(())
+        })
     }
 
-    #[timed(duration(printer = "debug!"))]
-    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
+    // #[timed(duration(printer = "debug!"))]
+    fn pop_priority_queue(&mut self) -> Result<Option<OrderedQueuedTask>> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             let res = cmd("ZPOPMIN")
                 .arg(&["queue".to_string(), "1".to_string()]) // TODO timeout arg
@@ -591,59 +623,65 @@ impl Backend for RedisBackend {
                     cmd("SADD")
                         .arg(&["tmpqueue".to_string(), vec[0].to_string()])
                         .query_async::<_, ()>(&mut conn)
-                        .await
-                        .unwrap();
-                    return Some(OrderedQueuedTask {
-                        score: vec[1].parse().unwrap(),
-                        queued_task: serde_json::from_str(&vec[0]).unwrap(),
-                    });
+                        .await?;
+                    return Ok(Some(OrderedQueuedTask {
+                        score: vec[1].parse()?,
+                        queued_task: serde_json::from_str(&vec[0])?,
+                    }));
                 }
             } else {
                 println!("{:#?}", res.unwrap_err().detail());
             }
 
-            None
+            Ok(None)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
+    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             if !cmd("EXISTS")
                 .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
                 .query_async::<_, bool>(&mut conn)
-                .await
-                .unwrap()
+                .await?
             {
-                let depth = self
-                    .get_upstream(run_id, task_id)
-                    .iter()
-                    .map(|up| self.get_task_depth(run_id, *up) + 1)
-                    .max()
-                    .unwrap_or(0);
-                self.set_task_depth(run_id, task_id, depth);
+                let mut max_depth = 0;
+
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    let new_depth = self.get_task_depth(run_id, upstream_id)? + 1;
+                    if new_depth > max_depth {
+                        max_depth = new_depth;
+                    }
+                }
+                // let depth = self
+                //     .get_upstream(run_id, task_id)
+                //     .iter()
+                //     .map(|up| self.get_task_depth(run_id, *up) + 1)
+                //     .max()
+                //     .unwrap_or(0);
+                self.set_task_depth(run_id, task_id, max_depth)?;
             }
-            cmd("GET")
+            Ok(cmd("GET")
                 .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap()
+                .await?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) {
+    fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await.unwrap();
+            let mut conn = self.pool.get().await?;
 
             cmd("SET")
                 .arg(&[format!("{DEPTH_KEY}:{run_id}:{task_id}"), depth.to_string()])
                 .query_async::<_, ()>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+
+            Ok(())
+        })
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -654,29 +692,29 @@ impl Backend for RedisBackend {
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
         is_dynamic: bool,
-    ) {
+    ) -> Result<()> {
         block_on!({
-            let depth = self.get_task_depth(run_id, task_id);
-            let mut conn = self.pool.get().await.unwrap();
-            let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic);
+            let depth = self.get_task_depth(run_id, task_id)?;
+            let mut conn = self.pool.get().await?;
+            let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic)?;
             // let members = cmd("ZRANGEBYSCORE")
             //     .arg("queue")
             //     .arg("-inf")
             //     .arg("+inf")
             //     .query_async::<_, Vec<String>>(&mut conn)
             //     .await
-            //     .unwrap();
+            //     ?;
             // for m in members {
-            //     let queued_task: QueuedTask = serde_json::from_str(&m).unwrap();
+            //     let queued_task: QueuedTask = serde_json::from_str(&m)?;
             //     if queued_task.run_id == run_id && queued_task.task_id == task_id {
             //         cmd("ZREM")
             //             .arg(&[
             //                 "queue".to_string(),
-            //                 serde_json::to_string(&queued_task).unwrap(),
+            //                 serde_json::to_string(&queued_task)?,
             //             ])
             //             .query_async::<_, usize>(&mut conn)
             //             .await
-            //             .unwrap();
+            //             ?;
             //     }
             // }
             cmd("ZADD")
@@ -689,41 +727,44 @@ impl Backend for RedisBackend {
                         dag_name,
                         scheduled_date_for_dag_run,
                         attempt,
-                    })
-                    .unwrap(),
+                    })?,
                 ])
                 .query_async::<_, usize>(&mut conn)
-                .await
-                .unwrap();
-        });
+                .await?;
+            Ok(())
+        })
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn print_priority_queue(&mut self) {}
+    fn print_priority_queue(&mut self) -> Result<()> {
+        Ok(())
+    }
 
-    #[timed(duration(printer = "debug!"))]
+    // #[timed(duration(printer = "debug!"))]
     fn take_last_stdout_line(
         &mut self,
         run_id: usize,
         task_id: usize,
         attempt: usize,
-    ) -> Box<dyn Fn() -> String + Send> {
+    ) -> Result<Box<dyn Fn() -> Result<String> + Send>> {
         let pool = self.pool.clone();
-        Box::new(move || {
+        Ok(Box::new(move || {
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async {
-                    let mut conn = pool.get().await.unwrap();
-                    cmd("RPOP")
+                    let mut conn = pool.get().await?;
+                    let lines = cmd("RPOP")
                         .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
                         .arg(1)
                         .query_async::<_, Vec<String>>(&mut conn)
-                        .await
-                        .unwrap_or_default()
-                        .first()
-                        .unwrap_or(&"null".into())
-                        .to_string()
+                        .await?;
+
+                    if lines.is_empty() {
+                        Ok("".to_string())
+                    } else {
+                        Ok(lines[0].to_string())
+                    }
                 })
             })
-        })
+        }))
     }
 }

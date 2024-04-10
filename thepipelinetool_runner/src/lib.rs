@@ -7,6 +7,8 @@ pub mod blanket_backend;
 pub mod in_memory_backend;
 pub mod options;
 
+use anyhow::Result;
+
 const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
 
 pub fn get_tpt_executor_command() -> String {
@@ -29,13 +31,13 @@ pub fn get_dags_dir() -> String {
         .to_string()
 }
 
-pub fn get_dag_path_by_name(dag_name: &str) -> Option<PathBuf> {
+pub fn get_dag_path_by_name(dag_name: &str) -> Result<PathBuf> {
     let dags_dir = &get_dags_dir();
     let path: PathBuf = [dags_dir, dag_name].iter().collect();
 
     if !path.exists() {
-        return None;
+        return Err(anyhow::Error::msg("missing dag"));
     }
 
-    Some(path)
+    Ok(path)
 }

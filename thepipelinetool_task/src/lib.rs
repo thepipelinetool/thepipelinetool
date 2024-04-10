@@ -1,5 +1,6 @@
 use std::{env, ffi::OsStr, fs, path::PathBuf, thread, time::Duration};
 
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -50,9 +51,9 @@ impl Task {
         &self,
         resolved_args: &Value,
         attempt: usize,
-        handle_stdout_log: Box<dyn Fn(String) + Send>,
-        handle_stderr_log: Box<dyn Fn(String) + Send>,
-        take_last_stdout_line: Box<dyn Fn() -> String + Send>,
+        handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
+        handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
+        take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
         dag_path: P,
         tpt_path: D,
         scheduled_date_for_dag_run: DateTime<Utc>,
@@ -114,7 +115,7 @@ impl Task {
             status.success(),
             match (status.success(), get_save_to_file()) {
                 (true, true) => value_from_file(&out_path.unwrap()).unwrap(),
-                (true, false) => serde_json::from_str(&take_last_stdout_line()).unwrap(),
+                (true, false) => serde_json::from_str(&take_last_stdout_line().unwrap()).unwrap(),
                 (false, _) => Value::Null,
             },
         );

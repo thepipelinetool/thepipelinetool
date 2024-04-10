@@ -12,6 +12,8 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
+use anyhow::Result;
+
 #[derive(Clone, Default)]
 pub struct InMemoryBackend {
     pub task_results: Arc<Mutex<HashMap<usize, TaskResult>>>,
@@ -38,34 +40,45 @@ impl InMemoryBackend {
 }
 
 impl Backend for InMemoryBackend {
-    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> usize {
+    fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<usize> {
         if !self.task_depth.lock().contains_key(&task_id) {
-            let depth = self
-                .get_upstream(run_id, task_id)
-                .iter()
-                .map(|upstream_id: &usize| self.get_task_depth(run_id, *upstream_id) + 1)
-                .max()
-                .unwrap_or(0);
-            self.task_depth.lock().insert(task_id, depth);
+            let mut max_depth = 0;
+
+            for upstream_id in self.get_upstream(run_id, task_id)? {
+                let new_depth = self.get_task_depth(run_id, upstream_id)? + 1;
+                if new_depth > max_depth {
+                    max_depth = new_depth;
+                }
+            }
+            // let depth = self
+            //     .get_upstream(run_id, task_id)
+            //     .iter()
+            //     .map(|upstream_id: &usize| self.get_task_depth(run_id, *upstream_id) + 1)
+            //     .max()
+            //     .unwrap_or(0);
+            self.task_depth.lock().insert(task_id, max_depth);
         }
-        self.task_depth.lock()[&task_id]
+        Ok(self.task_depth.lock()[&task_id])
     }
 
-    fn set_task_depth(&mut self, _run_id: usize, task_id: usize, depth: usize) {
+    fn set_task_depth(&mut self, _run_id: usize, task_id: usize, depth: usize) -> Result<()> {
         self.task_depth.lock().insert(task_id, depth);
+        Ok(())
     }
 
-    fn delete_task_depth(&mut self, _run_id: usize, task_id: usize) {
+    fn delete_task_depth(&mut self, _run_id: usize, task_id: usize) -> Result<()> {
         self.task_depth.lock().remove(&task_id);
+        Ok(())
     }
 
-    fn get_log(&mut self, _run_id: usize, task_id: usize, _attempt: usize) -> String {
-        self.task_logs
+    fn get_log(&mut self, _run_id: usize, task_id: usize, _attempt: usize) -> Result<String> {
+        Ok(self
+            .task_logs
             .lock()
             .get(&task_id)
             .unwrap_or(&vec![])
             .clone()
-            .join("\n")
+            .join("\n"))
     }
 
     fn get_log_handle_closure(
@@ -73,16 +86,20 @@ impl Backend for InMemoryBackend {
         _run_id: usize,
         task_id: usize,
         _attempt: usize,
-    ) -> Box<dyn Fn(String) + Send> {
+    ) -> Result<Box<dyn Fn(String) -> Result<()> + Send>> {
         let task_logs = self.task_logs.clone();
-        Box::new(move |s| task_logs.lock().entry(task_id).or_default().push(s))
+        Ok(Box::new(move |s| {
+            task_logs.lock().entry(task_id).or_default().push(s);
+            Ok(())
+        }))
     }
 
-    fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) {
+    fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) -> Result<()> {
         // self.attempts.lock().insert(result.task_id, result.attempt);
         self.task_results
             .lock()
             .insert(result.task_id, result.clone());
+        Ok(())
     }
 
     fn create_new_run(
@@ -90,44 +107,55 @@ impl Backend for InMemoryBackend {
         _dag_name: &str,
         _dag_hash: &str,
         _scheduled_date_for_dag_run: DateTime<Utc>,
-    ) -> usize {
-        0
+    ) -> Result<usize> {
+        Ok(0)
     }
 
-    fn get_task_result(&mut self, _run_id: usize, task_id: usize) -> TaskResult {
-        self.task_results.lock()[&task_id].clone()
+    fn get_task_result(&mut self, _run_id: usize, task_id: usize) -> Result<TaskResult> {
+        Ok(self.task_results.lock()[&task_id].clone())
     }
 
-    fn get_attempt_by_task_id(&self, _run_id: usize, task_id: usize, is_dynamic: bool) -> usize {
+    fn get_attempt_by_task_id(
+        &self,
+        _run_id: usize,
+        task_id: usize,
+        is_dynamic: bool,
+    ) -> Result<usize> {
         let key = format!("{task_id}{is_dynamic}");
         if !self.attempts.lock().contains_key(&key) {
             self.attempts.lock().insert(key.to_string(), 0);
         }
         let new_id = self.attempts.lock().get(&key).unwrap() + 1;
         self.attempts.lock().insert(key, new_id);
-        new_id
+        Ok(new_id)
     }
 
-    fn get_task_status(&self, _run_id: usize, task_id: usize) -> TaskStatus {
-        match self.task_statuses.lock().get(&task_id) {
+    fn get_task_status(&self, _run_id: usize, task_id: usize) -> Result<TaskStatus> {
+        Ok(match self.task_statuses.lock().get(&task_id) {
             Some(task_status) => task_status.clone(),
             None => TaskStatus::Pending,
-        }
+        })
     }
 
-    fn set_task_status(&mut self, _run_id: usize, task_id: usize, task_status: TaskStatus) {
+    fn set_task_status(
+        &mut self,
+        _run_id: usize,
+        task_id: usize,
+        task_status: TaskStatus,
+    ) -> Result<()> {
         self.task_statuses.lock().insert(task_id, task_status);
+        Ok(())
     }
 
     fn get_dependency_keys(
         &mut self,
         _run_id: usize,
         task_id: usize,
-    ) -> HashMap<(usize, String), String> {
-        self.dep_keys.lock().entry(task_id).or_default().clone()
+    ) -> Result<HashMap<(usize, String), String>> {
+        Ok(self.dep_keys.lock().entry(task_id).or_default().clone())
     }
 
-    fn get_downstream(&self, _run_id: usize, task_id: usize) -> Vec<usize> {
+    fn get_downstream(&self, _run_id: usize, task_id: usize) -> Result<Vec<usize>> {
         let mut downstream: Vec<usize> = self
             .edges
             .lock()
@@ -136,10 +164,10 @@ impl Backend for InMemoryBackend {
             .map(|(_, downstream_id)| *downstream_id)
             .collect();
         downstream.sort();
-        downstream
+        Ok(downstream)
     }
 
-    fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) {
+    fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) -> Result<()> {
         let (upstream_id, downstream_id) = edge;
         self.dep_keys
             .lock()
@@ -148,19 +176,22 @@ impl Backend for InMemoryBackend {
             .remove(&(upstream_id, "".into()));
 
         self.edges.lock().remove(&edge);
+        Ok(())
     }
 
-    fn insert_edge(&mut self, _run_id: usize, edge: (usize, usize)) {
+    fn insert_edge(&mut self, _run_id: usize, edge: (usize, usize)) -> Result<()> {
         self.edges.lock().insert(edge);
+        Ok(())
     }
 
-    fn get_upstream(&self, _run_id: usize, task_id: usize) -> Vec<usize> {
-        self.edges
+    fn get_upstream(&self, _run_id: usize, task_id: usize) -> Result<Vec<usize>> {
+        Ok(self
+            .edges
             .lock()
             .iter()
             .filter(|(_, downstream)| downstream == &task_id)
             .map(|(upstream, _)| *upstream)
-            .collect()
+            .collect())
     }
 
     fn set_dependency_keys(
@@ -169,20 +200,21 @@ impl Backend for InMemoryBackend {
         task_id: usize,
         upstream: (usize, String),
         result_key: String,
-    ) {
+    ) -> Result<()> {
         self.dep_keys
             .lock()
             .entry(task_id)
             .or_default()
             .insert(upstream, result_key);
+        Ok(())
     }
 
-    fn get_default_tasks(&self) -> Vec<Task> {
-        self.default_nodes.lock().clone()
+    fn get_default_tasks(&self) -> Result<Vec<Task>> {
+        Ok(self.default_nodes.lock().clone())
     }
 
-    fn get_default_edges(&self) -> HashSet<(usize, usize)> {
-        self.edges.lock().clone()
+    fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>> {
+        Ok(self.edges.lock().clone())
     }
 
     fn append_new_task_and_set_status_to_pending(
@@ -196,7 +228,7 @@ impl Backend for InMemoryBackend {
         is_dynamic: bool,
         is_branch: bool,
         use_trigger_params: bool,
-    ) -> usize {
+    ) -> Result<usize> {
         let mut nodes = self.nodes.lock();
         let new_id = nodes.len();
         nodes.push(Task {
@@ -210,37 +242,44 @@ impl Backend for InMemoryBackend {
             is_branch,
             use_trigger_params,
         });
-        new_id
+        Ok(new_id)
     }
 
-    fn get_template_args(&self, _run_id: usize, task_id: usize) -> Value {
-        self.nodes.lock()[task_id].template_args.clone()
+    fn get_template_args(&self, _run_id: usize, task_id: usize) -> Result<Value> {
+        Ok(self.nodes.lock()[task_id].template_args.clone())
     }
 
-    fn set_template_args(&mut self, _run_id: usize, task_id: usize, template_args_str: &str) {
+    fn set_template_args(
+        &mut self,
+        _run_id: usize,
+        task_id: usize,
+        template_args_str: &str,
+    ) -> Result<()> {
         self.nodes.lock()[task_id].template_args = serde_json::from_str(template_args_str).unwrap();
+        Ok(())
     }
 
-    fn get_task_by_id(&self, _run_id: usize, task_id: usize) -> Task {
-        self.nodes.lock()[task_id].clone()
+    fn get_task_by_id(&self, _run_id: usize, task_id: usize) -> Result<Task> {
+        Ok(self.nodes.lock()[task_id].clone())
     }
 
-    fn get_all_tasks(&self, _run_id: usize) -> Vec<Task> {
-        self.nodes.lock().clone()
+    fn get_all_tasks(&self, _run_id: usize) -> Result<Vec<Task>> {
+        Ok(self.nodes.lock().clone())
     }
 
-    fn print_priority_queue(&mut self) {
+    fn print_priority_queue(&mut self) -> Result<()> {
         println!("{:#?}", self.priority_queue.lock());
+        Ok(())
     }
 
-    fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask> {
+    fn pop_priority_queue(&mut self) -> Result<Option<OrderedQueuedTask>> {
         let popped = self.priority_queue.lock().pop();
         if let Some(ordered_queued_task) = &popped {
             self.temp_queue
                 .lock()
                 .insert(ordered_queued_task.queued_task.clone());
         }
-        popped
+        Ok(popped)
     }
 
     fn enqueue_task(
@@ -250,13 +289,13 @@ impl Backend for InMemoryBackend {
         scheduled_date_for_dag_run: DateTime<Utc>,
         dag_name: String,
         is_dynamic: bool,
-    ) {
-        let depth = self.get_task_depth(run_id, task_id);
+    ) -> Result<()> {
+        let depth = self.get_task_depth(run_id, task_id)?;
         let mut priority_queue = self.priority_queue.lock();
 
         // remove previous attempts
         // priority_queue.retain(|x| x.queued_task.task_id != task_id);
-        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic);
+        let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic)?;
 
         priority_queue.push(OrderedQueuedTask {
             score: depth,
@@ -268,6 +307,7 @@ impl Backend for InMemoryBackend {
                 attempt,
             },
         });
+        Ok(())
     }
 
     fn take_last_stdout_line(
@@ -275,16 +315,19 @@ impl Backend for InMemoryBackend {
         _run_id: usize,
         task_id: usize,
         _attempt: usize,
-    ) -> Box<dyn Fn() -> String + Send> {
+    ) -> Result<Box<dyn Fn() -> Result<String> + Send>> {
         let task_logs = self.task_logs.clone();
-        Box::new(move || task_logs.lock().entry(task_id).or_default().pop().unwrap())
+        Ok(Box::new(move || {
+            Ok(task_logs.lock().entry(task_id).or_default().pop().unwrap())
+        }))
     }
 
-    fn get_queue_length(&self) -> usize {
-        self.priority_queue.lock().len()
+    fn get_queue_length(&self) -> Result<usize> {
+        Ok(self.priority_queue.lock().len())
     }
 
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) {
+    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()> {
         self.temp_queue.lock().remove(queued_task);
+        Ok(())
     }
 }

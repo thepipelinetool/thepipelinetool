@@ -13,6 +13,7 @@ use thepipelinetool_runner::{
 };
 
 use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
+use anyhow::Result;
 
 pub mod catchup;
 pub mod check_timeout;
@@ -29,39 +30,43 @@ pub enum Executor {
     Kubernetes,
 }
 
-pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {
+pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Result<Vec<Task>> {
     RedisBackend::dummy(pool).get_all_tasks(run_id)
 }
 
-pub fn _get_task(run_id: usize, task_id: usize, pool: Pool) -> Task {
+pub fn _get_task(run_id: usize, task_id: usize, pool: Pool) -> Result<Task> {
     RedisBackend::dummy(pool).get_task_by_id(run_id, task_id)
 }
 
-pub async fn _get_all_task_results(run_id: usize, task_id: usize, pool: Pool) -> Vec<TaskResult> {
+pub async fn _get_all_task_results(
+    run_id: usize,
+    task_id: usize,
+    pool: Pool,
+) -> Result<Vec<TaskResult>> {
     RedisBackend::get_all_results(run_id, task_id, pool).await
 }
 
-pub fn _get_task_status(run_id: usize, task_id: usize, pool: Pool) -> TaskStatus {
+pub fn _get_task_status(run_id: usize, task_id: usize, pool: Pool) -> Result<TaskStatus> {
     RedisBackend::dummy(pool).get_task_status(run_id, task_id)
 }
 
-pub fn _get_run_status(run_id: usize, pool: Pool) -> i32 {
+pub fn _get_run_status(run_id: usize, pool: Pool) -> Result<i32> {
     RedisBackend::dummy(pool).get_run_status(run_id)
 }
 
-pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> TaskResult {
+pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> Result<TaskResult> {
     RedisBackend::dummy(pool).get_task_result(run_id, task_id)
 }
 
 // TODO cache response to prevent disk read
 
-pub fn _get_dags() -> Vec<String> {
+pub fn _get_dags() -> Result<Vec<String>> {
     let paths: Vec<PathBuf> = match fs::read_dir(get_dags_dir()) {
         Err(e) if e.kind() == ErrorKind::NotFound => vec![],
         Err(e) => panic!("Unexpected Error! {:?}", e),
         Ok(entries) => entries
             .filter_map(|entry| {
-                let path = entry.unwrap().path();
+                let path = entry.expect("").path();
                 if path.is_file() {
                     Some(path)
                 } else {
@@ -71,15 +76,15 @@ pub fn _get_dags() -> Vec<String> {
             .collect(),
     };
 
-    paths
+    Ok(paths
         .iter()
         .map(|p| {
             p.file_name()
                 .and_then(|os_str| os_str.to_str())
-                .unwrap()
+                .expect("")
                 .to_string()
         })
-        .collect()
+        .collect())
 }
 
 // pub async fn _trigger_run<T>(
@@ -103,31 +108,10 @@ pub fn _get_dags() -> Vec<String> {
 // }
 
 //
-pub fn get_redis_pool() -> Pool {
+pub fn get_redis_pool() -> Result<Pool> {
     let cfg = Config::from_url(get_redis_url());
-    cfg.create_pool(Some(Runtime::Tokio1)).unwrap()
+    Ok(cfg.create_pool(Some(Runtime::Tokio1))?)
 }
-
-// #[macro_export]
-// macro_rules! transaction_async {
-//     ($conn:expr, $keys:expr, $body:expr) => {
-//         loop {
-//             redis::cmd("WATCH")
-//                 .arg($keys)
-//                 .query_async::<_, String>($conn)
-//                 .await
-//                 .unwrap();
-
-//             if let Some(response) = $body {
-//                 redis::cmd("UNWATCH")
-//                     .query_async::<_, String>($conn)
-//                     .await
-//                     .unwrap();
-//                 break response;
-//             }
-//         }
-//     };
-// }
 
 pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
     if let Some(schedule) = &options.schedule {
@@ -182,16 +166,16 @@ pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
     vec![]
 }
 
-pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Vec<Run> {
-    let r = RedisBackend::get_last_run(dag_name, pool).await;
+pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
+    let r = RedisBackend::get_last_run(dag_name, pool).await?;
 
-    match r {
+    Ok(match r {
         Some(run) => vec![run],
         None => vec![],
-    }
+    })
 }
 
-pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Vec<Run> {
+pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
     RedisBackend::get_recent_runs(dag_name, pool).await
 }
 
@@ -202,7 +186,7 @@ pub async fn _trigger_run_from_schedules(
     scheduled_dates: CronTimesIter,
     end_date: Option<DateTime<Utc>>,
     pool: Pool,
-) {
+) -> Result<()> {
     for scheduled_date in scheduled_dates {
         if !cron.contains(scheduled_date) {
             println!("Failed check! Cron does not contain {}.", scheduled_date);
@@ -216,27 +200,29 @@ pub async fn _trigger_run_from_schedules(
                 break;
             }
         }
+
         // check if date is already in db
         if RedisBackend::contains_logical_date(
             dag_name,
-            &_get_hash(dag_name),
+            &_get_hash(dag_name)?,
             scheduled_date,
             pool.clone(),
         )
-        .await
+        .await?
         {
             continue;
         }
-        let nodes = _get_default_tasks(dag_name).unwrap(); // TODO handle missing dag error
-        let edges = _get_default_edges(dag_name).unwrap();
-        let hash = _get_hash(dag_name);
+        let nodes = _get_default_tasks(dag_name)?; // TODO handle missing dag error
+        let edges = _get_default_edges(dag_name)?;
+        let hash = _get_hash(dag_name)?;
 
         let mut backend = RedisBackend::from(nodes, edges, pool.clone());
-        let run_id = backend.create_new_run(dag_name, &hash, scheduled_date);
-        backend.enqueue_run(run_id, dag_name, &hash, scheduled_date, None);
+        let run_id = backend.create_new_run(dag_name, &hash, scheduled_date)?;
+        backend.enqueue_run(run_id, dag_name, &hash, scheduled_date, None)?;
         println!(
             "scheduling catchup {dag_name} {}",
             scheduled_date.format("%F %R")
         );
     }
+    Ok(())
 }

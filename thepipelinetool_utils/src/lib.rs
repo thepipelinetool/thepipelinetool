@@ -8,6 +8,7 @@ use std::{
     thread::{self, available_parallelism},
 };
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -67,8 +68,8 @@ pub fn collector(args: Value) -> Value {
 
 pub fn spawn(
     mut cmd: Command,
-    handle_stdout_log: Box<dyn Fn(String) + Send>,
-    handle_stderr_log: Box<dyn Fn(String) + Send>,
+    handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
+    handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
 ) -> (ExitStatus, bool) {
     let mut child = cmd
         .stdout(Stdio::piped())
@@ -83,7 +84,7 @@ pub fn spawn(
         let reader = BufReader::new(&mut stdout);
         for line in reader.lines() {
             let line = format!("{}\n", line.expect("failed to read line from stdout"));
-            handle_stdout_log(line);
+            let _ = handle_stdout_log(line);
         }
     }));
 
@@ -91,7 +92,7 @@ pub fn spawn(
         let reader = BufReader::new(&mut stderr);
         for line in reader.lines() {
             let line = format!("{}\n", line.expect("failed to read line from stdout"));
-            handle_stderr_log(line);
+            let _ = handle_stderr_log(line);
         }
     }));
 
