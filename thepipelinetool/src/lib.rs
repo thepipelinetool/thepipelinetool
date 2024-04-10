@@ -7,18 +7,20 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::DagOptions, run,
-    Executor,
+    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::DagOptions,
 };
 
 use std::collections::HashSet;
 
 use thepipelinetool_core::dev::{get_default_graphite_graph, get_default_mermaid_graph, Task};
 
+use crate::in_memory_runner::run_in_memory;
+
 pub mod check_for_cycles;
 pub mod commands;
 pub mod display_hash;
 pub mod display_tree;
+mod in_memory_runner;
 pub mod read_from_executable;
 pub mod read_from_yaml;
 pub mod templating;
@@ -103,26 +105,16 @@ pub fn process_subcommands(
                     };
 
                     check_for_cycles(tasks, edges);
-                    // let mut backend = runner.backend;
-                    // let mut runner =
-                    //  InMemoryRunner {
-                    //     backend: Box::new(
-                    //         InMemoryBackend::new(tasks, edges)),
-                    //     tpt_path: env::args().next().unwrap(),
-                    //     dag_path: dag_path.to_path_buf(),
-                    // };
-                    // let run_id = runner
-                    //     .backend
+
                     let mut backend = InMemoryBackend::new(tasks, edges);
                     let dummy_run_id = 0;
                     backend.enqueue_run(dummy_run_id, "", "", Utc::now(), trigger_params);
 
-                    run(
+                    run_in_memory(
                         &mut backend,
                         max_parallelism,
-                        Some(dag_path.to_path_buf().to_str().unwrap().to_string()),
-                        Some(env::args().next().unwrap()),
-                        Executor::InMemory,
+                        dag_path.to_path_buf().to_str().unwrap().to_string(),
+                        env::args().next().unwrap(),
                     );
 
                     let exit_code = backend.get_run_status(dummy_run_id);

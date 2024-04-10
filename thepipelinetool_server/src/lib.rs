@@ -22,6 +22,13 @@ pub mod routes;
 pub mod scheduler;
 pub mod statics;
 
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub enum Executor {
+    Local,
+    Docker,
+    Kubernetes,
+}
+
 pub fn _get_all_tasks(run_id: usize, pool: Pool) -> Vec<Task> {
     RedisBackend::dummy(pool).get_all_tasks(run_id)
 }

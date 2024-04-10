@@ -1,8 +1,10 @@
 use std::{env, process::Command};
 
 use serde_json::json;
-use thepipelinetool_runner::{get_tpt_executor_command, Executor};
+use thepipelinetool_runner::get_tpt_executor_command;
 use thepipelinetool_utils::get_default_max_parallelism;
+
+use crate::Executor;
 
 pub fn tpt_installed() -> bool {
     !matches!(

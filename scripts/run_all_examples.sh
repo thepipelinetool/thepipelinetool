@@ -1,5 +1,4 @@
 ./scripts/build_examples.sh
-cp examples/examples/yaml/**.yaml bin/
 cargo install --path thepipelinetool --force
 
 for f in $(ls ./bin)

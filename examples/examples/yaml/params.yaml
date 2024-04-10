@@ -5,6 +5,5 @@ tasks:
       url: www.google.com
       url2: www.yelp.com
   bash:
-    args:
-    - |
-      echo "hello"
+    script: |-
+        echo "hello"

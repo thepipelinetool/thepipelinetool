@@ -1,5 +1,3 @@
-use std::{thread::sleep, time::Duration};
-
 use thepipelinetool_core::prelude::*;
 
 fn hi(args: Value) -> Value {

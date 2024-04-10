@@ -118,7 +118,7 @@ pub fn _get_options(dag_name: &str) -> Option<DagOptions> {
 
         dag_options.insert(
             dag_name.to_owned(),
-            serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(),
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout)).unwrap(), // TODO ignore/handle errors for all io
         );
         // TODO verify schedule string
     }
