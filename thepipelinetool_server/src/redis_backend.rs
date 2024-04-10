@@ -128,7 +128,9 @@ impl RedisBackend {
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
             .await?;
-
+        if members.is_empty() {
+            return Ok(None);
+        }
         Ok(serde_json::from_str(&members[0])?)
     }
 

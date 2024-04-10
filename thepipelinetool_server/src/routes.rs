@@ -3,7 +3,6 @@ use std::{collections::HashMap, str::from_utf8};
 use axum::{
     extract::{self, Path, State},
     http::StatusCode,
-    response::IntoResponse,
     Json,
 };
 
@@ -22,27 +21,27 @@ pub async fn ping() -> &'static str {
 pub async fn get_runs(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(RedisBackend::get_runs(&dag_name, pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("could not get run graph for pipeline with name: {:?}", e),
-                )
-            })?
-            .iter()
-            .map(|r| json!({
-                "run_id": r.run_id.to_string(),
-                "date": r.scheduled_date_for_dag_run,
-            }))
-            .collect::<Vec<Value>>())
-        .into(),
-    )
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(RedisBackend::get_runs(&dag_name, pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("could not get run graph for pipeline with name: {:?}", e),
+            )
+        })?
+        .iter()
+        .map(|r| json!({
+            "run_id": r.run_id.to_string(),
+            "date": r.scheduled_date_for_dag_run,
+        }))
+        .collect::<Vec<Value>>())
+    .into())
 }
 
-pub async fn get_next_run(Path(dag_name): Path<String>) -> Result<Json<Value>, impl IntoResponse> {
+pub async fn get_next_run(
+    Path(dag_name): Path<String>,
+) -> Result<Json<Value>, (StatusCode, String)> {
     // TODO handle error
     let options = _get_options(&dag_name).map_err(|e| {
         (
@@ -51,44 +50,40 @@ pub async fn get_next_run(Path(dag_name): Path<String>) -> Result<Json<Value>, i
         )
     })?;
 
-    Ok::<Json<Value>, (StatusCode, String)>(json!(_get_next_run(&options)).into())
+    Ok(json!(_get_next_run(&options)).into())
 }
 
 pub async fn get_last_run(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_last_run(&dag_name, pool).await.map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?)
-        .into(),
-    )
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_last_run(&dag_name, pool).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?)
+    .into())
 }
 
 pub async fn get_recent_runs(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_recent_runs(&dag_name, pool).await.map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?)
-        .into(),
-    )
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_recent_runs(&dag_name, pool).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?)
+    .into())
 }
 
 // TODO return only statuses?
 pub async fn get_runs_with_tasks(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     let mut res = json!({});
 
     for run in RedisBackend::get_runs(&dag_name, pool.clone())
@@ -115,13 +110,13 @@ pub async fn get_runs_with_tasks(
             "tasks": tasks,
         });
     }
-    Ok::<Json<Value>, (StatusCode, String)>(res.into())
+    Ok(res.into())
 }
 
 pub async fn get_default_tasks(
     Path(dag_name): Path<String>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(
         serde_json::to_value(_get_default_tasks(&dag_name).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -140,7 +135,7 @@ pub async fn get_default_tasks(
 
 pub async fn get_default_task(
     Path((dag_name, task_id)): Path<(String, usize)>,
-) -> Result<Json<Value>, impl IntoResponse> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     // TODO handle error
 
     let default_tasks = _get_default_tasks(&dag_name).map_err(|e| {
@@ -168,119 +163,107 @@ pub async fn get_default_task(
 pub async fn get_all_tasks(
     Path(run_id): Path<usize>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_all_tasks(run_id, pool).map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?)
-        .into(),
-    )
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_all_tasks(run_id, pool).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?)
+    .into())
 }
 
 pub async fn get_task(
     Path((run_id, task_id)): Path<(usize, usize)>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_task(run_id, task_id, pool).map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?)
-        .into(),
-    )
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_task(run_id, task_id, pool).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?)
+    .into())
 }
 
 pub async fn get_all_task_results(
     Path((run_id, task_id)): Path<(usize, usize)>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_all_task_results(run_id, task_id, pool)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("could not get run graph for pipeline with name: {:?}", e),
-                )
-            })?)
-        .into(),
-    )
-}
-
-pub async fn get_task_status(
-    Path((run_id, task_id)): Path<(usize, usize)>,
-    State(pool): State<Pool>,
-) -> Result<String, impl IntoResponse> {
-    Ok::<String, (StatusCode, String)>(
-        from_utf8(&[_get_task_status(run_id, task_id, pool)
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("could not get run graph for pipeline with name: {:?}", e),
-                )
-            })?
-            .as_u8()])
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_all_task_results(run_id, task_id, pool)
+        .await
         .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?
-        .to_owned(),
-    )
-}
-
-pub async fn get_run_status(
-    Path(run_id): Path<usize>,
-    State(pool): State<Pool>,
-) -> Result<String, impl IntoResponse> {
-    Ok::<String, (StatusCode, String)>(
-        from_utf8(&[
-            match _get_run_status(run_id, pool).map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("could not get run graph for pipeline with name: {:?}", e),
-                )
-            })? {
-                0 => 0,
-                -1 => 1,
-                a => a as u8,
-            },
-        ])
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not get run graph for pipeline with name: {:?}", e),
-            )
-        })?
-        .to_owned(),
-    )
-}
-
-pub async fn get_task_result(
-    Path((run_id, task_id)): Path<(usize, usize)>,
-    State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(_get_task_result(run_id, task_id, pool).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("could not get run graph for pipeline with name: {:?}", e),
             )
         })?)
-        .into(),
-    )
+    .into())
+}
+
+pub async fn get_task_status(
+    Path((run_id, task_id)): Path<(usize, usize)>,
+    State(pool): State<Pool>,
+) -> Result<String, (StatusCode, String)> {
+    Ok(from_utf8(&[_get_task_status(run_id, task_id, pool)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("could not get run graph for pipeline with name: {:?}", e),
+            )
+        })?
+        .as_u8()])
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?
+    .to_owned())
+}
+
+pub async fn get_run_status(
+    Path(run_id): Path<usize>,
+    State(pool): State<Pool>,
+) -> Result<String, (StatusCode, String)> {
+    Ok(from_utf8(&[
+        match _get_run_status(run_id, pool).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("could not get run graph for pipeline with name: {:?}", e),
+            )
+        })? {
+            0 => 0,
+            -1 => 1,
+            a => a as u8,
+        },
+    ])
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?
+    .to_owned())
+}
+
+pub async fn get_task_result(
+    Path((run_id, task_id)): Path<(usize, usize)>,
+    State(pool): State<Pool>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    Ok(json!(_get_task_result(run_id, task_id, pool).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not get run graph for pipeline with name: {:?}", e),
+        )
+    })?)
+    .into())
 }
 
 pub async fn get_task_log(
     Path((run_id, task_id, attempt)): Path<(usize, usize, usize)>,
     State(pool): State<Pool>,
-) -> Result<String, impl IntoResponse> {
+) -> Result<String, (StatusCode, String)> {
     RedisBackend::dummy(pool)
         .get_log(run_id, task_id, attempt)
         .map_err(|e| {
@@ -291,7 +274,7 @@ pub async fn get_task_log(
         })
 }
 
-pub async fn get_dags(State(pool): State<Pool>) -> Result<Json<Value>, impl IntoResponse> {
+pub async fn get_dags(State(pool): State<Pool>) -> Result<Json<Value>, (StatusCode, String)> {
     let mut result: Vec<Value> = vec![];
 
     for dag_name in _get_dags().map_err(|e| {
@@ -319,13 +302,13 @@ pub async fn get_dags(State(pool): State<Pool>) -> Result<Json<Value>, impl Into
         }));
     }
 
-    Ok::<Json<Value>, (StatusCode, String)>(json!(result).into())
+    Ok(json!(result).into())
 }
 
 pub async fn get_run_graph(
     Path(run_id): Path<usize>,
     State(pool): State<Pool>,
-) -> Result<Json<Value>, impl IntoResponse> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     let backend = RedisBackend::dummy(pool);
     let tasks = backend.get_all_tasks(run_id).map_err(|e| {
         (
@@ -362,12 +345,10 @@ pub async fn get_run_graph(
         );
     }
 
-    Ok::<Json<Value>, (StatusCode, String)>(
-        json!(get_graphite_graph(&task_statuses, &downstream_ids)).into(),
-    )
+    Ok(json!(get_graphite_graph(&task_statuses, &downstream_ids)).into())
 }
 
-// impl IntoResponse for Error {
+// (StatusCode, String) for Error {
 //     fn into_response(self) -> axum::response::Response {
 //         todo!()
 //     }
@@ -375,7 +356,7 @@ pub async fn get_run_graph(
 
 pub async fn get_default_graph(
     Path(dag_name): Path<String>,
-) -> Result<Json<Value>, impl IntoResponse> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     let tasks = _get_default_tasks(&dag_name); // TODO handle missing dag error
     let edges = _get_default_edges(&dag_name);
 
@@ -391,7 +372,7 @@ pub async fn get_default_graph(
 pub async fn trigger(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
-) -> Result<Json<usize>, impl IntoResponse> {
+) -> Result<Json<usize>, (StatusCode, String)> {
     let tasks = _get_default_tasks(&dag_name);
     let edges = _get_default_edges(&dag_name);
     let hash = _get_hash(&dag_name);
@@ -425,7 +406,7 @@ pub async fn trigger_with_params(
     Path(dag_name): Path<String>,
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,
-) -> Result<Json<usize>, impl IntoResponse> {
+) -> Result<Json<usize>, (StatusCode, String)> {
     let tasks = _get_default_tasks(&dag_name); // TODO handle missing dag error
     let edges = _get_default_edges(&dag_name);
     let hash = _get_hash(&dag_name);
