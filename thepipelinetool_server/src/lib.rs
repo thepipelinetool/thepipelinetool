@@ -240,21 +240,3 @@ pub async fn _trigger_run_from_schedules(
         );
     }
 }
-
-fn _get_schedules_for_catchup(
-    cron: &Cron,
-    start_date: Option<DateTime<Utc>>,
-    should_catchup: bool,
-    server_start_date: DateTime<Utc>,
-) -> CronTimesIter {
-    cron.clone()
-        .iter_from(if let Some(start_date) = start_date {
-            if should_catchup {
-                start_date
-            } else {
-                server_start_date
-            }
-        } else {
-            server_start_date
-        })
-}

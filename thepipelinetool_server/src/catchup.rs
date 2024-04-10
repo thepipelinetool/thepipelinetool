@@ -3,9 +3,7 @@ use deadpool_redis::Pool;
 use saffron::Cron;
 use thepipelinetool_runner::options::DagOptions;
 
-use crate::{
-    _get_dags, _get_schedules_for_catchup, _trigger_run_from_schedules, statics::_get_options,
-};
+use crate::{_get_dags, _trigger_run_from_schedules, statics::_get_options};
 
 pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
     tokio::spawn(async move {
@@ -25,23 +23,23 @@ pub fn spawn_catchup(server_start_date: DateTime<Utc>, pool: Pool) {
                 println!("Cron will never match any given time!");
                 continue;
             }
-            println!("checking for catchup: {dag_name}");
-
+            if !options.should_catchup {
+                continue;
+            }
             if let Some(start_date) = options.get_start_date_with_timezone() {
                 if start_date >= server_start_date {
                     continue;
                 }
+            } else {
+                continue;
             }
+            println!("checking for catchup: {dag_name}");
             _trigger_run_from_schedules(
                 &dag_name,
                 server_start_date,
                 cron,
-                _get_schedules_for_catchup(
-                    cron,
-                    options.get_start_date_with_timezone(),
-                    options.should_catchup,
-                    server_start_date,
-                ),
+                cron.clone()
+                    .iter_from(options.get_start_date_with_timezone().unwrap()),
                 options.get_end_date_with_timezone(),
                 pool.clone(),
             )

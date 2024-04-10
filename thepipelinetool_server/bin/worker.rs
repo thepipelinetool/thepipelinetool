@@ -27,7 +27,7 @@ async fn main() {
         sleep(Duration::from_millis(250)).await;
 
         tokio::spawn(async move {
-            // dbg!(backend.get_running_tasks_count().await);
+            dbg!(backend.get_running_tasks_count().await);
             for _ in backend.get_running_tasks_count().await..max_parallelism {
                 let ordered_queued_task = backend.pop_priority_queue();
                 if ordered_queued_task.is_none() {
