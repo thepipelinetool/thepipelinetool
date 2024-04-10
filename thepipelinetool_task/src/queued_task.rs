@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct QueuedTask {
     pub task_id: usize,
     pub run_id: usize,
-    pub dag_name: String,
-    pub scheduled_date_for_dag_run: DateTime<Utc>,
+    pub pipeline_name: String,
+    pub scheduled_date_for_run: DateTime<Utc>,
     pub attempt: usize,
 }

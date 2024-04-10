@@ -6,14 +6,14 @@ use std::{
 use thepipelinetool_core::dev::*;
 
 pub fn display_hash(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
-    let hash = hash_dag(
+    let hash = hash_pipeline(
         &serde_json::to_string(tasks).unwrap(),
         &edges.iter().copied().collect::<Vec<(usize, usize)>>(),
     );
     print!("{hash}");
 }
 
-fn hash_dag(nodes: &str, edges: &[(usize, usize)]) -> String {
+fn hash_pipeline(nodes: &str, edges: &[(usize, usize)]) -> String {
     let mut hasher = DefaultHasher::new();
     let mut edges = edges.to_vec();
     edges.sort();

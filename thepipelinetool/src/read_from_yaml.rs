@@ -11,8 +11,8 @@ use thepipelinetool_utils::collector;
 
 use crate::templating::{create_template_args_by_operator, TemplateTask};
 
-pub fn read_from_yaml(dag_path: &Path) {
-    let value: Value = serde_yaml::from_reader(File::open(dag_path).unwrap()).unwrap();
+pub fn read_from_yaml(pipeline_path: &Path) {
+    let value: Value = serde_yaml::from_reader(File::open(pipeline_path).unwrap()).unwrap();
 
     if value.as_object().unwrap().contains_key("tasks") {
         let tasks = value["tasks"].as_object().unwrap();

@@ -1,4 +1,4 @@
-```rust 
+```rust
 use thepipelinetool_core::prelude::*;
 
 #[dag]
@@ -87,7 +87,7 @@ fn main() {
     let task_ref9 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref10 = add_task_with_ref(print_data, &task_ref, opts);
     let task_ref11 = add_task_with_ref(print_data, &task_ref, opts);
-    
+
     let _ = task_ref9 >> task_ref10 >> task_ref11;
     // the result of taskA >> taskB is taskB, so the above is equivalent to:
     // ((task_ref9 >> task_ref10) >> task_ref11)
@@ -203,7 +203,7 @@ fn main() {
 Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
 
 ## Deployment
-To deploy pipelines, the compiled binaries must be placed inside `DAGS_DIR` for both the server and workers to access.
+To deploy pipelines, the compiled binaries must be placed inside `PIPELINES_DIR` for both the server and workers to access.
 Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
 
 ## License

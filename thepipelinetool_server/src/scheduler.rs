@@ -8,21 +8,21 @@ use tokio::time::sleep;
 
 use anyhow::Result;
 
-use crate::{_get_dags, _trigger_run_from_schedules, statics::_get_options};
+use crate::{_get_pipelines, _trigger_run_from_schedules, statics::_get_options};
 
 async fn _spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) -> Result<()> {
     let mut last_checked_name: HashMap<String, DateTime<Utc>> = HashMap::new();
     let pool = pool.clone();
 
     loop {
-        'inner: for dag_name in _get_dags()? {
-            let options = _get_options(&dag_name)?;
+        'inner: for pipeline_name in _get_pipelines()? {
+            let options = _get_options(&pipeline_name)?;
 
             let last_checked = **last_checked_name
-                .get(&dag_name)
+                .get(&pipeline_name)
                 .get_or_insert(&server_start_date);
 
-            last_checked_name.insert(dag_name.clone(), Utc::now());
+            last_checked_name.insert(pipeline_name.clone(), Utc::now());
 
             if options.schedule.is_none() {
                 continue 'inner;
@@ -37,7 +37,7 @@ async fn _spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) -> Resul
                 println!("Cron will never match any given time!");
                 continue 'inner;
             }
-            // println!("checking for schedules: {dag_name} {up_to}");
+            // println!("checking for schedules: {pipeline_name} {up_to}");
 
             if let Some(end_date) = options.get_end_date_with_timezone() {
                 if end_date <= last_checked {
@@ -52,7 +52,7 @@ async fn _spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) -> Resul
             }
 
             _trigger_run_from_schedules(
-                &dag_name,
+                &pipeline_name,
                 server_start_date,
                 cron,
                 cron.clone().iter_from(last_checked),

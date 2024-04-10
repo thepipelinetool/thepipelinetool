@@ -9,7 +9,7 @@ use redis_backend::{RedisBackend, Run};
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    backend::Backend, blanket_backend::BlanketBackend, get_dags_dir, options::DagOptions,
+    backend::Backend, blanket_backend::BlanketBackend, get_pipelines_dir, options::PipelineOptions,
 };
 
 use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
@@ -60,8 +60,8 @@ pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> Result<Tas
 
 // TODO cache response to prevent disk read
 
-pub fn _get_dags() -> Result<Vec<String>> {
-    let paths: Vec<PathBuf> = match fs::read_dir(get_dags_dir()) {
+pub fn _get_pipelines() -> Result<Vec<String>> {
+    let paths: Vec<PathBuf> = match fs::read_dir(get_pipelines_dir()) {
         Err(e) if e.kind() == ErrorKind::NotFound => vec![],
         Err(e) => panic!("Unexpected Error! {:?}", e),
         Ok(entries) => entries
@@ -89,20 +89,20 @@ pub fn _get_dags() -> Result<Vec<String>> {
 
 // pub async fn _trigger_run<T>(
 //     run_id: usize,
-//     dag_name: &str,
-//     scheduled_date_for_dag_run: DateTime<Utc>,
+//     pipeline_name: &str,
+//     scheduled_date_for_run: DateTime<Utc>,
 //     pool: Pool,
 //     trigger_params: Option<Value>,
 //     mut backend: T,
 // ) where
 //     T: BlanketBackend,
 // {
-//     let hash = _get_hash(dag_name);
+//     let hash = _get_hash(pipeline_name);
 //     backend.enqueue_run(
 //         run_id,
-//         dag_name,
+//         pipeline_name,
 //         &hash,
-//         scheduled_date_for_dag_run,
+//         scheduled_date_for_run,
 //         trigger_params,
 //     )
 // }
@@ -113,7 +113,7 @@ pub fn get_redis_pool() -> Result<Pool> {
     Ok(cfg.create_pool(Some(Runtime::Tokio1))?)
 }
 
-pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
+pub fn _get_next_run(options: &PipelineOptions) -> Vec<Value> {
     if let Some(schedule) = &options.schedule {
         match schedule.parse::<Cron>() {
             Ok(cron) => {
@@ -166,8 +166,8 @@ pub fn _get_next_run(options: &DagOptions) -> Vec<Value> {
     vec![]
 }
 
-pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
-    let r = RedisBackend::get_last_run(dag_name, pool).await?;
+pub async fn _get_last_run(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
+    let r = RedisBackend::get_last_run(pipeline_name, pool).await?;
 
     Ok(match r {
         Some(run) => vec![run],
@@ -175,12 +175,12 @@ pub async fn _get_last_run(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
     })
 }
 
-pub async fn _get_recent_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
-    RedisBackend::get_recent_runs(dag_name, pool).await
+pub async fn _get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
+    RedisBackend::get_recent_runs(pipeline_name, pool).await
 }
 
 pub async fn _trigger_run_from_schedules(
-    dag_name: &str,
+    pipeline_name: &str,
     server_start_date: DateTime<Utc>,
     cron: &Cron,
     scheduled_dates: CronTimesIter,
@@ -203,8 +203,8 @@ pub async fn _trigger_run_from_schedules(
 
         // check if date is already in db
         if RedisBackend::contains_logical_date(
-            dag_name,
-            &_get_hash(dag_name)?,
+            pipeline_name,
+            &_get_hash(pipeline_name)?,
             scheduled_date,
             pool.clone(),
         )
@@ -212,15 +212,15 @@ pub async fn _trigger_run_from_schedules(
         {
             continue;
         }
-        let nodes = _get_default_tasks(dag_name)?; // TODO handle missing dag error
-        let edges = _get_default_edges(dag_name)?;
-        let hash = _get_hash(dag_name)?;
+        let nodes = _get_default_tasks(pipeline_name)?;
+        let edges = _get_default_edges(pipeline_name)?;
+        let hash = _get_hash(pipeline_name)?;
 
         let mut backend = RedisBackend::from(nodes, edges, pool.clone());
-        let run_id = backend.create_new_run(dag_name, &hash, scheduled_date)?;
-        backend.enqueue_run(run_id, dag_name, &hash, scheduled_date, None)?;
+        let run_id = backend.create_new_run(pipeline_name, &hash, scheduled_date)?;
+        backend.enqueue_run(run_id, pipeline_name, &hash, scheduled_date, None)?;
         println!(
-            "scheduling catchup {dag_name} {}",
+            "scheduling catchup {pipeline_name} {}",
             scheduled_date.format("%F %R")
         );
     }

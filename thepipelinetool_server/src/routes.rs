@@ -6,8 +6,6 @@ use axum::{
     Json,
 };
 
-use anyhow::Result;
-
 use thepipelinetool_core::dev::*;
 
 use crate::{statics::_get_options, *};
@@ -19,10 +17,10 @@ pub async fn ping() -> &'static str {
 // TODO paginate
 
 pub async fn get_runs(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    Ok(json!(RedisBackend::get_runs(&dag_name, pool)
+    Ok(json!(RedisBackend::get_runs(&pipeline_name, pool)
         .await
         .map_err(|e| {
             (
@@ -33,17 +31,17 @@ pub async fn get_runs(
         .iter()
         .map(|r| json!({
             "run_id": r.run_id.to_string(),
-            "date": r.scheduled_date_for_dag_run,
+            "date": r.scheduled_date_for_run,
         }))
         .collect::<Vec<Value>>())
     .into())
 }
 
 pub async fn get_next_run(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     // TODO handle error
-    let options = _get_options(&dag_name).map_err(|e| {
+    let options = _get_options(&pipeline_name).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("could not get run graph for pipeline with name: {:?}", e),
@@ -54,10 +52,10 @@ pub async fn get_next_run(
 }
 
 pub async fn get_last_run(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    Ok(json!(_get_last_run(&dag_name, pool).await.map_err(|e| {
+    Ok(json!(_get_last_run(&pipeline_name, pool).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("could not get run graph for pipeline with name: {:?}", e),
@@ -67,10 +65,10 @@ pub async fn get_last_run(
 }
 
 pub async fn get_recent_runs(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    Ok(json!(_get_recent_runs(&dag_name, pool).await.map_err(|e| {
+    Ok(json!(_get_recent_runs(&pipeline_name, pool).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("could not get run graph for pipeline with name: {:?}", e),
@@ -81,12 +79,12 @@ pub async fn get_recent_runs(
 
 // TODO return only statuses?
 pub async fn get_runs_with_tasks(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     let mut res = json!({});
 
-    for run in RedisBackend::get_runs(&dag_name, pool.clone())
+    for run in RedisBackend::get_runs(&pipeline_name, pool.clone())
         .await
         .map_err(|e| {
             (
@@ -106,7 +104,7 @@ pub async fn get_runs_with_tasks(
             tasks[format!("{}_{}", task.name, task.id)] = json!(task);
         }
         res[run.run_id.to_string()] = json!({
-            "date": run.scheduled_date_for_dag_run,
+            "date": run.scheduled_date_for_run,
             "tasks": tasks,
         });
     }
@@ -114,10 +112,10 @@ pub async fn get_runs_with_tasks(
 }
 
 pub async fn get_default_tasks(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     Ok(
-        serde_json::to_value(_get_default_tasks(&dag_name).map_err(|e| {
+        serde_json::to_value(_get_default_tasks(&pipeline_name).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("could not get run graph for pipeline with name: {:?}", e),
@@ -134,11 +132,11 @@ pub async fn get_default_tasks(
 }
 
 pub async fn get_default_task(
-    Path((dag_name, task_id)): Path<(String, usize)>,
+    Path((pipeline_name, task_id)): Path<(String, usize)>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     // TODO handle error
 
-    let default_tasks = _get_default_tasks(&dag_name).map_err(|e| {
+    let default_tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("could not get run graph for pipeline with name: {:?}", e),
@@ -155,7 +153,7 @@ pub async fn get_default_task(
         StatusCode::INTERNAL_SERVER_ERROR,
         format!(
             "could not get run graph for pipeline with name: {:?}",
-            dag_name
+            pipeline_name
         ),
     ))
 }
@@ -274,23 +272,23 @@ pub async fn get_task_log(
         })
 }
 
-pub async fn get_dags(State(pool): State<Pool>) -> Result<Json<Value>, (StatusCode, String)> {
+pub async fn get_pipelines(State(pool): State<Pool>) -> Result<Json<Value>, (StatusCode, String)> {
     let mut result: Vec<Value> = vec![];
 
-    for dag_name in _get_dags().map_err(|e| {
+    for pipeline_name in _get_pipelines().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("could not get run graph for pipeline with name: {:?}", e),
         )
     })? {
-        let options = _get_options(&dag_name).map_err(|e| {
+        let options = _get_options(&pipeline_name).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("could not get run graph for pipeline with name: {:?}", e),
             )
         })?;
         result.push(json!({
-            "last_run": _get_last_run(&dag_name, pool.clone()).await.map_err(|e| {
+            "last_run": _get_last_run(&pipeline_name, pool.clone()).await.map_err(|e| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("could not get run graph for pipeline with name: {:?}", e),
@@ -298,7 +296,7 @@ pub async fn get_dags(State(pool): State<Pool>) -> Result<Json<Value>, (StatusCo
             })?,
             "next_run":_get_next_run(&options),
             "options": &options,
-            "dag_name": &dag_name,
+            "pipeline_name": &pipeline_name,
         }));
     }
 
@@ -355,10 +353,10 @@ pub async fn get_run_graph(
 // }
 
 pub async fn get_default_graph(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let tasks = _get_default_tasks(&dag_name); // TODO handle missing dag error
-    let edges = _get_default_edges(&dag_name);
+    let tasks = _get_default_tasks(&pipeline_name);
+    let edges = _get_default_edges(&pipeline_name);
 
     match (tasks, edges) {
         (Ok(tasks), Ok(edges)) => Ok(json!(get_default_graphite_graph(&tasks, &edges)).into()),
@@ -370,18 +368,18 @@ pub async fn get_default_graph(
 }
 
 pub async fn trigger(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> Result<Json<usize>, (StatusCode, String)> {
-    let tasks = _get_default_tasks(&dag_name);
-    let edges = _get_default_edges(&dag_name);
-    let hash = _get_hash(&dag_name);
+    let tasks = _get_default_tasks(&pipeline_name);
+    let edges = _get_default_edges(&pipeline_name);
+    let hash = _get_hash(&pipeline_name);
     match (tasks, edges, hash) {
         (Ok(tasks), Ok(edges), Ok(hash)) => {
             let scheduled_date = Utc::now();
             let mut backend = RedisBackend::from(tasks, edges, pool.clone());
             let run_id = backend
-                .create_new_run(&dag_name, &hash, scheduled_date)
+                .create_new_run(&pipeline_name, &hash, scheduled_date)
                 .map_err(|e| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
@@ -390,7 +388,7 @@ pub async fn trigger(
                 })?;
 
             tokio::spawn(async move {
-                backend.enqueue_run(run_id, &dag_name, &hash, scheduled_date, None)
+                backend.enqueue_run(run_id, &pipeline_name, &hash, scheduled_date, None)
             });
 
             Ok(run_id.into())
@@ -403,19 +401,19 @@ pub async fn trigger(
 }
 
 pub async fn trigger_with_params(
-    Path(dag_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,
 ) -> Result<Json<usize>, (StatusCode, String)> {
-    let tasks = _get_default_tasks(&dag_name); // TODO handle missing dag error
-    let edges = _get_default_edges(&dag_name);
-    let hash = _get_hash(&dag_name);
+    let tasks = _get_default_tasks(&pipeline_name);
+    let edges = _get_default_edges(&pipeline_name);
+    let hash = _get_hash(&pipeline_name);
     match (tasks, edges, hash) {
         (Ok(tasks), Ok(edges), Ok(hash)) => {
             let scheduled_date = Utc::now();
             let mut backend = RedisBackend::from(tasks, edges, pool.clone());
             let run_id = backend
-                .create_new_run(&dag_name, &hash, scheduled_date)
+                .create_new_run(&pipeline_name, &hash, scheduled_date)
                 .map_err(|e| {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
@@ -424,7 +422,7 @@ pub async fn trigger_with_params(
                 })?;
 
             tokio::spawn(async move {
-                backend.enqueue_run(run_id, &dag_name, &hash, scheduled_date, Some(params))
+                backend.enqueue_run(run_id, &pipeline_name, &hash, scheduled_date, Some(params))
             });
 
             Ok(run_id.into())

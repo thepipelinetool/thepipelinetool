@@ -84,7 +84,6 @@ fn create_commands() -> CliCommand {
         .subcommand_required(true)
 }
 
-/// Parses command-line arguments and executes various tasks in the DAG CLI tool.
 ///
 /// This function parses command-line arguments using the `command!` macro and executes
 /// corresponding tasks based on the subcommands and options provided. It interacts with

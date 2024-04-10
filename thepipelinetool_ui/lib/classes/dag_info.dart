@@ -14,7 +14,7 @@ class DagInfo {
   });
 
   factory DagInfo.fromJson(Map<String, dynamic> json) => DagInfo(
-      dagName: json['dag_name'],
+      dagName: json['pipeline_name'],
       lastRun: (json['last_run'] as List<dynamic>).isNotEmpty
           ? DateTime.tryParse(json['last_run'][0]["date"])
           : null,

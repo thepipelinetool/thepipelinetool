@@ -25,18 +25,18 @@ pub fn get_tpt_executor_command() -> String {
 //     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
 // }
 
-pub fn get_dags_dir() -> String {
-    env::var("DAGS_DIR")
+pub fn get_pipelines_dir() -> String {
+    env::var("PIPELINES_DIR")
         .unwrap_or("./bin".to_string())
         .to_string()
 }
 
-pub fn get_dag_path_by_name(dag_name: &str) -> Result<PathBuf> {
-    let dags_dir = &get_dags_dir();
-    let path: PathBuf = [dags_dir, dag_name].iter().collect();
+pub fn get_pipeline_path_by_name(pipeline_name: &str) -> Result<PathBuf> {
+    let pipelines_dir = &get_pipelines_dir();
+    let path: PathBuf = [pipelines_dir, pipeline_name].iter().collect();
 
     if !path.exists() {
-        return Err(anyhow::Error::msg("missing dag"));
+        return Err(anyhow::Error::msg("missing pipeline"));
     }
 
     Ok(path)

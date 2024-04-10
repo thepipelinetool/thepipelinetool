@@ -13,7 +13,7 @@
   </a>
   <a href="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/release.yml" target="_blank">
     <img src="https://github.com/thepipelinetool/thepipelinetool/actions/workflows/release.yml/badge.svg" />
-  </a>  
+  </a>
 </div>
 
 </br>
@@ -44,7 +44,7 @@ cargo install thepipelinetool
 
 ## Usage
 ```
-Usage: tpt [dag] <COMMAND>
+Usage: tpt [pipeline] <COMMAND>
 
 Commands:
   describe  Describe pipeline tasks or edges
@@ -55,7 +55,7 @@ Commands:
   help      Print this message or the help of the given subcommand(s)
 
 Arguments:
-  [dag]  
+  [pipeline]
 
 Options:
   -h, --help     Print help
@@ -65,7 +65,7 @@ Options:
 Find more examples [here](https://github.com/thepipelinetool/thepipelinetool/tree/main/thepipelinetool/examples)
 
 ## Deployment
-The pipeline files must be placed inside `DAGS_DIR` for both the server and workers to access.
+The pipeline files must be placed inside `PIPELINES_DIR` for both the server and workers to access.
 Visit the [template](https://github.com/thepipelinetool/thepipelinetool_template) project for the docker-compose.yml example
 
 ## Advanced
@@ -76,13 +76,13 @@ git clone https://github.com/thepipelinetool/thepipelinetool_template
 
 Or create a new project and add `thepipelinetool_core` dependency
 ```bash
-mkdir your_dag_name
-cd your_dag_name
+mkdir your_pipeline_name
+cd your_pipeline_name
 cargo init --bin
 cargo add thepipelinetool_core
 ```
 Add the following to `src/main.rs`
-```rust 
+```rust
 use thepipelinetool_core::prelude::*;
 
 #[dag]

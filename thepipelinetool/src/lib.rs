@@ -7,12 +7,10 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::DagOptions,
+    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::PipelineOptions,
 };
 
 use std::collections::HashSet;
-
-use thepipelinetool_core::dev::{get_default_graphite_graph, get_default_mermaid_graph, Task};
 
 use crate::in_memory_runner::run_in_memory;
 
@@ -36,15 +34,15 @@ pub fn display_default_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, us
     );
 }
 
-fn display_options(options: &DagOptions) {
+fn display_options(options: &PipelineOptions) {
     print!("{}", serde_json::to_string_pretty(options).unwrap());
 }
 
 pub fn process_subcommands(
-    dag_path: &Path,
-    dag_name: &str,
+    pipeline_path: &Path,
+    pipeline_name: &str,
     subcommand_name: &str,
-    options: &DagOptions,
+    options: &PipelineOptions,
     matches: &ArgMatches,
 ) {
     let tasks = &get_tasks().read().unwrap();
@@ -75,7 +73,7 @@ pub fn process_subcommands(
             _ => {}
         },
 
-        "tree" => display_tree(tasks, edges, dag_path),
+        "tree" => display_tree(tasks, edges, pipeline_path),
         "check" => check_for_cycles(tasks, edges),
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
@@ -115,7 +113,7 @@ pub fn process_subcommands(
                     run_in_memory(
                         &mut backend,
                         max_parallelism,
-                        dag_path.to_path_buf().to_str().unwrap().to_string(),
+                        pipeline_path.to_path_buf().to_str().unwrap().to_string(),
                         env::args().next().unwrap(),
                     );
 

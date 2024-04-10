@@ -54,9 +54,9 @@ impl Task {
         handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
         handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
         take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
-        dag_path: P,
+        pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
     ) -> TaskResult
     where
@@ -74,11 +74,11 @@ impl Task {
             .as_secs()
             .to_string();
 
-        let mut cmd = create_command(&dag_path, use_timeout, &tpt_path);
+        let mut cmd = create_command(&pipeline_path, use_timeout, &tpt_path);
         cmd.env("run_id", run_id.to_string());
         command_timeout(
             &mut cmd,
-            &dag_path,
+            &pipeline_path,
             use_timeout,
             &timeout_as_secs,
             &tpt_path,
@@ -136,7 +136,7 @@ impl Task {
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
             is_sensor: self.options.is_sensor,
-            scheduled_date_for_dag_run,
+            scheduled_date_for_run,
         }
     }
 }

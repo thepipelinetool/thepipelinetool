@@ -133,7 +133,7 @@ pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool)
     res
 }
 
-pub fn create_command<P, D>(dag_path: &P, use_timeout: bool, tpt_path: &D) -> Command
+pub fn create_command<P, D>(pipeline_path: &P, use_timeout: bool, tpt_path: &D) -> Command
 where
     P: AsRef<OsStr>,
     D: AsRef<OsStr>,
@@ -142,14 +142,14 @@ where
         Command::new("timeout")
     } else {
         let mut command = Command::new(tpt_path);
-        command.arg(dag_path);
+        command.arg(pipeline_path);
         command
     }
 }
 
 pub fn command_timeout<P, D>(
     command: &mut Command,
-    dag_path: &P,
+    pipeline_path: &P,
     use_timeout: bool,
     timeout_as_secs: &str,
     tpt_path: &D,
@@ -161,7 +161,7 @@ pub fn command_timeout<P, D>(
     if use_timeout {
         command.args(["-k", timeout_as_secs, timeout_as_secs]);
         command.arg(tpt_path);
-        command.arg(dag_path);
+        command.arg(pipeline_path);
     }
 
     command.args(["run", "function", function]);

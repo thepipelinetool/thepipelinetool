@@ -9,7 +9,7 @@ use thepipelinetool_task::{
 };
 
 pub trait Backend {
-    // fn load_from_name(&mut self, dag_name: &str);
+    // fn load_from_name(&mut self, pipeline_name: &str);
 
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;
@@ -20,12 +20,12 @@ pub trait Backend {
         &mut self,
         run_id: usize,
         task_id: usize,
-        scheduled_date_for_dag_run: DateTime<Utc>,
-        dag_name: String,
+        scheduled_date_for_run: DateTime<Utc>,
+        pipeline_name: String,
         is_dynamic: bool,
     ) -> Result<()>;
 
-    // fn get_dag_name(&self) -> String;
+    // fn get_pipeline_name(&self) -> String;
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> Result<String>;
     fn get_log_handle_closure(
         &mut self,
@@ -92,9 +92,9 @@ pub trait Backend {
 
     fn create_new_run(
         &mut self,
-        dag_name: &str,
-        dag_hash: &str,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        pipeline_name: &str,
+        pipeline_hash: &str,
+        scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<usize>;
 
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()>;

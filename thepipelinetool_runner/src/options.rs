@@ -6,7 +6,7 @@ use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct DagOptions {
+pub struct PipelineOptions {
     #[serde(default)]
     pub schedule: Option<String>,
 
@@ -32,7 +32,7 @@ pub struct DagOptions {
     pub timezone: Option<Tz>,
 }
 
-impl Default for DagOptions {
+impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
             schedule: None,
@@ -47,7 +47,7 @@ impl Default for DagOptions {
     }
 }
 
-impl DagOptions {
+impl PipelineOptions {
     pub fn get_start_date_with_timezone(&self) -> Option<DateTime<Utc>> {
         naive_datetime_to_datetime_with_timezone(&self.start_date, &self.timezone)
     }

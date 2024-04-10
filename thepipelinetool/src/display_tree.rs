@@ -6,7 +6,7 @@ use thepipelinetool_runner::{
     backend::Backend, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
 };
 
-pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &Path) {
+pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &Path) {
     let mut runner = InMemoryBackend::new(tasks, edges);
     let dummy_run_id = 0;
     runner
@@ -20,7 +20,7 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, dag_path: &
         .map(|t| t.id)
         .collect::<Vec<usize>>();
 
-    let mut output = format!("{}\n", dag_path.file_name().unwrap().to_str().unwrap());
+    let mut output = format!("{}\n", pipeline_path.file_name().unwrap().to_str().unwrap());
     let mut task_ids_in_order: Vec<usize> = vec![];
 
     for (index, child) in tasks.iter().enumerate() {

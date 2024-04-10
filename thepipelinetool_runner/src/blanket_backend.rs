@@ -25,18 +25,18 @@ pub trait BlanketBackend {
     fn enqueue_run(
         &mut self,
         run_id: usize,
-        dag_name: &str,
-        dag_hash: &str,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        pipeline_name: &str,
+        pipeline_hash: &str,
+        scheduled_date_for_run: DateTime<Utc>,
         trigger_params: Option<Value>,
     ) -> Result<()>;
     fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
-        dag_path: P,
+        pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize)
         -> Result<()>;
@@ -46,10 +46,10 @@ pub trait BlanketBackend {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        dag_path: P,
+        pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_dag_run: DateTime<Utc>,
-        dag_name: String,
+        scheduled_date_for_run: DateTime<Utc>,
+        pipeline_name: String,
     ) -> Result<TaskResult>;
     fn resolve_args(
         &mut self,
@@ -123,9 +123,9 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
     fn enqueue_run(
         &mut self,
         run_id: usize,
-        dag_name: &str,
-        dag_hash: &str,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        pipeline_name: &str,
+        pipeline_hash: &str,
+        scheduled_date_for_run: DateTime<Utc>,
         trigger_params: Option<Value>,
     ) -> Result<()> {
         let default_tasks = self.get_default_tasks()?;
@@ -160,8 +160,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 self.enqueue_task(
                     run_id,
                     task.id,
-                    scheduled_date_for_dag_run,
-                    dag_name.to_string(),
+                    scheduled_date_for_run,
+                    pipeline_name.to_string(),
                     false,
                 )?;
             }
@@ -216,8 +216,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.enqueue_task(
                 run_id,
                 result.task_id,
-                queued_task.scheduled_date_for_dag_run,
-                queued_task.dag_name.clone(),
+                queued_task.scheduled_date_for_run,
+                queued_task.pipeline_name.clone(),
                 false,
             )?;
             return Ok(());
@@ -252,8 +252,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.enqueue_task(
                 run_id,
                 result.task_id,
-                queued_task.scheduled_date_for_dag_run,
-                queued_task.dag_name.clone(),
+                queued_task.scheduled_date_for_run,
+                queued_task.pipeline_name.clone(),
                 false,
             )?;
         } else {
@@ -264,8 +264,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     self.enqueue_task(
                         run_id,
                         downstream,
-                        queued_task.scheduled_date_for_dag_run,
-                        queued_task.dag_name.clone(),
+                        queued_task.scheduled_date_for_run,
+                        queued_task.pipeline_name.clone(),
                         false,
                     )?;
                 }
@@ -280,10 +280,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        dag_path: P,
+        pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_dag_run: DateTime<Utc>,
-        dag_name: String,
+        scheduled_date_for_run: DateTime<Utc>,
+        pipeline_name: String,
     ) -> Result<TaskResult> {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id)?;
@@ -364,8 +364,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     self.enqueue_task(
                         run_id,
                         *d,
-                        scheduled_date_for_dag_run,
-                        dag_name.clone(),
+                        scheduled_date_for_run,
+                        pipeline_name.clone(),
                         true,
                     )?;
                 }
@@ -373,8 +373,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 self.enqueue_task(
                     run_id,
                     collector_id,
-                    scheduled_date_for_dag_run,
-                    dag_name.clone(),
+                    scheduled_date_for_run,
+                    pipeline_name.clone(),
                     true,
                 )?;
             }
@@ -382,8 +382,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 self.enqueue_task(
                     run_id,
                     *lazy_id,
-                    scheduled_date_for_dag_run,
-                    dag_name.clone(),
+                    scheduled_date_for_run,
+                    pipeline_name.clone(),
                     true,
                 )?;
             }
@@ -406,7 +406,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
-                scheduled_date_for_dag_run,
+                scheduled_date_for_run,
             });
         }
 
@@ -416,9 +416,9 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.take_last_stdout_line(run_id, task.id, attempt)?,
-            dag_path,
+            pipeline_path,
             tpt_path,
-            scheduled_date_for_dag_run,
+            scheduled_date_for_run,
             run_id,
         ))
     }
@@ -536,9 +536,9 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        dag_path: P,
+        pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()> {
         // if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
         //     return;
@@ -547,8 +547,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         //     self.enqueue_task(
         //         run_id,
         //         ordered_queued_task.queued_task.task_id,
-        //         scheduled_date_for_dag_run,
-        //         ordered_queued_task.queued_task.dag_name.clone(),
+        //         scheduled_date_for_run,
+        //         ordered_queued_task.queued_task.pipeline_name.clone(),
         //         false,
         //     );
         //     return;
@@ -562,10 +562,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 &task,
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
-                dag_path,
+                pipeline_path,
                 tpt_path,
-                scheduled_date_for_dag_run,
-                ordered_queued_task.queued_task.dag_name.clone(),
+                scheduled_date_for_run,
+                ordered_queued_task.queued_task.pipeline_name.clone(),
             )?,
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
@@ -576,7 +576,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
-                scheduled_date_for_dag_run,
+                scheduled_date_for_run,
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task)?;

@@ -7,7 +7,7 @@ use thepipelinetool_runner::{
 pub fn run_in_memory(
     backend: &mut InMemoryBackend,
     max_parallelism: usize,
-    dag_path: String,
+    pipeline_path: String,
     tpt_path: String,
 ) {
     let (tx, rx) = channel();
@@ -17,16 +17,16 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            let (dag_path, tpt_path) = (dag_path.clone(), tpt_path.clone());
+            let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
 
             thread::spawn(move || {
                 backend
                     .work(
                         ordered_queued_task.queued_task.run_id,
                         &ordered_queued_task,
-                        dag_path,
+                        pipeline_path,
                         tpt_path,
-                        ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+                        ordered_queued_task.queued_task.scheduled_date_for_run,
                     )
                     .unwrap();
                 backend
@@ -55,16 +55,16 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            let (dag_path, tpt_path) = (dag_path.clone(), tpt_path.clone());
+            let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
 
             thread::spawn(move || {
                 backend
                     .work(
                         ordered_queued_task.queued_task.run_id,
                         &ordered_queued_task,
-                        dag_path,
+                        pipeline_path,
                         tpt_path,
-                        ordered_queued_task.queued_task.scheduled_date_for_dag_run,
+                        ordered_queued_task.queued_task.scheduled_date_for_run,
                     )
                     .unwrap();
                 backend

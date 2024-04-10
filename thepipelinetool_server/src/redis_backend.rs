@@ -33,7 +33,7 @@ macro_rules! block_on {
 #[derive(Serialize, Deserialize)]
 pub struct Run {
     pub run_id: usize,
-    pub scheduled_date_for_dag_run: DateTime<Utc>,
+    pub scheduled_date_for_run: DateTime<Utc>,
 }
 
 #[derive(Clone)]
@@ -102,10 +102,10 @@ impl RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
+    pub async fn get_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
         let mut conn = pool.get().await?;
         let members = cmd("LRANGE")
-            .arg(format!("{RUNS_KEY}:{dag_name}"))
+            .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(0)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
@@ -120,10 +120,10 @@ impl RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_last_run(dag_name: &str, pool: Pool) -> Result<Option<Run>> {
+    pub async fn get_last_run(pipeline_name: &str, pool: Pool) -> Result<Option<Run>> {
         let mut conn = pool.get().await?;
         let members = cmd("LRANGE")
-            .arg(format!("{RUNS_KEY}:{dag_name}"))
+            .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(-1)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
@@ -136,10 +136,10 @@ impl RedisBackend {
 
     //
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_recent_runs(dag_name: &str, pool: Pool) -> Result<Vec<Run>> {
+    pub async fn get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
         let mut conn = pool.get().await?;
         let members = cmd("LRANGE")
-            .arg(format!("{RUNS_KEY}:{dag_name}"))
+            .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(-10)
             .arg(-1)
             .query_async::<_, Vec<String>>(&mut conn)
@@ -155,15 +155,15 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn contains_logical_date(
-        dag_name: &str,
-        dag_hash: &str,
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        pipeline_name: &str,
+        pipeline_hash: &str,
+        scheduled_date_for_run: DateTime<Utc>,
         pool: Pool,
     ) -> Result<bool> {
         let mut conn = pool.get().await?;
         Ok(cmd("SISMEMBER")
-            .arg(format!("{LOGICAL_DATES_KEY}:{dag_name}:{dag_hash}"))
-            .arg(scheduled_date_for_dag_run.to_string())
+            .arg(format!("{LOGICAL_DATES_KEY}:{pipeline_name}:{pipeline_hash}"))
+            .arg(scheduled_date_for_run.to_string())
             .query_async::<_, bool>(&mut conn)
             .await?)
     }
@@ -324,9 +324,9 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn create_new_run(
         &mut self,
-        dag_name: &str,
-        _dag_hash: &str, // TODO
-        scheduled_date_for_dag_run: DateTime<Utc>,
+        pipeline_name: &str,
+        _pipeline_hash: &str, // TODO
+        scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<usize> {
         block_on!({
             let mut conn = self.pool.get().await?;
@@ -338,10 +338,10 @@ impl Backend for RedisBackend {
                 - 1;
 
             cmd("RPUSH")
-                .arg(format!("{RUNS_KEY}:{dag_name}"))
+                .arg(format!("{RUNS_KEY}:{pipeline_name}"))
                 .arg(serde_json::to_string(&Run {
                     run_id,
-                    scheduled_date_for_dag_run,
+                    scheduled_date_for_run,
                 })?)
                 .query_async::<_, ()>(&mut conn)
                 .await?;
@@ -691,8 +691,8 @@ impl Backend for RedisBackend {
         &mut self,
         run_id: usize,
         task_id: usize,
-        scheduled_date_for_dag_run: DateTime<Utc>,
-        dag_name: String,
+        scheduled_date_for_run: DateTime<Utc>,
+        pipeline_name: String,
         is_dynamic: bool,
     ) -> Result<()> {
         block_on!({
@@ -726,8 +726,8 @@ impl Backend for RedisBackend {
                     serde_json::to_string(&QueuedTask {
                         task_id,
                         run_id,
-                        dag_name,
-                        scheduled_date_for_dag_run,
+                        pipeline_name,
+                        scheduled_date_for_run,
                         attempt,
                     })?,
                 ])

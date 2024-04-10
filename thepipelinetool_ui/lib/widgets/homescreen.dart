@@ -28,7 +28,7 @@ class DagLink extends ConsumerWidget {
             FocusScope.of(context).requestFocus(FocusNode());
 
             // ref.invalidate(selectedItemProvider(dagName));
-            context.goNamed('dag', pathParameters: {'dag_name': info.dagName});
+            context.goNamed('dag', pathParameters: {'pipeline_name': info.dagName});
           },
           child: Text(
             info.dagName,

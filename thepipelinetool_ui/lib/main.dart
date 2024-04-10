@@ -62,11 +62,11 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       name: 'dag',
-      path: '/dag/:dag_name',
+      path: '/dag/:pipeline_name',
       pageBuilder: (BuildContext context, GoRouterState state) => pageBuilder(
           context,
           state,
-          DetailsPage(dagName: state.pathParameters['dag_name']!)),
+          DetailsPage(dagName: state.pathParameters['pipeline_name']!)),
     ),
   ],
 );

@@ -104,9 +104,9 @@ impl Backend for InMemoryBackend {
 
     fn create_new_run(
         &mut self,
-        _dag_name: &str,
-        _dag_hash: &str,
-        _scheduled_date_for_dag_run: DateTime<Utc>,
+        _pipeline_name: &str,
+        _pipeline_hash: &str,
+        _scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<usize> {
         Ok(0)
     }
@@ -286,8 +286,8 @@ impl Backend for InMemoryBackend {
         &mut self,
         run_id: usize,
         task_id: usize,
-        scheduled_date_for_dag_run: DateTime<Utc>,
-        dag_name: String,
+        scheduled_date_for_run: DateTime<Utc>,
+        pipeline_name: String,
         is_dynamic: bool,
     ) -> Result<()> {
         let depth = self.get_task_depth(run_id, task_id)?;
@@ -302,8 +302,8 @@ impl Backend for InMemoryBackend {
             queued_task: QueuedTask {
                 task_id,
                 run_id,
-                dag_name,
-                scheduled_date_for_dag_run,
+                pipeline_name,
+                scheduled_date_for_run,
                 attempt,
             },
         });

@@ -18,7 +18,7 @@ async fn _spawn_check_timeout(pool: Pool) -> Result<()> {
             if let Ok(task) = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id) {
                 if let Some(timeout) = task.options.timeout {
                     let now = Utc::now();
-                    if (now - queued_task.scheduled_date_for_dag_run).to_std()? > timeout {
+                    if (now - queued_task.scheduled_date_for_run).to_std()? > timeout {
                         let result = TaskResult::premature_error(
                             task.id,
                             queued_task.attempt,
@@ -28,7 +28,7 @@ async fn _spawn_check_timeout(pool: Pool) -> Result<()> {
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
-                            queued_task.scheduled_date_for_dag_run,
+                            queued_task.scheduled_date_for_run,
                         );
 
                         dummy.handle_task_result(queued_task.run_id, result, &queued_task)?;
