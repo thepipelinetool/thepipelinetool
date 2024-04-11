@@ -1,4 +1,4 @@
-use std::{env, ffi::OsStr, fs, path::PathBuf, thread, time::Duration};
+use std::{env, ffi::OsStr, fs, net, path::PathBuf, sync::mpsc, thread, time::Duration};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{
-    command_timeout, create_command, spawn, value_from_file, value_to_file,
-};
+use thepipelinetool_utils::{command_timeout, create_command, spawn, value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -58,21 +56,25 @@ impl Task {
         tpt_path: D,
         // scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
-    ) -> TaskResult
+    ) -> Result<TaskResult>
     where
         P: AsRef<OsStr>,
         D: AsRef<OsStr>,
     {
+        // let (sender, receiver) = mpsc::channel();
+        // let t = thread::spawn(move || {
+        //     match sender.send(net::TcpStream::connect((host.as_str(), port))) {
+        //         Ok(()) => {}, // everything good
+        //         Err(_) => {}, // we have been released, don't panic
+        //     }
+        // });
+        // let k = receiver.recv_timeout(Duration::from_millis(5000));
+
         let task_id: usize = self.id;
         let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
         let use_timeout = self.options.timeout.is_some();
-        let timeout_as_secs = self
-            .options
-            .timeout
-            .unwrap_or(Duration::ZERO)
-            .as_secs()
-            .to_string();
+        let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
 
         let mut cmd = create_command(&pipeline_path, use_timeout, &tpt_path);
         cmd.env("run_id", run_id.to_string());
@@ -80,7 +82,7 @@ impl Task {
             &mut cmd,
             &pipeline_path,
             use_timeout,
-            &timeout_as_secs,
+            // &timeout_as_secs,
             &tpt_path,
             &self.function,
         );
@@ -108,19 +110,26 @@ impl Task {
         let start = Utc::now();
 
         // TODO store exit code? (coudl allow for 'skipped' status)
-        let (exit_status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
+        let exit_status = spawn(
+            cmd,
+            self.options.timeout,
+            handle_stdout_log,
+            handle_stderr_log,
+        );
+        let (success, code) = match exit_status {
+            Ok(exit_status) => (exit_status.success(), exit_status.code()),
+            Err(_) => (false, Some(124)),
+        };
+        let timed_out = code == Some(124);
         let end = Utc::now();
 
-        let (success, result) = (
-            exit_status.success(),
-            match (exit_status.success(), get_save_to_file()) {
-                (true, true) => value_from_file(&out_path.unwrap()).unwrap(),
-                (true, false) => serde_json::from_str(&take_last_stdout_line().unwrap()).unwrap(),
-                (false, _) => Value::Null,
-            },
-        );
+        let result = match (success, get_save_to_file()) {
+            (true, true) => value_from_file(&out_path.unwrap()).unwrap(),
+            (true, false) => serde_json::from_str(&take_last_stdout_line().unwrap()).unwrap(),
+            (false, _) => Value::Null,
+        };
 
-        TaskResult {
+        Ok(TaskResult {
             task_id,
             result,
             attempt,
@@ -136,8 +145,8 @@ impl Task {
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
             is_sensor: self.options.is_sensor,
-            exit_code: exit_status.code(),
+            exit_code: code,
             // scheduled_date_for_run,
-        }
+        })
     }
 }

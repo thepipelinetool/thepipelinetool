@@ -5,6 +5,7 @@ use std::{
     process::{self, Command},
 };
 
+use anyhow::Result;
 use clap::Arg;
 use thepipelinetool::{
     commands::create_commands, process_subcommands, read_from_executable::read_from_executable,
@@ -13,7 +14,7 @@ use thepipelinetool::{
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::pipeline_options::PipelineOptions;
 
-fn main() {
+fn main() -> Result<()> {
     let mut args: Vec<String> = env::args().collect();
     let command = create_commands().arg(Arg::new("pipeline"));
     let matches = command.get_matches();
@@ -26,8 +27,9 @@ fn main() {
     if is_executable && args.len() > 4 && args[2..4] == ["run", "function"] {
         let mut cmd = Command::new(pipeline_path);
         cmd.args(&mut args[2..]);
-        let (exit_status, _) = spawn(
+        let exit_status = spawn(
             cmd,
+            None,
             Box::new(|x| {
                 print!("{x}");
                 Ok(())
@@ -36,7 +38,7 @@ fn main() {
                 eprint!("{x}");
                 Ok(())
             }),
-        );
+        )?;
         process::exit(exit_status.code().unwrap());
     } else if is_executable {
         read_from_executable(pipeline_name)
@@ -52,4 +54,5 @@ fn main() {
     };
 
     process_subcommands(pipeline_path, pipeline_name, subcommand_name, &options, &matches);
+    Ok(())
 }

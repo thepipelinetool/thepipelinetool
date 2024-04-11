@@ -61,7 +61,7 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
                     pool.clone(),
                 )
                 .await;
-                spawned_schedulers.lock().await.remove(&pipeline_name);
+                // spawned_schedulers.lock().await.remove(&pipeline_name);
             });
         }
 
@@ -90,6 +90,7 @@ pub async fn _scheduler(
         }
         let now = Utc::now();
         if scheduled_date > now {
+            // TODO upload next run date
             let delay = (scheduled_date - now).to_std()?;
             tokio::time::sleep(delay).await;
         }

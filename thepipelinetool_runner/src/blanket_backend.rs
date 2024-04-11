@@ -497,7 +497,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             tpt_path,
             // scheduled_date_for_run,
             run_id,
-        ))
+        )?)
     }
 
     fn resolve_args(

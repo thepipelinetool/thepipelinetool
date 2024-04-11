@@ -1,11 +1,5 @@
 use std::{
-    cmp::max,
-    ffi::OsStr,
-    fs::File,
-    io::{BufRead, BufReader, Error, Read, Write},
-    path::Path,
-    process::{self, Command, ExitStatus, Stdio},
-    thread::{self, available_parallelism},
+    cmp::max, ffi::OsStr, fs::File, io::{BufRead, BufReader, Error, Read, Write}, path::Path, process::{self, Command, ExitStatus, Stdio}, sync::mpsc::channel, thread::{self, available_parallelism}, time::Duration
 };
 
 use anyhow::Result;
@@ -68,9 +62,10 @@ pub fn collector(args: Value) -> Value {
 
 pub fn spawn(
     mut cmd: Command,
+    timeout: Option<Duration>,
     handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
     handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
-) -> (ExitStatus, bool) {
+) -> Result<ExitStatus> {
     let mut child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -96,12 +91,34 @@ pub fn spawn(
         }
     }));
 
-    let status = child.wait().expect("failed to wait on child");
-    let timed_out = matches!(status.code(), Some(124));
-    stdout_handle.join().expect("stdout thread panicked");
-    stderr_handle.join().expect("stderr thread panicked");
+    // let status = child.wait().expect("failed to wait on child");
+    // // let timed_out = matches!(status.code(), Some(124));
+    // stdout_handle.join().expect("stdout thread panicked");
+    // stderr_handle.join().expect("stderr thread panicked");
 
-    (status, timed_out)
+
+    let (sender, receiver) = channel();
+    thread::spawn(move || {
+        match sender.send({
+            // child.wait().expect("failed to wait on child")
+            let status = child.wait().expect("failed to wait on child");
+            // let timed_out = matches!(status.code(), Some(124));
+            stdout_handle.join().expect("stdout thread panicked");
+            stderr_handle.join().expect("stderr thread panicked");
+            status
+        }) {
+            Ok(()) => {}, // everything good
+            Err(_) => {}, // we have been released, don't panic
+        }
+    });
+
+    if let Some(timeout) = timeout {
+
+        Ok(receiver.recv_timeout(timeout)?)
+    } else {
+        Ok(receiver.recv()?)
+    }
+    // (status, timed_out)
 }
 
 pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {
@@ -138,31 +155,32 @@ where
     P: AsRef<OsStr>,
     D: AsRef<OsStr>,
 {
-    if use_timeout {
-        Command::new("timeout")
-    } else {
+    // if use_timeout {
+    //     Command::new("timeout")
+    // } else {
         let mut command = Command::new(tpt_path);
         command.arg(pipeline_path);
+
         command
-    }
+    // }
 }
 
 pub fn command_timeout<P, D>(
     command: &mut Command,
     pipeline_path: &P,
     use_timeout: bool,
-    timeout_as_secs: &str,
+    // timeout_as_secs: &str,
     tpt_path: &D,
     function: &str,
 ) where
     P: AsRef<OsStr>,
     D: AsRef<OsStr>,
 {
-    if use_timeout {
-        command.args(["-k", timeout_as_secs, timeout_as_secs]);
-        command.arg(tpt_path);
-        command.arg(pipeline_path);
-    }
+    // if use_timeout {
+    //     command.args(["-k", timeout_as_secs, timeout_as_secs]);
+    //     command.arg(tpt_path);
+    //     command.arg(pipeline_path);
+    // }
 
     command.args(["run", "function", function]);
 }
