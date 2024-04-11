@@ -5,7 +5,7 @@ use backend::Backend;
 pub mod backend;
 pub mod blanket_backend;
 pub mod in_memory_backend;
-pub mod options;
+pub mod pipeline_options;
 
 use anyhow::Result;
 

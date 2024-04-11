@@ -10,8 +10,8 @@ pub struct PipelineOptions {
     #[serde(default)]
     pub schedule: Option<String>,
 
-    #[serde(default)]
-    pub start_date: Option<NaiveDateTime>,
+    // #[serde(default)]
+    // pub start_date: Option<NaiveDateTime>,
 
     #[serde(default)]
     pub end_date: Option<NaiveDateTime>,
@@ -26,7 +26,7 @@ pub struct PipelineOptions {
     pub timeout: Option<Duration>,
 
     #[serde(default)]
-    pub should_catchup: bool,
+    pub catchup_date: Option<NaiveDateTime>,
 
     #[serde(default)]
     pub timezone: Option<Tz>,
@@ -36,24 +36,24 @@ impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
             schedule: None,
-            start_date: None,
+            // start_date: None,
             end_date: None,
             max_attempts: 1,
             retry_delay: Duration::ZERO,
             timeout: None,
-            should_catchup: false,
+            catchup_date: None,
             timezone: None,
         }
     }
 }
 
 impl PipelineOptions {
-    pub fn get_start_date_with_timezone(&self) -> Option<DateTime<Utc>> {
-        naive_datetime_to_datetime_with_timezone(&self.start_date, &self.timezone)
+    pub fn get_catchup_date_with_timezone(&self) -> Option<DateTime<Utc>> {
+        naive_datetime_to_datetime_with_timezone(&self.catchup_date, &self.timezone)
     }
 
     pub fn get_end_date_with_timezone(&self) -> Option<DateTime<Utc>> {
-        naive_datetime_to_datetime_with_timezone(&self.start_date, &self.timezone)
+        naive_datetime_to_datetime_with_timezone(&self.end_date, &self.timezone)
     }
 }
 

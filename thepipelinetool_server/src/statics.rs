@@ -7,7 +7,7 @@ use std::{
 
 use parking_lot::Mutex;
 use thepipelinetool_core::dev::Task;
-use thepipelinetool_runner::{get_pipeline_path_by_name, get_pipelines_dir, options::PipelineOptions};
+use thepipelinetool_runner::{get_pipeline_path_by_name, get_pipelines_dir, pipeline_options::PipelineOptions};
 
 use crate::env::get_tpt_command;
 use anyhow::anyhow;

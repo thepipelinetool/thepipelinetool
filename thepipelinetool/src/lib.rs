@@ -7,7 +7,7 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, options::PipelineOptions,
+    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline_options::PipelineOptions,
 };
 
 use std::collections::HashSet;

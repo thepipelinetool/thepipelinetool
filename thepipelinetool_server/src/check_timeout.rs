@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::redis_backend::RedisBackend;
 
-async fn _spawn_check_timeout(pool: Pool) -> Result<()> {
+pub async fn check_timeout(pool: Pool) -> Result<()> {
     let mut dummy = RedisBackend::dummy(pool.clone());
     loop {
         for queued_task in dummy.get_temp_queue().await? {
@@ -40,8 +40,4 @@ async fn _spawn_check_timeout(pool: Pool) -> Result<()> {
         // TODO read from env
         sleep(Duration::new(5, 0)).await;
     }
-}
-
-pub fn spawn_check_timeout(pool: Pool) {
-    tokio::spawn(async move { _spawn_check_timeout(pool).await });
 }

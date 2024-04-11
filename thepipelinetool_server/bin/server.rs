@@ -1,11 +1,9 @@
 use axum::{http::Method, Router};
-use chrono::Utc;
 use std::path::PathBuf;
-use thepipelinetool_server::catchup::spawn_catchup;
-use thepipelinetool_server::check_timeout::spawn_check_timeout;
+// use thepipelinetool_server::catchup::catchup;
+use thepipelinetool_server::check_timeout::check_timeout;
 use thepipelinetool_server::env::{tpt_executor_installed, tpt_installed};
-use thepipelinetool_server::scheduler::spawn_scheduler;
-use thepipelinetool_server::{get_redis_pool, routes::*};
+use thepipelinetool_server::{get_redis_pool, routes::*, scheduler::scheduler};
 use tokio::net::TcpListener;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
@@ -26,16 +24,25 @@ async fn main() -> Result<()> {
     println!("connecting to redis...");
     let pool = get_redis_pool()?;
 
-    let now = Utc::now();
+    // let now = Utc::now();
 
-    println!("spawning catchup...");
-    spawn_catchup(now, pool.clone());
+    // println!("spawning catchup...");
+    // {
+    //     let pool = pool.clone();
+    //     tokio::spawn(async move { catchup(now, pool).await });
+    // }
 
     println!("spawning scheduler...");
-    spawn_scheduler(now, pool.clone());
+    {
+        let pool = pool.clone();
+        tokio::spawn(async move { scheduler(pool).await });
+    }
 
     println!("spawning check_timeout...");
-    spawn_check_timeout(pool.clone());
+    {
+        let pool = pool.clone();
+        tokio::spawn(async move { check_timeout(pool).await });
+    }
 
     let app = Router::new()
         .nest_service("/", ServeDir::new(PathBuf::from("static")))
@@ -46,16 +53,22 @@ async fn main() -> Result<()> {
         .route("/runs/last/:pipeline_name", get(get_last_run))
         .route("/runs/recent/:pipeline_name", get(get_recent_runs)) // TODO change to recent results?
         .route("/runs/all/:pipeline_name", get(get_runs_with_tasks))
-        .route("/trigger/:pipeline_name", get(trigger).post(trigger_with_params))
+        .route(
+            "/trigger/:pipeline_name",
+            get(trigger).post(trigger_with_params),
+        )
         .route("/statuses/:run_id", get(get_run_status))
         .route("/statuses/:run_id/:task_id", get(get_task_status))
         .route("/results/:run_id/:task_id", get(get_task_result))
-        .route("/results/all/:run_id/:task_id", get(get_all_task_results))
+        .route("/results/all/:run_id/:task_id", get(get_all_results))
         .route("/logs/:run_id/:task_id/:attempt", get(get_task_log))
-        .route("/tasks/:run_id", get(get_all_tasks))
-        .route("/tasks/:run_id/:task_id", get(get_task))
+        .route("/tasks/:run_id", get(get_all_tasks_by_run_id))
+        .route("/tasks/:run_id/:task_id", get(get_task_by_id))
         .route("/tasks/default/:pipeline_name", get(get_default_tasks))
-        .route("/tasks/default/:pipeline_name/:task_id", get(get_default_task))
+        .route(
+            "/tasks/default/:pipeline_name/:task_id",
+            get(get_default_task_by_id),
+        )
         .route("/graphs/:run_id", get(get_run_graph))
         .route("/graphs/default/:pipeline_name", get(get_default_graph))
         .layer(

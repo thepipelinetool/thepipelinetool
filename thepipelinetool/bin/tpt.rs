@@ -11,7 +11,7 @@ use thepipelinetool::{
     read_from_yaml::read_from_yaml,
 };
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::options::PipelineOptions;
+use thepipelinetool_runner::pipeline_options::PipelineOptions;
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();

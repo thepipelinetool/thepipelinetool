@@ -1,65 +1,66 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashSet,
+    time::Duration,
+};
 
 use chrono::{DateTime, Utc};
 
 use deadpool_redis::Pool;
-use saffron::Cron;
+use saffron::{Cron, CronTimesIter};
+use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend};
 use tokio::time::sleep;
 
 use anyhow::Result;
 
-use crate::{_get_pipelines, _trigger_run_from_schedules, statics::_get_options};
+use crate::{
+    _get_pipelines,
+    redis_backend::RedisBackend,
+    statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
+};
 
-async fn _spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) -> Result<()> {
-    let mut last_checked_name: HashMap<String, DateTime<Utc>> = HashMap::new();
+pub async fn scheduler(pool: Pool) -> Result<()> {
     let pool = pool.clone();
+    let mut spawned_schedulers = HashSet::new();
 
     loop {
         'inner: for pipeline_name in _get_pipelines()? {
-            let options = _get_options(&pipeline_name)?;
-
-            let last_checked = **last_checked_name
-                .get(&pipeline_name)
-                .get_or_insert(&server_start_date);
-
-            last_checked_name.insert(pipeline_name.clone(), Utc::now());
-
-            if options.schedule.is_none() {
-                continue 'inner;
-            }
-            let cron = &options.schedule.clone().expect("").parse::<Cron>();
-            if cron.is_err() {
-                // TODO check for correct cron on read
+            if spawned_schedulers.contains(&pipeline_name) {
+                // scheduler for this pipeline already spawned
                 continue;
             }
-            let cron = cron.as_ref().expect("");
+            spawned_schedulers.insert(pipeline_name.clone());
+            let options = _get_options(&pipeline_name)?;
+
+            if options.schedule.is_none() {
+                // no scheduling for this pipeline
+                continue 'inner;
+            }
+            let cron = if let Ok(cron) = (&options.schedule).clone().expect("").parse::<Cron>() {
+                cron
+            } else {
+                // error parsing cron
+                continue 'inner;
+            };
             if !cron.any() {
                 println!("Cron will never match any given time!");
                 continue 'inner;
             }
-            // println!("checking for schedules: {pipeline_name} {up_to}");
 
-            if let Some(end_date) = options.get_end_date_with_timezone() {
-                if end_date <= last_checked {
-                    continue 'inner;
-                }
-            }
-
-            if let Some(start_date) = options.get_start_date_with_timezone() {
-                if start_date >= last_checked {
-                    continue 'inner;
-                }
-            }
-
-            _trigger_run_from_schedules(
-                &pipeline_name,
-                server_start_date,
-                cron,
-                cron.clone().iter_from(last_checked),
-                options.get_end_date_with_timezone(),
-                pool.clone(),
-            )
-            .await?;
+            let pool = pool.clone();
+            tokio::spawn(async move {
+                _scheduler(
+                    &pipeline_name,
+                    &cron,
+                    cron.clone().iter_from(
+                        options
+                            .get_catchup_date_with_timezone()
+                            .unwrap_or(Utc::now()),
+                    ),
+                    options.get_end_date_with_timezone(),
+                    pool.clone(),
+                )
+                .await
+            });
         }
 
         // TODO read from env
@@ -67,6 +68,55 @@ async fn _spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) -> Resul
     }
 }
 
-pub fn spawn_scheduler(server_start_date: DateTime<Utc>, pool: Pool) {
-    tokio::spawn(async move { _spawn_scheduler(server_start_date, pool).await });
+pub async fn _scheduler(
+    pipeline_name: &str,
+    // server_start_date: DateTime<Utc>,
+    cron: &Cron,
+    scheduled_dates: CronTimesIter,
+    end_date: Option<DateTime<Utc>>,
+    pool: Pool,
+) -> Result<()> {
+    for scheduled_date in scheduled_dates {
+        if !cron.contains(scheduled_date) {
+            // TODO check if we need this?
+            println!("Failed check! Cron does not contain {}.", scheduled_date);
+            break;
+        }
+        if let Some(end_date) = end_date {
+            if scheduled_date > end_date {
+                break;
+            }
+        }
+        let now = Utc::now();
+        if scheduled_date > now {
+            let delay = (scheduled_date - now).to_std()?;
+            tokio::time::sleep(delay).await;
+        }
+
+        // check if date is already in db
+        if RedisBackend::contains_logical_date(
+            pipeline_name,
+            &_get_hash(pipeline_name)?,
+            scheduled_date,
+            pool.clone(),
+        )
+        .await?
+        {
+            continue;
+        }
+        let nodes = _get_default_tasks(pipeline_name)?;
+        let edges = _get_default_edges(pipeline_name)?;
+        let hash = _get_hash(pipeline_name)?;
+
+        let mut backend = RedisBackend::from(nodes, edges, pool.clone());
+        let run_id = backend.create_new_run(pipeline_name, &hash, scheduled_date)?;
+        backend.enqueue_run(run_id, pipeline_name, &hash, scheduled_date, None)?;
+        println!(
+            "scheduling catchup {pipeline_name} {}",
+            scheduled_date.format("%F %R")
+        );
+    }
+
+    // TODO set next run to none
+    Ok(())
 }

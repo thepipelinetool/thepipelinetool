@@ -162,7 +162,9 @@ impl RedisBackend {
     ) -> Result<bool> {
         let mut conn = pool.get().await?;
         Ok(cmd("SISMEMBER")
-            .arg(format!("{LOGICAL_DATES_KEY}:{pipeline_name}:{pipeline_hash}"))
+            .arg(format!(
+                "{LOGICAL_DATES_KEY}:{pipeline_name}"
+            ))
             .arg(scheduled_date_for_run.to_string())
             .query_async::<_, bool>(&mut conn)
             .await?)
@@ -345,6 +347,14 @@ impl Backend for RedisBackend {
                 })?)
                 .query_async::<_, ()>(&mut conn)
                 .await?;
+            cmd("SISMEMBER")
+                .arg(format!(
+                    "{LOGICAL_DATES_KEY}:{pipeline_name}"
+                ))
+                .arg(scheduled_date_for_run.to_string())
+                .query_async::<_, bool>(&mut conn)
+                .await?;
+
             Ok(run_id)
         })
     }
