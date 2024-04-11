@@ -1,34 +1,34 @@
-use std::{
-    collections::HashSet,
-    time::Duration,
-};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use chrono::{DateTime, Utc};
 
 use deadpool_redis::Pool;
 use saffron::{Cron, CronTimesIter};
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend};
-use tokio::time::sleep;
+use tokio::{sync::Mutex, time::sleep};
 
 use anyhow::Result;
 
 use crate::{
     _get_pipelines,
+    env::get_scheduler_loop_interval,
     redis_backend::RedisBackend,
     statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
 };
 
 pub async fn scheduler(pool: Pool) -> Result<()> {
     let pool = pool.clone();
-    let mut spawned_schedulers = HashSet::new();
+    let loop_interval = Duration::new(get_scheduler_loop_interval()?, 0);
+    let spawned_schedulers = Arc::new(Mutex::new(HashSet::new()));
 
     loop {
+        // TODO should this watch for updated schedules?
         'inner: for pipeline_name in _get_pipelines()? {
-            if spawned_schedulers.contains(&pipeline_name) {
+            if spawned_schedulers.lock().await.contains(&pipeline_name) {
                 // scheduler for this pipeline already spawned
                 continue;
             }
-            spawned_schedulers.insert(pipeline_name.clone());
+            spawned_schedulers.lock().await.insert(pipeline_name.clone());
             let options = _get_options(&pipeline_name)?;
 
             if options.schedule.is_none() {
@@ -47,8 +47,9 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
             }
 
             let pool = pool.clone();
+            let spawned_schedulers = spawned_schedulers.clone();
             tokio::spawn(async move {
-                _scheduler(
+                let _ = _scheduler(
                     &pipeline_name,
                     &cron,
                     cron.clone().iter_from(
@@ -59,12 +60,12 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
                     options.get_end_date_with_timezone(),
                     pool.clone(),
                 )
-                .await
+                .await;
+                spawned_schedulers.lock().await.remove(&pipeline_name);
             });
         }
 
-        // TODO read from env
-        sleep(Duration::new(5, 0)).await;
+        sleep(loop_interval).await;
     }
 }
 

@@ -9,10 +9,12 @@ use tokio::time::sleep;
 
 use anyhow::Result;
 
-use crate::redis_backend::RedisBackend;
+use crate::{env::get_check_timeout_loop_interval, redis_backend::RedisBackend};
 
 pub async fn check_timeout(pool: Pool) -> Result<()> {
     let mut dummy = RedisBackend::dummy(pool.clone());
+    let loop_interval = Duration::new(get_check_timeout_loop_interval()?, 0);
+
     loop {
         for queued_task in dummy.get_temp_queue().await? {
             if let Ok(task) = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id) {
@@ -28,7 +30,7 @@ pub async fn check_timeout(pool: Pool) -> Result<()> {
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
-                            queued_task.scheduled_date_for_run,
+                            // queued_task.scheduled_date_for_run,
                         );
 
                         dummy.handle_task_result(queued_task.run_id, result, &queued_task)?;
@@ -37,7 +39,6 @@ pub async fn check_timeout(pool: Pool) -> Result<()> {
             }
         }
 
-        // TODO read from env
-        sleep(Duration::new(5, 0)).await;
+        sleep(loop_interval).await;
     }
 }

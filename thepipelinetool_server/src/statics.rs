@@ -6,8 +6,11 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use saffron::Cron;
 use thepipelinetool_core::dev::Task;
-use thepipelinetool_runner::{get_pipeline_path_by_name, get_pipelines_dir, pipeline_options::PipelineOptions};
+use thepipelinetool_runner::{
+    get_pipeline_path_by_name, get_pipelines_dir, pipeline_options::PipelineOptions,
+};
 
 use crate::env::get_tpt_command;
 use anyhow::anyhow;
@@ -117,11 +120,14 @@ pub fn _get_options(pipeline_name: &str) -> Result<PipelineOptions> {
             .arg("options")
             .output()?;
 
-        pipeline_options.insert(
-            pipeline_name.to_owned(),
-            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?, // TODO ignore/handle errors for all io
-        );
-        // TODO verify schedule string
+        let options: PipelineOptions =
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))?;
+
+        if let Some(schedule) = &options.schedule {
+            schedule.parse::<Cron>().map_err(|e| anyhow!(e))?;
+        }
+
+        pipeline_options.insert(pipeline_name.to_owned(), options);
     }
 
     Ok(pipeline_options

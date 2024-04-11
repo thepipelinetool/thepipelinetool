@@ -17,7 +17,7 @@ pub mod task_options;
 pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
-pub mod trigger_rules;
+pub mod trigger_rule;
 
 fn get_json_dir() -> String {
     env::var("JSON_DIR")
@@ -56,7 +56,7 @@ impl Task {
         take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
         pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_run: DateTime<Utc>,
+        // scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
     ) -> TaskResult
     where
@@ -108,12 +108,12 @@ impl Task {
         let start = Utc::now();
 
         // TODO store exit code? (coudl allow for 'skipped' status)
-        let (status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
+        let (exit_status, timed_out) = spawn(cmd, handle_stdout_log, handle_stderr_log);
         let end = Utc::now();
 
         let (success, result) = (
-            status.success(),
-            match (status.success(), get_save_to_file()) {
+            exit_status.success(),
+            match (exit_status.success(), get_save_to_file()) {
                 (true, true) => value_from_file(&out_path.unwrap()).unwrap(),
                 (true, false) => serde_json::from_str(&take_last_stdout_line().unwrap()).unwrap(),
                 (false, _) => Value::Null,
@@ -136,7 +136,8 @@ impl Task {
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),
             is_branch: self.is_branch,
             is_sensor: self.options.is_sensor,
-            scheduled_date_for_run,
+            exit_code: exit_status.code(),
+            // scheduled_date_for_run,
         }
     }
 }

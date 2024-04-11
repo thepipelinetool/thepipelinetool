@@ -19,12 +19,12 @@ pub struct TaskResult {
     pub premature_failure_error_str: String,
     pub is_branch: bool,
     pub is_sensor: bool,
-    pub scheduled_date_for_run: DateTime<Utc>,
+    pub exit_code: Option<i32>
+    // pub scheduled_date_for_run: DateTime<Utc>,
 }
 
 impl TaskResult {
     pub fn needs_retry(&self) -> bool {
-        // TODO check for timeout here?
         !self.premature_failure
             && !self.success
             && (self.is_sensor || self.attempt < self.max_attempts)
@@ -39,7 +39,7 @@ impl TaskResult {
         premature_failure_error_str: String,
         is_branch: bool,
         is_sensor: bool,
-        scheduled_date_for_run: DateTime<Utc>,
+        // scheduled_date_for_run: DateTime<Utc>,
     ) -> Self {
         let start = Utc::now();
 
@@ -59,7 +59,8 @@ impl TaskResult {
             premature_failure_error_str,
             is_branch,
             is_sensor,
-            scheduled_date_for_run,
+            exit_code: None,
+            // scheduled_date_for_run,
         }
     }
 

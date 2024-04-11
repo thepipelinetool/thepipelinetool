@@ -20,7 +20,7 @@ pub struct InMemoryBackend {
     pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub task_statuses: Arc<Mutex<HashMap<usize, TaskStatus>>>,
     pub attempts: Arc<Mutex<HashMap<String, usize>>>,
-    pub dep_keys: Arc<Mutex<HashMap<usize, HashMap<(usize, String), String>>>>,
+    pub dependencies: Arc<Mutex<HashMap<usize, HashMap<(usize, String), String>>>>,
     pub edges: Arc<Mutex<HashSet<(usize, usize)>>>,
     pub default_nodes: Arc<Mutex<Vec<Task>>>,
     pub nodes: Arc<Mutex<Vec<Task>>>,
@@ -147,12 +147,12 @@ impl Backend for InMemoryBackend {
         Ok(())
     }
 
-    fn get_dependency_keys(
+    fn get_dependencies(
         &mut self,
         _run_id: usize,
         task_id: usize,
     ) -> Result<HashMap<(usize, String), String>> {
-        Ok(self.dep_keys.lock().entry(task_id).or_default().clone())
+        Ok(self.dependencies.lock().entry(task_id).or_default().clone())
     }
 
     fn get_downstream(&self, _run_id: usize, task_id: usize) -> Result<Vec<usize>> {
@@ -169,7 +169,7 @@ impl Backend for InMemoryBackend {
 
     fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) -> Result<()> {
         let (upstream_id, downstream_id) = edge;
-        self.dep_keys
+        self.dependencies
             .lock()
             .get_mut(&downstream_id)
             .unwrap_or(&mut HashMap::new())
@@ -194,18 +194,18 @@ impl Backend for InMemoryBackend {
             .collect())
     }
 
-    fn set_dependency_keys(
+    fn set_dependency(
         &mut self,
         _run_id: usize,
         task_id: usize,
-        upstream: (usize, String),
+        dependency: (usize, String),
         result_key: String,
     ) -> Result<()> {
-        self.dep_keys
+        self.dependencies
             .lock()
             .entry(task_id)
             .or_default()
-            .insert(upstream, result_key);
+            .insert(dependency, result_key);
         Ok(())
     }
 

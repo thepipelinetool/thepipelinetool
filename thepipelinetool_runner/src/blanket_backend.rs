@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_ref_inner::TaskRefInner,
-    task_result::TaskResult, task_status::TaskStatus, Task,
+    task_result::TaskResult, task_status::TaskStatus, trigger_rule::TriggerRule, Task,
 };
 use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
@@ -96,14 +96,90 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         Ok(0)
     }
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
-        // TODO implement more trigger rules, e.g. run on upstream failure(s)
+        let task = self.get_task_by_id(run_id, task_id)?;
 
-        for upstream_id in self.get_upstream(run_id, task_id)? {
-            if !self.is_task_done(run_id, upstream_id)? {
+        let required_upstream_ids: HashSet<usize> = HashSet::from_iter(
+            self.get_dependencies(run_id, task_id)?
+                .iter()
+                .map(|((u, _), _)| *u),
+        );
+
+        // ensure required tasks are done
+        for required_upstream_id in &required_upstream_ids {
+            if !self.is_task_done(run_id, *required_upstream_id)? {
                 return Ok(false);
             }
         }
-        Ok(true)
+
+        // TODO implement more trigger rules, e.g. run on upstream failure(s)
+        match task.options.trigger_rule {
+            TriggerRule::AllSuccess => {
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if matches!(
+                        self.get_task_status(run_id, upstream_id)?,
+                        TaskStatus::Success
+                    ) {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            TriggerRule::AllFailed => {
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if !matches!(
+                        self.get_task_status(run_id, upstream_id)?,
+                        TaskStatus::Failure
+                    ) {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            TriggerRule::AllDone => {
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if required_upstream_ids.contains(&upstream_id) {
+                        continue;
+                    }
+                    if !self.is_task_done(run_id, upstream_id)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            TriggerRule::AnyFailed => {
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if matches!(
+                        self.get_task_status(run_id, upstream_id)?,
+                        TaskStatus::Failure
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            TriggerRule::AnyDone => {
+                if !required_upstream_ids.is_empty() {
+                    return Ok(true);
+                }
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if self.is_task_done(run_id, upstream_id)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            TriggerRule::AnySuccess => {
+                for upstream_id in self.get_upstream(run_id, task_id)? {
+                    if matches!(
+                        self.get_task_status(run_id, upstream_id)?,
+                        TaskStatus::Success
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+        }
     }
 
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
@@ -406,7 +482,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
-                scheduled_date_for_run,
+                exit_code: None,
+                // scheduled_date_for_run,
             });
         }
 
@@ -418,7 +495,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.take_last_stdout_line(run_id, task.id, attempt)?,
             pipeline_path,
             tpt_path,
-            scheduled_date_for_run,
+            // scheduled_date_for_run,
             run_id,
         ))
     }
@@ -555,7 +632,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         // }
 
         let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id)?;
-        let dependency_keys = self.get_dependency_keys(run_id, task.id)?;
+        let dependency_keys = self.get_dependencies(run_id, task.id)?;
         let result = match self.resolve_args(run_id, &task.template_args, &dependency_keys) {
             Ok(resolution_result) => self.run_task(
                 run_id,
@@ -576,7 +653,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
-                scheduled_date_for_run,
+                // scheduled_date_for_run,
             ),
         };
         self.handle_task_result(run_id, result, &ordered_queued_task.queued_task)?;
@@ -605,7 +682,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                         .as_u64()
                         .unwrap() as usize;
 
-                    self.set_dependency_keys(
+                    self.set_dependency(
                         run_id,
                         downstream_id,
                         (upstream_id, "".into()),
@@ -631,7 +708,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     .unwrap()
                     .as_u64()
                     .unwrap() as usize;
-                self.set_dependency_keys(
+                self.set_dependency(
                     run_id,
                     downstream_id,
                     (upstream_id, "".into()),
@@ -658,7 +735,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     let upstream_id =
                         map.get(UPSTREAM_TASK_ID_KEY).unwrap().as_u64().unwrap() as usize;
 
-                    self.set_dependency_keys(
+                    self.set_dependency(
                         run_id,
                         downstream_id,
                         (upstream_id, key.to_string()),

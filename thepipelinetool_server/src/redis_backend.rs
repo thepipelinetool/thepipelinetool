@@ -44,7 +44,6 @@ pub struct RedisBackend {
 }
 
 impl RedisBackend {
-    // TODO remove below and replace with struct
     pub fn dummy(pool: Pool) -> Self {
         Self {
             edges: None,
@@ -53,7 +52,6 @@ impl RedisBackend {
         }
     }
 
-    //
     pub fn from(nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
         Self {
             edges: Some(edges),
@@ -67,7 +65,7 @@ impl RedisBackend {
         let mut conn = self.pool.get().await?;
 
         let members = cmd("SMEMBERS")
-            .arg("tmpqueue") // TODO timeout arg
+            .arg("tmpqueue")
             .query_async::<_, Vec<String>>(&mut conn)
             .await?;
 
@@ -382,7 +380,7 @@ impl Backend for RedisBackend {
     }
 
     // #[timed(duration(printer = "debug!"))]
-    fn get_dependency_keys(
+    fn get_dependencies(
         &mut self,
         run_id: usize,
         task_id: usize,
@@ -405,7 +403,7 @@ impl Backend for RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn set_dependency_keys(
+    fn set_dependency(
         &mut self,
         run_id: usize,
         task_id: usize,

@@ -8,6 +8,11 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, Task,
 };
 
+pub type UpstreamId = usize;
+pub type DownstreamId = usize;
+pub type OriginalKey = String;
+pub type ResultKey = String;
+
 pub trait Backend {
     // fn load_from_name(&mut self, pipeline_name: &str);
 
@@ -51,12 +56,12 @@ pub trait Backend {
         task_status: TaskStatus,
     ) -> Result<()>;
 
-    fn get_downstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>>;
-    fn get_upstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>>;
+    fn get_downstream(&self, run_id: usize, task_id: usize) -> Result<Vec<DownstreamId>>;
+    fn get_upstream(&self, run_id: usize, task_id: usize) -> Result<Vec<UpstreamId>>;
 
     fn get_default_tasks(&self) -> Result<Vec<Task>>;
     fn get_all_tasks(&self, run_id: usize) -> Result<Vec<Task>>;
-    fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>>;
+    fn get_default_edges(&self) -> Result<HashSet<(UpstreamId, DownstreamId)>>;
     fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Result<Task>;
     fn get_template_args(&self, run_id: usize, task_id: usize) -> Result<Value>;
 
@@ -68,16 +73,16 @@ pub trait Backend {
     ) -> Result<()>;
 
     fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<usize>;
-    fn get_dependency_keys(
+    fn get_dependencies(
         &mut self,
         run_id: usize,
         task_id: usize,
-    ) -> Result<HashMap<(usize, String), String>>;
-    fn set_dependency_keys(
+    ) -> Result<HashMap<(UpstreamId, OriginalKey), ResultKey>>;
+    fn set_dependency(
         &mut self,
         run_id: usize,
         task_id: usize,
-        upstream: (usize, String),
+        upstream: (UpstreamId, OriginalKey),
         v: String,
     ) -> Result<()>;
     fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) -> Result<()>;

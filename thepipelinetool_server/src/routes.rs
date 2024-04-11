@@ -44,7 +44,6 @@ pub async fn get_runs(
 }
 
 pub async fn get_next_run(Path(pipeline_name): Path<String>) -> ServerResult<Json<Value>> {
-    // TODO handle error
     let options = _get_options(&pipeline_name).map_err(|e| {
         service_err(format!(
             "could not get next run for pipeline '{}'\n{:?}",

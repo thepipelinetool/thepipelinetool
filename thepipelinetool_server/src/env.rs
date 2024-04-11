@@ -65,3 +65,15 @@ pub fn get_redis_url() -> String {
         .unwrap_or("redis://0.0.0.0:6379".to_string())
         .to_string()
 }
+
+pub fn get_check_timeout_loop_interval() -> Result<u64> {
+    Ok(env::var("CHECK_TIMEOUT_LOOP_INTERVAL")
+        .unwrap_or(5.to_string())
+        .parse::<u64>()?)
+}
+
+pub fn get_scheduler_loop_interval() -> Result<u64> {
+    Ok(env::var("CHECK_TIMEOUT_LOOP_INTERVAL")
+        .unwrap_or(5.to_string())
+        .parse::<u64>()?)
+}
