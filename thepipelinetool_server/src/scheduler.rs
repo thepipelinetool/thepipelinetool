@@ -95,7 +95,7 @@ pub async fn _scheduler(
         }
 
         // check if date is already in db
-        if RedisBackend::contains_logical_date(
+        if RedisBackend::contains_scheduled_date(
             pipeline_name,
             &_get_hash(pipeline_name)?,
             scheduled_date,

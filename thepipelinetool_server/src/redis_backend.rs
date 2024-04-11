@@ -11,7 +11,7 @@ use timed::timed;
 const TASK_STATUS_KEY: &str = "ts";
 const TASK_RESULTS_KEY: &str = "trs";
 const RUNS_KEY: &str = "runs";
-const LOGICAL_DATES_KEY: &str = "ld";
+const SCHEDULED_DATES_KEY: &str = "ld";
 const DEPTH_KEY: &str = "d";
 const TASK_RESULT_KEY: &str = "tr";
 const LOG_KEY: &str = "l";
@@ -152,7 +152,7 @@ impl RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn contains_logical_date(
+    pub async fn contains_scheduled_date(
         pipeline_name: &str,
         pipeline_hash: &str,
         scheduled_date_for_run: DateTime<Utc>,
@@ -161,7 +161,7 @@ impl RedisBackend {
         let mut conn = pool.get().await?;
         Ok(cmd("SISMEMBER")
             .arg(format!(
-                "{LOGICAL_DATES_KEY}:{pipeline_name}"
+                "{SCHEDULED_DATES_KEY}:{pipeline_name}"
             ))
             .arg(scheduled_date_for_run.to_string())
             .query_async::<_, bool>(&mut conn)
@@ -347,7 +347,7 @@ impl Backend for RedisBackend {
                 .await?;
             cmd("SISMEMBER")
                 .arg(format!(
-                    "{LOGICAL_DATES_KEY}:{pipeline_name}"
+                    "{SCHEDULED_DATES_KEY}:{pipeline_name}"
                 ))
                 .arg(scheduled_date_for_run.to_string())
                 .query_async::<_, bool>(&mut conn)
