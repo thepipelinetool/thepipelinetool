@@ -7,7 +7,8 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline_options::PipelineOptions,
+    backend::Run, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
+    pipeline_options::PipelineOptions,
 };
 
 use std::collections::HashSet;
@@ -39,8 +40,8 @@ fn display_options(options: &PipelineOptions) {
 }
 
 pub fn process_subcommands(
-    pipeline_path: &Path,
-    pipeline_name: &str,
+    pipeline_source: &str,
+    // pipeline_name: &str,
     subcommand_name: &str,
     options: &PipelineOptions,
     matches: &ArgMatches,
@@ -73,7 +74,7 @@ pub fn process_subcommands(
             _ => {}
         },
 
-        "tree" => display_tree(tasks, edges, pipeline_path),
+        "tree" => display_tree(tasks, edges),
         "check" => check_for_cycles(tasks, edges),
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
@@ -105,19 +106,17 @@ pub fn process_subcommands(
                     check_for_cycles(tasks, edges);
 
                     let mut backend = InMemoryBackend::new(tasks, edges);
-                    let dummy_run_id = 0;
-                    backend
-                        .enqueue_run(dummy_run_id, "", "", Utc::now(), trigger_params)
-                        .unwrap();
+                    let run = Run::dummy();
+                    backend.enqueue_run(&run, trigger_params).unwrap();
 
                     run_in_memory(
                         &mut backend,
                         max_parallelism,
-                        pipeline_path.to_path_buf().to_str().unwrap().to_string(),
+                        pipeline_source,
                         env::args().next().unwrap(),
                     );
 
-                    let exit_code = backend.get_run_status(dummy_run_id).unwrap();
+                    let exit_code = backend.get_run_status(run.run_id).unwrap();
                     // dbg!(backend.temp_queue);
 
                     process::exit(exit_code);

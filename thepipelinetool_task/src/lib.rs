@@ -1,4 +1,4 @@
-use std::{env, ffi::OsStr, fs, net, path::PathBuf, sync::mpsc, thread, time::Duration};
+use std::{env, ffi::OsStr, fs, net, path::PathBuf, process::Command, sync::mpsc, thread, time::Duration};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{command_timeout, create_command, spawn, value_from_file, value_to_file};
+use thepipelinetool_utils::{spawn, value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -45,20 +45,20 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn execute<P, D>(
+    pub fn execute<D>(
         &self,
         resolved_args: &Value,
         attempt: usize,
         handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
         handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
         take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
-        pipeline_path: P,
+        pipeline_source: &str,
         tpt_path: D,
         // scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
     ) -> Result<TaskResult>
     where
-        P: AsRef<OsStr>,
+        // P: AsRef<OsStr>,
         D: AsRef<OsStr>,
     {
         // let (sender, receiver) = mpsc::channel();
@@ -73,19 +73,22 @@ impl Task {
         let task_id: usize = self.id;
         let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
-        let use_timeout = self.options.timeout.is_some();
-        let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
+        // let use_timeout = self.options.timeout.is_some();
+        // let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
 
-        let mut cmd = create_command(&pipeline_path, use_timeout, &tpt_path);
+        // let mut cmd = create_command(&pipeline_source, use_timeout, &tpt_path);
+        let mut cmd = Command::new(tpt_path);
+        cmd.arg(pipeline_source);
+        cmd.args(["run", "function", &self.function]);
         cmd.env("run_id", run_id.to_string());
-        command_timeout(
-            &mut cmd,
-            &pipeline_path,
-            use_timeout,
-            // &timeout_as_secs,
-            &tpt_path,
-            &self.function,
-        );
+        // command_timeout(
+        //     &mut cmd,
+        //     &pipeline_source,
+        //     use_timeout,
+        //     // &timeout_as_secs,
+        //     &tpt_path,
+        //     &self.function,
+        // );
 
         let out_path: Option<PathBuf> = if get_save_to_file() {
             let json_dir = get_json_dir();

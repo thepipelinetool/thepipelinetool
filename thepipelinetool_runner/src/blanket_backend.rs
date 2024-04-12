@@ -13,7 +13,7 @@ use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
 
-use crate::Backend;
+use crate::{backend::Run, Backend};
 use anyhow::Result;
 
 pub trait BlanketBackend {
@@ -24,29 +24,29 @@ pub trait BlanketBackend {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
     fn enqueue_run(
         &mut self,
-        run_id: usize,
-        pipeline_name: &str,
-        pipeline_hash: &str,
-        scheduled_date_for_run: DateTime<Utc>,
+        run: &Run,
+        // pipeline_name: &str,
+        // pipeline_hash: &str,
+        // scheduled_date_for_run: DateTime<Utc>,
         trigger_params: Option<Value>,
     ) -> Result<()>;
-    fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
+    fn work<D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
-        pipeline_path: P,
+        pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize)
         -> Result<()>;
-    fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
+    fn run_task<D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        pipeline_path: P,
+        pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
         pipeline_name: String,
@@ -198,10 +198,10 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
     fn enqueue_run(
         &mut self,
-        run_id: usize,
-        pipeline_name: &str,
-        pipeline_hash: &str,
-        scheduled_date_for_run: DateTime<Utc>,
+        run: &Run,
+        // pipeline_name: &str,
+        // pipeline_hash: &str,
+        // scheduled_date_for_run: DateTime<Utc>,
         trigger_params: Option<Value>,
     ) -> Result<()> {
         let default_tasks = self.get_default_tasks()?;
@@ -209,7 +209,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
         for task in &default_tasks {
             let _ = self.append_new_task_and_set_status_to_pending(
-                run_id,
+                run.run_id,
                 &task.name,
                 &task.function,
                 if task.use_trigger_params {
@@ -223,21 +223,21 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 task.is_branch,
                 task.use_trigger_params,
             )?;
-            self.update_referenced_dependencies(run_id, task.id)?;
+            self.update_referenced_dependencies(run.run_id, task.id)?;
         }
 
         for (upstream_id, downstream_id) in self.get_default_edges()? {
-            self.insert_edge(run_id, (upstream_id, downstream_id))?;
+            self.insert_edge(run.run_id, (upstream_id, downstream_id))?;
         }
 
         // only enqueue default tasks with no upstream dependencies
         for task in default_tasks {
-            if self.get_task_depth(run_id, task.id)? == 0 {
+            if self.get_task_depth(run.run_id, task.id)? == 0 {
                 self.enqueue_task(
-                    run_id,
+                    run.run_id,
                     task.id,
-                    scheduled_date_for_run,
-                    pipeline_name.to_string(),
+                    run.scheduled_date_for_run,
+                    self.get_pipeline_name()?,
                     false,
                 )?;
             }
@@ -350,13 +350,13 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         Ok(())
     }
 
-    fn run_task<P: AsRef<OsStr>, D: AsRef<OsStr>>(
+    fn run_task<D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        pipeline_path: P,
+        pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
         pipeline_name: String,
@@ -493,7 +493,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.take_last_stdout_line(run_id, task.id, attempt)?,
-            pipeline_path,
+            pipeline_source,
             tpt_path,
             // scheduled_date_for_run,
             run_id,
@@ -609,11 +609,11 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         Ok(resolved_args)
     }
 
-    fn work<P: AsRef<OsStr>, D: AsRef<OsStr>>(
+    fn work<D: AsRef<OsStr>>(
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        pipeline_path: P,
+        pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()> {
@@ -639,7 +639,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 &task,
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
-                pipeline_path,
+                pipeline_source,
                 tpt_path,
                 scheduled_date_for_run,
                 ordered_queued_task.queued_task.pipeline_name.clone(),

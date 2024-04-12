@@ -7,7 +7,7 @@ use thepipelinetool_runner::{
 pub fn run_in_memory(
     backend: &mut InMemoryBackend,
     max_parallelism: usize,
-    pipeline_path: String,
+    pipeline_source: &str,
     tpt_path: String,
 ) {
     let (tx, rx) = channel();
@@ -17,14 +17,15 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
+            let (pipeline_source, tpt_path) =
+                (pipeline_source.to_string(), tpt_path.clone());
 
             thread::spawn(move || {
                 backend
                     .work(
                         ordered_queued_task.queued_task.run_id,
                         &ordered_queued_task,
-                        pipeline_path,
+                        &pipeline_source,
                         tpt_path,
                         ordered_queued_task.queued_task.scheduled_date_for_run,
                     )
@@ -55,14 +56,15 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
+            let (pipeline_source, tpt_path) =
+                (pipeline_source.to_string(), tpt_path.clone());
 
             thread::spawn(move || {
                 backend
                     .work(
                         ordered_queued_task.queued_task.run_id,
                         &ordered_queued_task,
-                        pipeline_path,
+                        &pipeline_source,
                         tpt_path,
                         ordered_queued_task.queued_task.scheduled_date_for_run,
                     )

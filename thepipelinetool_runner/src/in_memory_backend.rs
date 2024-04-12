@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::Backend;
+use crate::{backend::Run, Backend};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
@@ -104,11 +104,14 @@ impl Backend for InMemoryBackend {
 
     fn create_new_run(
         &mut self,
-        _pipeline_name: &str,
-        _pipeline_hash: &str,
-        _scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<usize> {
-        Ok(0)
+        // _pipeline_name: &str,
+        // _pipeline_hash: &str,
+        scheduled_date_for_run: DateTime<Utc>,
+    ) -> Result<Run> {
+        Ok(Run {
+            run_id: 0,
+            scheduled_date_for_run,
+        })
     }
 
     fn get_task_result(&mut self, _run_id: usize, task_id: usize) -> Result<TaskResult> {
@@ -329,5 +332,9 @@ impl Backend for InMemoryBackend {
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()> {
         self.temp_queue.lock().remove(queued_task);
         Ok(())
+    }
+
+    fn get_pipeline_name(&self) -> Result<String> {
+        Ok("in-memory".into())
     }
 }

@@ -11,7 +11,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use anyhow::Result;
-use axum::routing::get;
+use axum::routing::{get, post};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .nest_service("/", ServeDir::new(PathBuf::from("static")))
         .route("/ping", get(ping))
-        .route("/pipeline", get(get_pipelines))
+        .route("/pipelines", get(get_pipelines))
         .route("/runs/:pipeline_name", get(get_runs))
         .route("/runs/next/:pipeline_name", get(get_next_run))
         .route("/runs/last/:pipeline_name", get(get_last_run))
@@ -71,6 +71,7 @@ async fn main() -> Result<()> {
         )
         .route("/graphs/:run_id", get(get_run_graph))
         .route("/graphs/default/:pipeline_name", get(get_default_graph))
+        .route("/upload/:pipeline_name", post(upload_pipeline))
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])

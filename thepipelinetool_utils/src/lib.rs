@@ -150,40 +150,41 @@ pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool)
     res
 }
 
-pub fn create_command<P, D>(pipeline_path: &P, use_timeout: bool, tpt_path: &D) -> Command
-where
-    P: AsRef<OsStr>,
-    D: AsRef<OsStr>,
-{
-    // if use_timeout {
-    //     Command::new("timeout")
-    // } else {
-        let mut command = Command::new(tpt_path);
-        command.arg(pipeline_path);
+// pub fn create_command<P, D>(pipeline_source: &str, use_timeout: bool, tpt_path: &D) -> Command
+// where
+//     P: AsRef<OsStr>,
+//     D: AsRef<OsStr>,
+// {
+//     // if use_timeout {
+//     //     Command::new("timeout")
+//     // } else {
+//         let mut command = Command::new(tpt_path);
+//         command.arg(pipeline_source);
+//         command.args(["run", "function", function]);
 
-        command
-    // }
-}
+//         command
+//     // }
+// }
 
-pub fn command_timeout<P, D>(
-    command: &mut Command,
-    pipeline_path: &P,
-    use_timeout: bool,
-    // timeout_as_secs: &str,
-    tpt_path: &D,
-    function: &str,
-) where
-    P: AsRef<OsStr>,
-    D: AsRef<OsStr>,
-{
-    // if use_timeout {
-    //     command.args(["-k", timeout_as_secs, timeout_as_secs]);
-    //     command.arg(tpt_path);
-    //     command.arg(pipeline_path);
-    // }
+// pub fn command_timeout<P, D>(
+//     command: &mut Command,
+//     pipeline_source: &str,
+//     use_timeout: bool,
+//     // timeout_as_secs: &str,
+//     tpt_path: &D,
+//     function: &str,
+// ) where
+//     P: AsRef<OsStr>,
+//     D: AsRef<OsStr>,
+// {
+//     // if use_timeout {
+//     //     command.args(["-k", timeout_as_secs, timeout_as_secs]);
+//     //     command.arg(tpt_path);
+//     //     command.arg(pipeline_source);
+//     // }
 
-    command.args(["run", "function", function]);
-}
+//     command.args(["run", "function", function]);
+// }
 
 pub fn get_default_max_parallelism() -> usize {
     max(usize::from(available_parallelism().unwrap()) - 1, 1)
