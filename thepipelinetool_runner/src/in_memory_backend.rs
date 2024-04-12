@@ -337,4 +337,8 @@ impl Backend for InMemoryBackend {
     fn get_pipeline_name(&self) -> Result<String> {
         Ok("in-memory".into())
     }
+    
+    // fn get_pipeline_source(&self) -> Result<String> {
+    //     todo!()
+    // }
 }

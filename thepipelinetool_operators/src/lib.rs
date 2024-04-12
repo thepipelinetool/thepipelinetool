@@ -13,6 +13,7 @@ pub enum Operator {
     BashOperator,
     ParamsOperator,
     PrintOperator,
+    CollectorOperator,
 }
 
 pub const ORIGINAL_STRING_KEY: &str = "_original_string";

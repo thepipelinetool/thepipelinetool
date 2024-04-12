@@ -56,7 +56,7 @@ pub fn execute_function_using_json_str_args(
     process::exit(0);
 }
 
-pub fn collector(args: Value) -> Value {
+pub fn collector_operator(args: Value) -> Value {
     args
 }
 

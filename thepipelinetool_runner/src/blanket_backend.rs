@@ -10,7 +10,7 @@ use thepipelinetool_task::{
     task_result::TaskResult, task_status::TaskStatus, trigger_rule::TriggerRule, Task,
 };
 use thepipelinetool_utils::{
-    collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
+    collector_operator, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
 
 use crate::{backend::Run, Backend};
@@ -34,7 +34,7 @@ pub trait BlanketBackend {
         &mut self,
         run_id: usize,
         queued_task: &OrderedQueuedTask,
-        pipeline_source: &str,
+        // pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()>;
@@ -46,7 +46,7 @@ pub trait BlanketBackend {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        pipeline_source: &str,
+        // pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
         pipeline_name: String,
@@ -356,7 +356,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        pipeline_source: &str,
+        // pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
         pipeline_name: String,
@@ -383,7 +383,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             }
 
             if !downstream.is_empty() {
-                let function_name = function_name_as_string(&collector).to_string();
+                let function_name = function_name_as_string(&collector_operator).to_string();
 
                 let collector_id = self.append_new_task_and_set_status_to_pending(
                     run_id,
@@ -493,7 +493,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.get_log_handle_closure(run_id, task.id, attempt)?,
             self.take_last_stdout_line(run_id, task.id, attempt)?,
-            pipeline_source,
+            // pipeline_source,
             tpt_path,
             // scheduled_date_for_run,
             run_id,
@@ -613,7 +613,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         &mut self,
         run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        pipeline_source: &str,
+        // pipeline_source: &str,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()> {
@@ -639,7 +639,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 &task,
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
-                pipeline_source,
+                // pipeline_source,
                 tpt_path,
                 scheduled_date_for_run,
                 ordered_queued_task.queued_task.pipeline_name.clone(),
