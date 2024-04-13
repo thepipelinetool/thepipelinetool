@@ -11,7 +11,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use anyhow::Result;
-use axum::routing::get;
+use axum::routing::{get, post};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -71,6 +71,7 @@ async fn main() -> Result<()> {
         )
         .route("/graphs/:run_id", get(get_run_graph))
         .route("/graphs/default/:pipeline_name", get(get_default_graph))
+        .route("/upload", post(upload_pipeline))
         .layer(
             CorsLayer::new()
                 .allow_methods([Method::GET, Method::POST])

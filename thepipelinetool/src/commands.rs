@@ -1,4 +1,4 @@
-use clap::{arg, command, value_parser, Command as CliCommand};
+use clap::{arg, command, value_parser, Arg, Command as CliCommand};
 
 pub fn create_commands() -> CliCommand {
     command!()
@@ -77,6 +77,12 @@ pub fn create_commands() -> CliCommand {
                         ),
                 )
                 .subcommand_required(true),
+        )
+        .subcommand(
+            CliCommand::new("upload")
+                .about("Upload pipeline")
+                .arg(Arg::new("endpoint"))
+                .arg_required_else_help(true),
         )
         .subcommand_required(true)
 }

@@ -7,9 +7,10 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline_options::PipelineOptions,
+    backend::Run, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline::Pipeline, pipeline_options::PipelineOptions
 };
 
+use anyhow::Result;
 use std::collections::HashSet;
 
 use crate::in_memory_runner::run_in_memory;
@@ -44,7 +45,7 @@ pub fn process_subcommands(
     subcommand_name: &str,
     options: &PipelineOptions,
     matches: &ArgMatches,
-) {
+) -> Result<()> {
     let tasks = &get_tasks().read().unwrap();
     let edges = &get_edges().read().unwrap();
 
@@ -105,10 +106,8 @@ pub fn process_subcommands(
                     check_for_cycles(tasks, edges);
 
                     let mut backend = InMemoryBackend::new(tasks, edges);
-                    let dummy_run_id = 0;
-                    backend
-                        .enqueue_run(dummy_run_id, "", "", Utc::now(), trigger_params)
-                        .unwrap();
+                    let run = Run::dummy();
+                    backend.enqueue_run(&run, trigger_params).unwrap();
 
                     run_in_memory(
                         &mut backend,
@@ -117,7 +116,7 @@ pub fn process_subcommands(
                         env::args().next().unwrap(),
                     );
 
-                    let exit_code = backend.get_run_status(dummy_run_id).unwrap();
+                    let exit_code = backend.get_run_status(run.run_id).unwrap();
                     // dbg!(backend.temp_queue);
 
                     process::exit(exit_code);
@@ -126,6 +125,24 @@ pub fn process_subcommands(
                 _ => {}
             }
         }
+        "upload" => {
+            let endpoint = matches
+                .subcommand_matches("upload")
+                .unwrap()
+                .get_one::<String>("endpoint")
+                .expect("required");
+            dbg!(endpoint);
+
+            let pipeline = Pipeline {
+                name: pipeline_name.to_string(),
+                path: pipeline_path.to_str().expect("").to_string(),
+                options: options.clone(),
+                tasks: get_tasks().read().unwrap().to_vec(),
+                edges: get_edges().read().unwrap().to_owned(),
+            };
+            dbg!(pipeline);
+        }
         _ => {}
-    }
+    };
+    Ok(())
 }

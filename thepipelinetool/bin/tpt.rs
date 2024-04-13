@@ -16,7 +16,11 @@ use thepipelinetool_runner::pipeline_options::PipelineOptions;
 
 fn main() -> Result<()> {
     let mut args: Vec<String> = env::args().collect();
-    let command = create_commands().arg(Arg::new("pipeline"));
+    let command = create_commands().arg(
+        Arg::new("pipeline").required(true)
+            // .about("Describe pipeline tasks or edges")
+            // .arg_required_else_help(true),
+    );
     let matches = command.get_matches();
     let pipeline_name = matches.get_one::<String>("pipeline").expect("required");
     let pipeline_path = Path::new(pipeline_name);
@@ -53,6 +57,6 @@ fn main() -> Result<()> {
         Err(_) => PipelineOptions::default(),
     };
 
-    process_subcommands(pipeline_path, pipeline_name, subcommand_name, &options, &matches);
+    process_subcommands(pipeline_path, pipeline_name, subcommand_name, &options, &matches)?;
     Ok(())
 }

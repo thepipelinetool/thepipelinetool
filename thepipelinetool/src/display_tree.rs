@@ -3,20 +3,20 @@ use std::{collections::HashSet, path::Path};
 use chrono::Utc;
 use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{
-    backend::Backend, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
+    backend::{Backend, Run},
+    blanket_backend::BlanketBackend,
+    in_memory_backend::InMemoryBackend,
 };
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &Path) {
     let mut runner = InMemoryBackend::new(tasks, edges);
-    let dummy_run_id = 0;
-    runner
-        .enqueue_run(dummy_run_id, "in_memory", "", Utc::now(), None)
-        .unwrap();
+    let run = Run::dummy();
+    runner.enqueue_run(&run, None).unwrap();
     let tasks = runner
         .get_default_tasks()
         .unwrap()
         .iter()
-        .filter(|t| runner.get_task_depth(dummy_run_id, t.id).unwrap() == 0)
+        .filter(|t| runner.get_task_depth(run.run_id, t.id).unwrap() == 0)
         .map(|t| t.id)
         .collect::<Vec<usize>>();
 
@@ -30,7 +30,7 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_pa
         task_ids_in_order.push(*child);
         output.push_str(&get_tree(
             &runner,
-            dummy_run_id,
+            run.run_id,
             *child,
             1,
             connector,
