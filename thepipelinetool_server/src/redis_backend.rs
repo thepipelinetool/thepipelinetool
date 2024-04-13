@@ -834,4 +834,8 @@ impl Backend for RedisBackend {
             Err(anyhow!("no name found"))
         }
     }
+    
+    fn get_pipeline_path(&self) -> Result<String> {
+        todo!()
+    }
 }

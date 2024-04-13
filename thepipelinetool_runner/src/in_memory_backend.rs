@@ -27,11 +27,13 @@ pub struct InMemoryBackend {
     pub task_depth: Arc<Mutex<HashMap<usize, usize>>>,
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
     pub temp_queue: Arc<Mutex<HashSet<QueuedTask>>>,
+    pub pipeline_path: String,
 }
 
 impl InMemoryBackend {
-    pub fn new(nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
+    pub fn new(pipline_path: &str, nodes: &[Task], edges: &HashSet<(usize, usize)>) -> Self {
         Self {
+            pipeline_path: pipline_path.to_string(),
             edges: Arc::new(Mutex::new(edges.clone())),
             default_nodes: Arc::new(Mutex::new(nodes.to_vec())),
             ..Default::default()
@@ -337,5 +339,9 @@ impl Backend for InMemoryBackend {
     
     fn get_pipeline_name(&self) -> Result<String> {
         Ok("in_memory".into())
+    }
+    
+    fn get_pipeline_path(&self) -> Result<String> {
+        Ok(self.pipeline_path.to_string())
     }
 }

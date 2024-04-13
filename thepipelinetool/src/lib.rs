@@ -106,14 +106,14 @@ pub fn process_subcommands(
 
                     check_for_cycles(tasks, edges);
 
-                    let mut backend = InMemoryBackend::new(tasks, edges);
+                    let mut backend = InMemoryBackend::new(pipeline_path.to_str().unwrap(), tasks, edges);
                     let run = Run::dummy();
                     backend.enqueue_run(&run, trigger_params).unwrap();
 
                     run_in_memory(
                         &mut backend,
                         max_parallelism,
-                        pipeline_path.to_path_buf().to_str().unwrap().to_string(),
+                        // pipeline_path.to_path_buf().to_str().unwrap().to_string(),
                         env::args().next().unwrap(),
                     );
 

@@ -9,7 +9,7 @@ use thepipelinetool_runner::{
 };
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &Path) {
-    let mut runner = InMemoryBackend::new(tasks, edges);
+    let mut runner = InMemoryBackend::new(pipeline_path.to_str().unwrap(), tasks, edges);
     let run = Run::dummy();
     runner.enqueue_run(&run, None).unwrap();
     let tasks = runner

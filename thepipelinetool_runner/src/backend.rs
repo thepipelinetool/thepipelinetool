@@ -31,6 +31,8 @@ impl Run {
     }
 }
 pub trait Backend {
+    fn get_pipeline_path(&self) -> Result<String>;
+
     fn get_pipeline_name(&self) -> Result<String>;
     // fn load_from_name(&mut self, pipeline_name: &str);
 

@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     backend.work(
         ordered_queued_task.queued_task.run_id,
         &ordered_queued_task,
-        get_pipeline_path_by_name(&ordered_queued_task.queued_task.pipeline_name)?,
+        // get_pipeline_path_by_name(&ordered_queued_task.queued_task.pipeline_name)?,
         get_tpt_command(),
         ordered_queued_task.queued_task.scheduled_date_for_run,
     )?;
