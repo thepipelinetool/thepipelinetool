@@ -52,7 +52,7 @@ impl Task {
         handle_stdout_log: Box<dyn Fn(String) -> Result<()> + Send>,
         handle_stderr_log: Box<dyn Fn(String) -> Result<()> + Send>,
         take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
-        // pipeline_source: &str,
+        pipeline_source: &str,
         tpt_path: D,
         // scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
@@ -78,7 +78,7 @@ impl Task {
 
         // let mut cmd = create_command(&pipeline_source, use_timeout, &tpt_path);
         let mut cmd = Command::new(tpt_path);
-        // cmd.arg(pipeline_source);
+        cmd.arg(pipeline_source);
         cmd.args(["run", "function", &self.function]);
         cmd.env("run_id", run_id.to_string());
         // command_timeout(

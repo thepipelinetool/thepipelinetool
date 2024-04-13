@@ -32,7 +32,6 @@ impl Run {
 pub trait Backend {
     // fn load_from_name(&mut self, pipeline_name: &str);
     fn get_pipeline_name(&self) -> Result<String>;
-    // fn get_pipeline_source(&self) -> Result<String>;
 
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;

@@ -7,7 +7,7 @@ use thepipelinetool_core::dev::{
     function_with_name_exists, get_functions, params::params_operator, print::print_operator,
     register_function,
 };
-use thepipelinetool_utils::collector_operator;
+use thepipelinetool_utils::collector;
 
 use crate::templating::{create_template_args_by_operator, TemplateTask};
 
@@ -59,7 +59,6 @@ pub fn read_from_yaml(value: Value) {
                         Operator::BashOperator => bash_operator,
                         Operator::ParamsOperator => params_operator,
                         Operator::PrintOperator => print_operator,
-                        Operator::CollectorOperator => collector_operator,
                     },
                     &template_task.operator,
                 );
@@ -80,7 +79,7 @@ pub fn read_from_yaml(value: Value) {
             if template_task.lazy_expand {
                 assert!(depends_on.len() == 1);
 
-                register_function(collector_operator);
+                register_function(collector);
                 _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
                     &_lazy_task_ref(depends_on[0]),
                     &template_task.options,

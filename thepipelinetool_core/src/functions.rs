@@ -155,7 +155,7 @@ where
     G: Serialize + 'static,
     F: Fn(K) -> G + 'static + Sync + Send,
 {
-    register_function(collector_operator);
+    register_function(collector);
     let function_name = register_function(function);
 
     _expand_lazy_with_function_name::<K, T, G>(task_ref, options, &function_name, &function_name)

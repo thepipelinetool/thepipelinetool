@@ -35,19 +35,15 @@ pub fn display_default_graphite_graph(tasks: &[Task], edges: &HashSet<(usize, us
     );
 }
 
-fn display_options(options: Option<PipelineOptions>) {
-    if let Some(options) = options {
-        print!("{}", serde_json::to_string_pretty(&options).unwrap());
-    } else {
-        print!("no options");
-    }
+fn display_options(options: &PipelineOptions) {
+    print!("{}", serde_json::to_string_pretty(options).unwrap());
 }
 
 pub fn process_subcommands(
-    // pipeline_source: Option<String>,
+    pipeline_source: &str,
     // pipeline_name: &str,
     subcommand_name: &str,
-    options: Option<PipelineOptions>,
+    options: &PipelineOptions,
     matches: &ArgMatches,
 ) {
     let tasks = &get_tasks().read().unwrap();
@@ -116,7 +112,7 @@ pub fn process_subcommands(
                     run_in_memory(
                         &mut backend,
                         max_parallelism,
-                        // pipeline_source,
+                        pipeline_source,
                         env::args().next().unwrap(),
                     );
 
