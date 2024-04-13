@@ -3,13 +3,13 @@ use std::{fs, io::ErrorKind, path::PathBuf};
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use env::get_redis_url;
-use redis_backend::{RedisBackend};
+use redis_backend::{RedisBackend, Run};
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    backend::{Backend, Run}, blanket_backend::BlanketBackend, get_pipelines_dir, pipeline_options::PipelineOptions,
+    backend::Backend, blanket_backend::BlanketBackend, get_pipelines_dir, pipeline_options::PipelineOptions,
 };
 
-// use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
+use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
 use anyhow::Result;
 
 pub mod catchup;

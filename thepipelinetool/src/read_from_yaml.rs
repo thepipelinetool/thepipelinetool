@@ -11,7 +11,9 @@ use thepipelinetool_utils::collector;
 
 use crate::templating::{create_template_args_by_operator, TemplateTask};
 
-pub fn read_from_yaml(value: Value) {
+pub fn read_from_yaml(pipeline_path: &Path) {
+    let value: Value = serde_yaml::from_reader(File::open(pipeline_path).unwrap()).unwrap();
+
     if value.as_object().unwrap().contains_key("tasks") {
         let tasks = value["tasks"].as_object().unwrap();
         let mut task_id_by_name: HashMap<String, usize> = HashMap::new();

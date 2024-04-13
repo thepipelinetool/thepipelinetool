@@ -10,7 +10,7 @@ use axum::{
 use chrono::Utc;
 use thepipelinetool_core::dev::*;
 
-use crate::*;
+use crate::{statics::_get_options, *};
 
 type ServerResult<E> = Result<E, (StatusCode, String)>;
 
@@ -44,15 +44,14 @@ pub async fn get_runs(
 }
 
 pub async fn get_next_run(Path(pipeline_name): Path<String>) -> ServerResult<Json<Value>> {
-    // let options = _get_options(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get next run for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
+    let options = _get_options(&pipeline_name).map_err(|e| {
+        service_err(format!(
+            "could not get next run for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ))
+    })?;
 
-    // Ok(json!(_get_next_run(&options)).into())
-    todo!()
+    Ok(json!(_get_next_run(&options)).into())
 }
 
 pub async fn get_last_run(
@@ -115,32 +114,34 @@ pub async fn get_runs_with_tasks(
     Ok(res.into())
 }
 
-pub async fn get_default_tasks(
-    Path(pipeline_name): Path<String>,
-    State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
-    let backend = RedisBackend::from(&pipeline_name, pool);
-    let tasks = backend.get_default_tasks().map_err(|e| {
-        service_err(format!(
-            "could not get default tasks for pipeline '{}'\n{:?}",
-            pipeline_name, e
-        ))
-    })?;
-
-    Ok(json!(tasks).into())
+pub async fn get_default_tasks(Path(pipeline_name): Path<String>) -> ServerResult<Json<Value>> {
+    Ok(
+        serde_json::to_value(_get_default_tasks(&pipeline_name).map_err(|e| {
+            service_err(format!(
+                "could not get default tasks for pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        })?)
+        .map_err(|e| {
+            service_err(format!(
+                "could not get default tasks for pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        })?
+        .into(),
+    )
 }
 
 pub async fn get_default_task_by_id(
     Path((pipeline_name, task_id)): Path<(String, usize)>,
-    State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
-    let backend = RedisBackend::from(&pipeline_name, pool);
-    let default_tasks = backend.get_default_tasks().map_err(|e| {
+    let default_tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
         service_err(format!(
             "could not get default tasks for pipeline '{}'\n{:?}",
             pipeline_name, e
         ))
     })?;
+
     for t in default_tasks {
         if t.id == task_id {
             return Ok(json!(t).into());
@@ -258,25 +259,25 @@ pub async fn get_task_log(
 pub async fn get_pipelines(State(pool): State<Pool>) -> ServerResult<Json<Value>> {
     let mut result: Vec<Value> = vec![];
 
-    // for pipeline_name in
-    //     _get_pipelines().map_err(|e| service_err(format!("could not get pipelines\n{:?}", e)))?
-    // {
-    //     let options = _get_options(&pipeline_name).map_err(|e| {
-    //         service_err(format!(
-    //             "could not get options for pipeline '{}'\n{:?}",
-    //             pipeline_name, e
-    //         ))
-    //     })?;
-    //     result.push(json!({
-    //         "last_run": _get_last_run(&pipeline_name, pool.clone()).await.map_err(|e| service_err(
-    //                 format!("could not get last run for pipeline '{}'\n{:?}", pipeline_name, e),
-    //             )
-    //         )?,
-    //         "next_run":_get_next_run(&options),
-    //         "options": &options,
-    //         "pipeline_name": &pipeline_name,
-    //     }));
-    // }
+    for pipeline_name in
+        _get_pipelines().map_err(|e| service_err(format!("could not get pipelines\n{:?}", e)))?
+    {
+        let options = _get_options(&pipeline_name).map_err(|e| {
+            service_err(format!(
+                "could not get options for pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        })?;
+        result.push(json!({
+            "last_run": _get_last_run(&pipeline_name, pool.clone()).await.map_err(|e| service_err(
+                    format!("could not get last run for pipeline '{}'\n{:?}", pipeline_name, e),
+                )
+            )?,
+            "next_run":_get_next_run(&options),
+            "options": &options,
+            "pipeline_name": &pipeline_name,
+        }));
+    }
 
     Ok(json!(result).into())
 }
@@ -330,30 +331,14 @@ pub async fn get_run_graph(
 //     }
 // }
 
-pub async fn get_default_graph(
-    Path(pipeline_name): Path<String>,
-    State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    let backend = RedisBackend::from(&pipeline_name, pool);
-    let tasks = backend.get_default_tasks().map_err(|e| {
+pub async fn get_default_graph(Path(pipeline_name): Path<String>) -> ServerResult<Json<Value>> {
+    let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
         service_err(format!(
             "could not get default tasks for pipeline '{}'\n{:?}",
             pipeline_name, e
         ))
     })?;
-    let edges = backend.get_default_edges().map_err(|e| {
+    let edges = _get_default_edges(&pipeline_name).map_err(|e| {
         service_err(format!(
             "could not get default edges for pipeline '{}'\n{:?}",
             pipeline_name, e
@@ -367,36 +352,39 @@ pub async fn trigger(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<usize>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let hash = _get_hash(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get hash for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-
-    let scheduled_date = Utc::now();
-    let mut backend = RedisBackend::from(&pipeline_name, pool.clone());
-    let run = backend.create_new_run(scheduled_date).map_err(|e| {
+    let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
         service_err(format!(
-            "could not create new run for pipeline '{}'\n{:?}",
+            "could not get default tasks for pipeline '{}'\n{:?}",
             pipeline_name, e
         ))
     })?;
-    let run_id = run.run_id;
+    let edges = _get_default_edges(&pipeline_name).map_err(|e| {
+        service_err(format!(
+            "could not get default edges for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ))
+    })?;
+    let hash = _get_hash(&pipeline_name).map_err(|e| {
+        service_err(format!(
+            "could not get hash for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ))
+    })?;
 
-    tokio::spawn(async move { backend.enqueue_run(&run, None) });
+    let scheduled_date = Utc::now();
+    let mut backend = RedisBackend::from(tasks, edges, pool.clone());
+    let run_id = backend
+        .create_new_run(&pipeline_name, &hash, scheduled_date)
+        .map_err(|e| {
+            service_err(format!(
+                "could not create new run for pipeline '{}' with hash '{}'\n{:?}",
+                pipeline_name, hash, e
+            ))
+        })?;
+
+    tokio::spawn(async move {
+        backend.enqueue_run(run_id, &pipeline_name, &hash, scheduled_date, None)
+    });
 
     Ok(run_id.into())
 }
@@ -406,44 +394,39 @@ pub async fn trigger_with_params(
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,
 ) -> ServerResult<Json<usize>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let hash = _get_hash(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get hash for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-
-    let scheduled_date = Utc::now();
-    let mut backend = RedisBackend::from(&pipeline_name, pool.clone());
-    let run = backend.create_new_run(scheduled_date).map_err(|e| {
+    let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
         service_err(format!(
-            "could not create new run for pipeline '{}'\n{:?}",
+            "could not get default tasks for pipeline '{}'\n{:?}",
             pipeline_name, e
         ))
     })?;
-    let run_id = run.run_id;
+    let edges = _get_default_edges(&pipeline_name).map_err(|e| {
+        service_err(format!(
+            "could not get default edges for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ))
+    })?;
+    let hash = _get_hash(&pipeline_name).map_err(|e| {
+        service_err(format!(
+            "could not get hash for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ))
+    })?;
 
-    tokio::spawn(async move { backend.enqueue_run(&run, Some(params)) });
+    let scheduled_date = Utc::now();
+    let mut backend = RedisBackend::from(tasks, edges, pool.clone());
+    let run_id = backend
+        .create_new_run(&pipeline_name, &hash, scheduled_date)
+        .map_err(|e| {
+            service_err(format!(
+                "could not create new run for pipeline '{}' with hash '{}'\n{:?}",
+                pipeline_name, hash, e
+            ))
+        })?;
+
+    tokio::spawn(async move {
+        backend.enqueue_run(run_id, &pipeline_name, &hash, scheduled_date, Some(params))
+    });
 
     Ok(run_id.into())
-}
-
-pub async fn upload_pipeline(
-    Path(pipeline_name): Path<String>,
-    State(pool): State<Pool>,
-    extract::Json(pipeline): extract::Json<Value>,
-) -> ServerResult<String> {
-    Ok("ok".to_string())
 }

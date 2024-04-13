@@ -1,12 +1,9 @@
 use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
 use std::collections::{HashMap, HashSet};
-use thepipelinetool_runner::{
-    backend::{Backend, Run},
-    pipeline_options::PipelineOptions,
-};
+use thepipelinetool_runner::backend::Backend;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use thepipelinetool_core::dev::*;
 use timed::timed;
@@ -25,9 +22,6 @@ const TASKS_KEY: &str = "tks";
 const TASK_ID_KEY: &str = "ti";
 const TASK_KEY: &str = "t";
 const TEMPLATE_ARGS_KEY: &str = "ta";
-const DEFAULT_TASKS_KEY: &str = "dt";
-const DEFAULT_EDGES_KEY: &str = "de";
-const DEFAULT_OPTIONS_KEY: &str = "do";
 
 macro_rules! block_on {
     // Textual definition.
@@ -36,43 +30,34 @@ macro_rules! block_on {
     };
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Run {
+    pub run_id: usize,
+    pub scheduled_date_for_run: DateTime<Utc>,
+}
+
 #[derive(Clone)]
 pub struct RedisBackend {
-    // edges: Option<HashSet<(usize, usize)>>,
-    // nodes: Option<Vec<Task>>,
-    name: Option<String>,
+    edges: Option<HashSet<(usize, usize)>>,
+    nodes: Option<Vec<Task>>,
     pool: Pool,
 }
 
 impl RedisBackend {
     pub fn dummy(pool: Pool) -> Self {
         Self {
-            // edges: None,
-            // nodes: None,
-            name: None,
+            edges: None,
+            nodes: None,
             pool,
         }
     }
 
-    pub fn from(pipeline_name: &str, pool: Pool) -> Self {
+    pub fn from(nodes: Vec<Task>, edges: HashSet<(usize, usize)>, pool: Pool) -> Self {
         Self {
-            // edges: Some(edges),
-            // nodes: Some(nodes),
-            name: Some(pipeline_name.to_string()),
+            edges: Some(edges),
+            nodes: Some(nodes),
             pool,
         }
-    }
-
-    #[timed(duration(printer = "debug!"))]
-    pub async fn get_options(&self) -> Result<PipelineOptions> {
-        let mut conn = self.pool.get().await?;
-        let pipeline_name = self.get_pipeline_name()?;
-        Ok(serde_json::from_str(
-            &cmd("GET")
-                .arg(format!("{DEFAULT_OPTIONS_KEY}:{pipeline_name}"))
-                .query_async::<_, String>(&mut conn)
-                .await?,
-        )?)
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -169,13 +154,15 @@ impl RedisBackend {
     #[timed(duration(printer = "debug!"))]
     pub async fn contains_scheduled_date(
         pipeline_name: &str,
-        // pipeline_hash: &str,
+        pipeline_hash: &str,
         scheduled_date_for_run: DateTime<Utc>,
         pool: Pool,
     ) -> Result<bool> {
         let mut conn = pool.get().await?;
         Ok(cmd("SISMEMBER")
-            .arg(format!("{SCHEDULED_DATES_KEY}:{pipeline_name}"))
+            .arg(format!(
+                "{SCHEDULED_DATES_KEY}:{pipeline_name}"
+            ))
             .arg(scheduled_date_for_run.to_string())
             .query_async::<_, bool>(&mut conn)
             .await?)
@@ -337,10 +324,10 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn create_new_run(
         &mut self,
-        // pipeline_name: &str,
-        // _pipeline_hash: &str, // TODO
+        pipeline_name: &str,
+        _pipeline_hash: &str, // TODO
         scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<Run> {
+    ) -> Result<usize> {
         block_on!({
             let mut conn = self.pool.get().await?;
 
@@ -350,8 +337,6 @@ impl Backend for RedisBackend {
                 .await?
                 - 1;
 
-            let pipeline_name = self.get_pipeline_name()?;
-
             cmd("RPUSH")
                 .arg(format!("{RUNS_KEY}:{pipeline_name}"))
                 .arg(serde_json::to_string(&Run {
@@ -360,18 +345,15 @@ impl Backend for RedisBackend {
                 })?)
                 .query_async::<_, ()>(&mut conn)
                 .await?;
-            // cmd("SISMEMBER")
-            //     .arg(format!(
-            //         "{SCHEDULED_DATES_KEY}:{pipeline_name}"
-            //     ))
-            //     .arg(scheduled_date_for_run.to_string())
-            //     .query_async::<_, bool>(&mut conn)
-            //     .await?;
+            cmd("SISMEMBER")
+                .arg(format!(
+                    "{SCHEDULED_DATES_KEY}:{pipeline_name}"
+                ))
+                .arg(scheduled_date_for_run.to_string())
+                .query_async::<_, bool>(&mut conn)
+                .await?;
 
-            Ok(Run {
-                run_id,
-                scheduled_date_for_run,
-            })
+            Ok(run_id)
         })
     }
 
@@ -533,45 +515,13 @@ impl Backend for RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     fn get_default_tasks(&self) -> Result<Vec<Task>> {
-        block_on!({
-            let pipeline_name = self.get_pipeline_name()?;
-            let mut conn = self.pool.get().await?;
-            let members = cmd("LRANGE")
-                .arg(format!("{DEFAULT_TASKS_KEY}:{pipeline_name}"))
-                .arg(0)
-                .arg(-1)
-                .query_async::<_, Vec<String>>(&mut conn)
-                .await?;
-
-            let mut v = vec![];
-
-            for s in members {
-                v.push(serde_json::from_str(&s)?);
-            }
-            Ok(v)
-        })
+        // TODO
+        Ok(self.nodes.clone().expect(""))
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>> {
-        // Ok(self.edges.clone().expect(""))
-        block_on!({
-            let pipeline_name = self.get_pipeline_name()?;
-            let mut conn = self.pool.get().await?;
-            let members = cmd("LRANGE")
-                .arg(format!("{DEFAULT_EDGES_KEY}:{pipeline_name}"))
-                .arg(0)
-                .arg(-1)
-                .query_async::<_, Vec<String>>(&mut conn)
-                .await?;
-
-            let mut v = HashSet::new();
-
-            for s in members {
-                v.insert(serde_json::from_str(&s)?);
-            }
-            Ok(v)
-        })
+        Ok(self.edges.clone().expect(""))
     }
 
     // #[timed(duration(printer = "debug!"))]
@@ -826,13 +776,5 @@ impl Backend for RedisBackend {
                 })
             })
         }))
-    }
-
-    fn get_pipeline_name(&self) -> Result<String> {
-        if let Some(name) = &self.name {
-            Ok(name.into())
-        } else {
-            Err(anyhow!("no name found"))
-        }
     }
 }

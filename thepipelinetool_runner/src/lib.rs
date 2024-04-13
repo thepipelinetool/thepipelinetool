@@ -31,7 +31,7 @@ pub fn get_pipelines_dir() -> String {
         .to_string()
 }
 
-pub fn get_pipeline_path_buf_by_name(pipeline_name: &str) -> Result<PathBuf> {
+pub fn get_pipeline_path_by_name(pipeline_name: &str) -> Result<PathBuf> {
     let pipelines_dir = &get_pipelines_dir();
     let path: PathBuf = [pipelines_dir, pipeline_name].iter().collect();
 

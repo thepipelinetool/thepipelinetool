@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
@@ -14,24 +13,8 @@ pub type DownstreamId = usize;
 pub type OriginalKey = String;
 pub type ResultKey = String;
 
-#[derive(Serialize, Deserialize)]
-pub struct Run {
-    pub run_id: usize,
-    pub scheduled_date_for_run: DateTime<Utc>,
-}
-
-impl Run {
-    pub fn dummy() -> Self {
-        Self {
-            run_id: 0,
-            scheduled_date_for_run: Utc::now()
-        }
-    }
-}
-
 pub trait Backend {
     // fn load_from_name(&mut self, pipeline_name: &str);
-    fn get_pipeline_name(&self) -> Result<String>;
 
     fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;
@@ -114,10 +97,10 @@ pub trait Backend {
 
     fn create_new_run(
         &mut self,
-        // pipeline_name: &str,
-        // pipeline_hash: &str,
+        pipeline_name: &str,
+        pipeline_hash: &str,
         scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<Run>;
+    ) -> Result<usize>;
 
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()>;
     fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()>;

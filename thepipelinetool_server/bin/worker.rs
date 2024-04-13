@@ -51,7 +51,6 @@ async fn _work(
                 cmd.arg(serde_json::to_string(&ordered_queued_task)?);
                 let _ = spawn(
                     cmd,
-                    None,
                     Box::new(|x| {
                         print!("{x}");
                         Ok(())
