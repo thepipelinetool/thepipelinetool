@@ -7,7 +7,8 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    backend::Run, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline::Pipeline, pipeline_options::PipelineOptions
+    backend::Run, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
+    pipeline::Pipeline, pipeline_options::PipelineOptions,
 };
 
 use anyhow::Result;
@@ -131,7 +132,7 @@ pub fn process_subcommands(
                 .unwrap()
                 .get_one::<String>("endpoint")
                 .expect("required");
-            dbg!(endpoint);
+            // dbg!(endpoint);
 
             let pipeline = Pipeline {
                 name: pipeline_name.to_string(),
@@ -140,7 +141,15 @@ pub fn process_subcommands(
                 tasks: get_tasks().read().unwrap().to_vec(),
                 edges: get_edges().read().unwrap().to_owned(),
             };
-            dbg!(pipeline);
+
+            let client = reqwest::blocking::Client::new();
+            let res = client
+                .post(endpoint)
+                .json(&pipeline)
+                .send()?;
+            assert!(res.status().is_success());
+
+            // dbg!(pipeline);
         }
         _ => {}
     };
