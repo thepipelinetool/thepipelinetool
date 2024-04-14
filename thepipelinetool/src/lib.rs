@@ -1,7 +1,6 @@
-use std::{env, path::Path, process};
+use std::{env, process};
 
 use check_for_cycles::check_for_cycles;
-use chrono::Utc;
 use clap::ArgMatches;
 use display_hash::display_hash;
 use display_tree::display_tree;
@@ -41,8 +40,8 @@ fn display_options(options: &PipelineOptions) {
 }
 
 pub fn process_subcommands(
-    pipeline_path: &Path,
-    pipeline_name: &str,
+    pipeline_path: &str,
+    // pipeline_name: &str,
     subcommand_name: &str,
     options: &PipelineOptions,
     matches: &ArgMatches,
@@ -106,9 +105,9 @@ pub fn process_subcommands(
 
                     check_for_cycles(tasks, edges);
 
-                    let mut backend = InMemoryBackend::new(pipeline_path.to_str().unwrap(), tasks, edges);
+                    let mut backend = InMemoryBackend::new(pipeline_path, tasks, edges);
                     let run = Run::dummy();
-                    backend.enqueue_run(&run, trigger_params).unwrap();
+                    backend.enqueue_run(&run, trigger_params)?;
 
                     run_in_memory(
                         &mut backend,
@@ -135,19 +134,19 @@ pub fn process_subcommands(
             // dbg!(endpoint);
 
             let pipeline = Pipeline {
-                name: pipeline_name.to_string(),
-                path: pipeline_path.to_str().expect("").to_string(),
+                // name: pipeline_name.to_string(),
+                path: pipeline_path.to_string(),
                 options: options.clone(),
                 tasks: get_tasks().read().unwrap().to_vec(),
                 edges: get_edges().read().unwrap().to_owned(),
             };
 
             let client = reqwest::blocking::Client::new();
-            let res = client
-                .post(endpoint)
-                .json(&pipeline)
-                .send()?;
-            assert!(res.status().is_success());
+            let res = client.post(endpoint).json(&pipeline).send()?;
+            if !res.status().is_success() {
+                eprintln!("upload failed\n{:?}", res);
+                process::exit(1);
+            }
 
             // dbg!(pipeline);
         }

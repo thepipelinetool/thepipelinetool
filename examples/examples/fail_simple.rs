@@ -12,10 +12,9 @@ fn print_data(arg: String) -> () {
 
 #[dag]
 fn main() {
-    
     // add a task that uses the function 'produce_data'
     let task_ref = add_task(produce_data, (), &TaskOptions::default());
-    
+
     let mut opts = TaskOptions::default();
     opts.trigger_rule = TriggerRule::AnyFailed;
 

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, str::from_utf8};
 
-use anyhow::Error;
 use axum::{
     extract::{self, Path, State},
     http::StatusCode,
@@ -29,6 +28,8 @@ pub async fn get_runs(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     Ok(json!(RedisBackend::get_runs(&pipeline_name, pool)
         .await
         .map_err(|e| service_err(format!(
@@ -44,7 +45,12 @@ pub async fn get_runs(
     .into())
 }
 
-pub async fn get_next_run(Path(pipeline_name): Path<String>) -> ServerResult<Json<Value>> {
+pub async fn get_next_run(
+    Path(pipeline_name): Path<String>,
+    State(pool): State<Pool>,
+) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     // let options = _get_options(&pipeline_name).map_err(|e| {
     //     service_err(format!(
     //         "could not get next run for pipeline '{}'\n{:?}",
@@ -60,6 +66,8 @@ pub async fn get_last_run(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     Ok(json!(_get_last_run(&pipeline_name, pool)
         .await
         .map_err(|e| service_err(format!(
@@ -73,6 +81,8 @@ pub async fn get_recent_runs(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     Ok(json!(_get_recent_runs(&pipeline_name, pool)
         .await
         .map_err(|e| service_err(format!(
@@ -87,6 +97,8 @@ pub async fn get_runs_with_tasks(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     let mut res = json!({});
 
     for run in RedisBackend::get_runs(&pipeline_name, pool.clone())
@@ -120,6 +132,8 @@ pub async fn get_default_tasks(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     let backend = RedisBackend::from(&pipeline_name, pool);
     let tasks = backend.get_default_tasks().map_err(|e| {
         service_err(format!(
@@ -135,6 +149,8 @@ pub async fn get_default_task_by_id(
     Path((pipeline_name, task_id)): Path<(String, usize)>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     let backend = RedisBackend::from(&pipeline_name, pool);
     let default_tasks = backend.get_default_tasks().map_err(|e| {
         service_err(format!(
@@ -257,29 +273,10 @@ pub async fn get_task_log(
 }
 
 pub async fn get_pipelines(State(pool): State<Pool>) -> ServerResult<Json<Value>> {
-    let mut result: Vec<Value> = vec![];
-
-    // for pipeline_name in
-    //     _get_pipelines().map_err(|e| service_err(format!("could not get pipelines\n{:?}", e)))?
-    // {
-    //     let options = _get_options(&pipeline_name).map_err(|e| {
-    //         service_err(format!(
-    //             "could not get options for pipeline '{}'\n{:?}",
-    //             pipeline_name, e
-    //         ))
-    //     })?;
-    //     result.push(json!({
-    //         "last_run": _get_last_run(&pipeline_name, pool.clone()).await.map_err(|e| service_err(
-    //                 format!("could not get last run for pipeline '{}'\n{:?}", pipeline_name, e),
-    //             )
-    //         )?,
-    //         "next_run":_get_next_run(&options),
-    //         "options": &options,
-    //         "pipeline_name": &pipeline_name,
-    //     }));
-    // }
-
-    Ok(json!(result).into())
+    Ok(json!(_get_pipelines(pool)
+        .await
+        .map_err(|e| { service_err(format!("could not get pipelines\n{:?}", e)) })?)
+    .into())
 }
 
 pub async fn get_run_graph(
@@ -335,18 +332,8 @@ pub async fn get_default_graph(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
+
     let backend = RedisBackend::from(&pipeline_name, pool);
     let tasks = backend.get_default_tasks().map_err(|e| {
         service_err(format!(
@@ -364,28 +351,26 @@ pub async fn get_default_graph(
     Ok(json!(get_default_graphite_graph(&tasks, &edges)).into())
 }
 
+pub async fn assert_pipeline_exists(pipeline_name: &str, pool: Pool) -> ServerResult<()> {
+    if !_get_pipelines(pool)
+        .await
+        .map_err(|e| service_err(format!("could get pipelines\n{:?}", e)))?
+        .contains(pipeline_name)
+    {
+        Err(service_err(format!(
+            "could not find pipeline '{}'\n",
+            pipeline_name
+        )))
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn trigger(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<usize>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let hash = _get_hash(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get hash for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
     let scheduled_date = Utc::now();
     let mut backend = RedisBackend::from(&pipeline_name, pool.clone());
@@ -407,24 +392,7 @@ pub async fn trigger_with_params(
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,
 ) -> ServerResult<Json<usize>> {
-    // let tasks = _get_default_tasks(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default tasks for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let edges = _get_default_edges(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get default edges for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-    // let hash = _get_hash(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get hash for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
+    assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
     let scheduled_date = Utc::now();
     let mut backend = RedisBackend::from(&pipeline_name, pool.clone());
@@ -442,10 +410,17 @@ pub async fn trigger_with_params(
 }
 
 pub async fn upload_pipeline(
-    // Path(pipeline_name): Path<String>,
+    Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
     extract::Json(pipeline): extract::Json<Pipeline>,
 ) -> ServerResult<String> {
-    dbg!(pipeline);
+    RedisBackend::upload_pipeline(&pipeline, &pipeline_name, pool.clone())
+        .await
+        .map_err(|e| {
+            service_err(format!(
+                "could not upload pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        })?;
     Ok("ok".to_string())
 }

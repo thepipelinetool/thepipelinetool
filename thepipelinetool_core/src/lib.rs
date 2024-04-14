@@ -19,12 +19,12 @@ pub mod prelude {
     pub use crate::{functions::*, TaskRef};
     pub use thepipelinetool_operators::*;
 
-    pub use thepipelinetool_task::trigger_rule::TriggerRule;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json::{json, Value};
     pub use thepipelinetool_proc_macro::dag;
     pub use thepipelinetool_task::branch::Branch;
     pub use thepipelinetool_task::task_options::TaskOptions;
+    pub use thepipelinetool_task::trigger_rule::TriggerRule;
 }
 
 pub mod dev {

@@ -26,7 +26,7 @@ impl Run {
         Self {
             run_id: 0,
             pipeline_name: "dummy".to_string(),
-            scheduled_date_for_run: Utc::now()
+            scheduled_date_for_run: Utc::now(),
         }
     }
 }
@@ -36,7 +36,7 @@ pub trait Backend {
     fn get_pipeline_name(&self) -> Result<String>;
     // fn load_from_name(&mut self, pipeline_name: &str);
 
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()>;
+    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;
 
     fn print_priority_queue(&mut self) -> Result<()>;

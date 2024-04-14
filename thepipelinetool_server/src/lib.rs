@@ -1,12 +1,14 @@
-use std::{fs, io::ErrorKind, path::PathBuf};
+use std::collections::HashSet;
 
 use deadpool::Runtime;
 use deadpool_redis::{Config, Pool};
 use env::get_redis_url;
-use redis_backend::{RedisBackend};
+use redis_backend::RedisBackend;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    backend::{Backend, Run}, blanket_backend::BlanketBackend, get_pipelines_dir, pipeline_options::PipelineOptions,
+    backend::{Backend, Run},
+    blanket_backend::BlanketBackend,
+    pipeline_options::PipelineOptions,
 };
 
 // use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
@@ -57,32 +59,32 @@ pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> Result<Tas
 
 // TODO cache response to prevent disk read
 
-pub fn _get_pipelines() -> Result<Vec<String>> {
-    let paths: Vec<PathBuf> = match fs::read_dir(get_pipelines_dir()) {
-        Err(e) if e.kind() == ErrorKind::NotFound => vec![],
-        Err(e) => panic!("Unexpected Error! {:?}", e),
-        Ok(entries) => entries
-            .filter_map(|entry| {
-                let path = entry.expect("").path();
-                if path.is_file() {
-                    Some(path)
-                } else {
-                    None
-                }
-            })
-            .collect(),
-    };
+// pub fn _get_pipelines() -> Result<Vec<String>> {
+//     let paths: Vec<PathBuf> = match fs::read_dir(get_pipelines_dir()) {
+//         Err(e) if e.kind() == ErrorKind::NotFound => vec![],
+//         Err(e) => panic!("Unexpected Error! {:?}", e),
+//         Ok(entries) => entries
+//             .filter_map(|entry| {
+//                 let path = entry.expect("").path();
+//                 if path.is_file() {
+//                     Some(path)
+//                 } else {
+//                     None
+//                 }
+//             })
+//             .collect(),
+//     };
 
-    Ok(paths
-        .iter()
-        .map(|p| {
-            p.file_name()
-                .and_then(|os_str| os_str.to_str())
-                .expect("")
-                .to_string()
-        })
-        .collect())
-}
+//     Ok(paths
+//         .iter()
+//         .map(|p| {
+//             p.file_name()
+//                 .and_then(|os_str| os_str.to_str())
+//                 .expect("")
+//                 .to_string()
+//         })
+//         .collect())
+// }
 
 // pub async fn _trigger_run<T>(
 //     run_id: usize,
@@ -175,4 +177,8 @@ pub async fn _get_last_run(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> 
 
 pub async fn _get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
     RedisBackend::get_recent_runs(pipeline_name, pool).await
+}
+
+pub async fn _get_pipelines(pool: Pool) -> Result<HashSet<String>> {
+    RedisBackend::get_pipelines(pool).await
 }

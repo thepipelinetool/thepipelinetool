@@ -17,21 +17,12 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            // let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
-            let tpt_path =  tpt_path.clone();
+            let tpt_path = tpt_path.clone();
 
             thread::spawn(move || {
+                backend.work(&ordered_queued_task, tpt_path).unwrap();
                 backend
-                    .work(
-                        ordered_queued_task.queued_task.run_id,
-                        &ordered_queued_task,
-                        // pipeline_path,
-                        tpt_path,
-                        ordered_queued_task.queued_task.scheduled_date_for_run,
-                    )
-                    .unwrap();
-                backend
-                    .remove_from_temp_queue(&ordered_queued_task.queued_task)
+                    .remove_from_temp_queue(&ordered_queued_task)
                     .unwrap();
                 tx.send(()).unwrap();
             });
@@ -56,21 +47,12 @@ pub fn run_in_memory(
         if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
-            // let (pipeline_path, tpt_path) = (pipeline_path.clone(), tpt_path.clone());
-            let tpt_path =  tpt_path.clone();
+            let tpt_path = tpt_path.clone();
 
             thread::spawn(move || {
+                backend.work(&ordered_queued_task, tpt_path).unwrap();
                 backend
-                    .work(
-                        ordered_queued_task.queued_task.run_id,
-                        &ordered_queued_task,
-                        // pipeline_path,
-                        tpt_path,
-                        ordered_queued_task.queued_task.scheduled_date_for_run,
-                    )
-                    .unwrap();
-                backend
-                    .remove_from_temp_queue(&ordered_queued_task.queued_task)
+                    .remove_from_temp_queue(&ordered_queued_task)
                     .unwrap();
                 tx.send(()).unwrap();
             });

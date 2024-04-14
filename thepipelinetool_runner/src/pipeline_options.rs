@@ -12,7 +12,6 @@ pub struct PipelineOptions {
 
     // #[serde(default)]
     // pub start_date: Option<NaiveDateTime>,
-
     #[serde(default)]
     pub end_date: Option<NaiveDateTime>,
 

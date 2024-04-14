@@ -19,8 +19,7 @@ pub struct TaskResult {
     pub premature_failure_error_str: String,
     pub is_branch: bool,
     pub is_sensor: bool,
-    pub exit_code: Option<i32>
-    // pub scheduled_date_for_run: DateTime<Utc>,
+    pub exit_code: Option<i32>, // pub scheduled_date_for_run: DateTime<Utc>,
 }
 
 impl TaskResult {

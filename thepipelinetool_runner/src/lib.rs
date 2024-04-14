@@ -5,8 +5,8 @@ use backend::Backend;
 pub mod backend;
 pub mod blanket_backend;
 pub mod in_memory_backend;
-pub mod pipeline_options;
 pub mod pipeline;
+pub mod pipeline_options;
 
 use anyhow::Result;
 
@@ -26,19 +26,19 @@ pub fn get_tpt_executor_command() -> String {
 //     fn pop_priority_queue(&mut self) -> Option<OrderedQueuedTask>;
 // }
 
-pub fn get_pipelines_dir() -> String {
-    env::var("PIPELINES_DIR")
-        .unwrap_or("./bin".to_string())
-        .to_string()
-}
+// pub fn get_pipelines_dir() -> String {
+//     env::var("PIPELINES_DIR")
+//         .unwrap_or("./bin".to_string())
+//         .to_string()
+// }
 
-pub fn get_pipeline_path_by_name(pipeline_name: &str) -> Result<PathBuf> {
-    let pipelines_dir = &get_pipelines_dir();
-    let path: PathBuf = [pipelines_dir, pipeline_name].iter().collect();
+// pub fn get_pipeline_path_by_name(pipeline_name: &str) -> Result<PathBuf> {
+//     let pipelines_dir = &get_pipelines_dir();
+//     let path: PathBuf = [pipelines_dir, pipeline_name].iter().collect();
 
-    if !path.exists() {
-        return Err(anyhow::Error::msg("missing pipeline"));
-    }
+//     if !path.exists() {
+//         return Err(anyhow::Error::msg("missing pipeline"));
+//     }
 
-    Ok(path)
-}
+//     Ok(path)
+// }

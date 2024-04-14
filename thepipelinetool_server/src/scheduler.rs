@@ -10,7 +10,6 @@ use tokio::{sync::Mutex, time::sleep};
 use anyhow::Result;
 
 use crate::{
-    _get_pipelines,
     env::get_scheduler_loop_interval,
     redis_backend::RedisBackend,
     // statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
@@ -23,12 +22,15 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
 
     loop {
         // TODO should this watch for updated schedules?
-        'inner: for pipeline_name in _get_pipelines()? {
+        'inner: for pipeline_name in RedisBackend::get_pipelines(pool.clone()).await? {
             if spawned_schedulers.lock().await.contains(&pipeline_name) {
                 // scheduler for this pipeline already spawned
                 continue;
             }
-            spawned_schedulers.lock().await.insert(pipeline_name.clone());
+            spawned_schedulers
+                .lock()
+                .await
+                .insert(pipeline_name.clone());
             let backend = RedisBackend::from(&pipeline_name, pool.clone());
             let options = backend.get_options().await?;
 
@@ -36,7 +38,7 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
                 // no scheduling for this pipeline
                 continue 'inner;
             }
-            let cron = if let Ok(cron) = (&options.schedule).clone().expect("").parse::<Cron>() {
+            let cron = if let Ok(cron) = options.schedule.clone().expect("").parse::<Cron>() {
                 cron
             } else {
                 // error parsing cron
@@ -48,6 +50,8 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
             }
 
             let pool = pool.clone();
+
+            // TODO
             let spawned_schedulers = spawned_schedulers.clone();
             tokio::spawn(async move {
                 let _ = _scheduler(
@@ -111,9 +115,9 @@ pub async fn _scheduler(
         // let edges = _get_default_edges(pipeline_name)?;
         // let hash = _get_hash(pipeline_name)?;
 
-        let mut backend = RedisBackend::from(&pipeline_name, pool.clone());
-        let run = backend.create_new_run( scheduled_date)?;
-        backend.enqueue_run(&run,  None)?;
+        let mut backend = RedisBackend::from(pipeline_name, pool.clone());
+        let run = backend.create_new_run(scheduled_date)?;
+        backend.enqueue_run(&run, None)?;
         println!(
             "scheduling catchup {pipeline_name} {}",
             scheduled_date.format("%F %R")

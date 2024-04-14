@@ -3,6 +3,7 @@ use log::debug;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_runner::{
     backend::{Backend, Run},
+    pipeline::Pipeline,
     pipeline_options::PipelineOptions,
 };
 
@@ -28,6 +29,8 @@ const TEMPLATE_ARGS_KEY: &str = "ta";
 const DEFAULT_TASKS_KEY: &str = "dt";
 const DEFAULT_EDGES_KEY: &str = "de";
 const DEFAULT_OPTIONS_KEY: &str = "do";
+const PIPELINES_KEY: &str = "p";
+const PIPELINE_PATH_KEY: &str = "pp";
 
 macro_rules! block_on {
     // Textual definition.
@@ -61,6 +64,58 @@ impl RedisBackend {
             name: Some(pipeline_name.to_string()),
             pool,
         }
+    }
+
+    #[timed(duration(printer = "debug!"))]
+    pub async fn get_pipelines(pool: Pool) -> Result<HashSet<String>> {
+        let mut conn = pool.get().await?;
+        Ok(HashSet::from_iter(
+            cmd("SMEMBERS")
+                .arg(PIPELINES_KEY)
+                .query_async::<_, Vec<String>>(&mut conn)
+                .await?,
+        ))
+    }
+
+    #[timed(duration(printer = "debug!"))]
+    pub async fn upload_pipeline(
+        pipeline: &Pipeline,
+        pipeline_name: &str,
+        pool: Pool,
+    ) -> Result<()> {
+        let mut conn = pool.get().await?;
+
+        cmd("SET")
+            .arg(format!("{DEFAULT_OPTIONS_KEY}:{pipeline_name}"))
+            .arg(serde_json::to_string(&pipeline.options)?)
+            .query_async::<_, String>(&mut conn)
+            .await?;
+
+        cmd("SET")
+            .arg(format!("{DEFAULT_TASKS_KEY}:{pipeline_name}"))
+            .arg(serde_json::to_string(&pipeline.tasks)?)
+            .query_async::<_, String>(&mut conn)
+            .await?;
+
+        cmd("SET")
+            .arg(format!("{DEFAULT_EDGES_KEY}:{pipeline_name}"))
+            .arg(serde_json::to_string(&pipeline.edges)?)
+            .query_async::<_, String>(&mut conn)
+            .await?;
+
+        cmd("SET")
+            .arg(format!("{PIPELINE_PATH_KEY}:{pipeline_name}"))
+            .arg(pipeline.path.clone())
+            .query_async::<_, String>(&mut conn)
+            .await?;
+
+        cmd("SADD")
+            .arg(PIPELINES_KEY)
+            .arg(pipeline_name)
+            .query_async::<_, ()>(&mut conn)
+            .await?;
+
+        Ok(())
     }
 
     #[timed(duration(printer = "debug!"))]
@@ -207,12 +262,12 @@ impl Backend for RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()> {
+    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()> {
         block_on!({
             let mut conn = self.pool.get().await?;
             cmd("SREM")
                 .arg("tmpqueue")
-                .arg(serde_json::to_string(queued_task)?)
+                .arg(serde_json::to_string(&ordered_queued_task.queued_task)?)
                 .query_async::<_, usize>(&mut conn)
                 .await?;
             Ok(())
@@ -534,20 +589,21 @@ impl Backend for RedisBackend {
     fn get_default_tasks(&self) -> Result<Vec<Task>> {
         block_on!({
             let pipeline_name = self.get_pipeline_name()?;
+            dbg!(&pipeline_name);
             let mut conn = self.pool.get().await?;
-            let members = cmd("LRANGE")
+            let members = cmd("GET")
                 .arg(format!("{DEFAULT_TASKS_KEY}:{pipeline_name}"))
-                .arg(0)
-                .arg(-1)
-                .query_async::<_, Vec<String>>(&mut conn)
+                .query_async::<_, String>(&mut conn)
                 .await?;
+            dbg!(1);
+            dbg!(&members);
 
-            let mut v = vec![];
+            // let mut v = vec![];
 
-            for s in members {
-                v.push(serde_json::from_str(&s)?);
-            }
-            Ok(v)
+            // for s in members {
+            //     v.push(serde_json::from_str(&s)?);
+            // }
+            Ok(serde_json::from_str(&members)?)
         })
     }
 
@@ -557,19 +613,17 @@ impl Backend for RedisBackend {
         block_on!({
             let pipeline_name = self.get_pipeline_name()?;
             let mut conn = self.pool.get().await?;
-            let members = cmd("LRANGE")
+            let members = cmd("GET")
                 .arg(format!("{DEFAULT_EDGES_KEY}:{pipeline_name}"))
-                .arg(0)
-                .arg(-1)
-                .query_async::<_, Vec<String>>(&mut conn)
+                .query_async::<_, String>(&mut conn)
                 .await?;
 
-            let mut v = HashSet::new();
+            // let mut v = HashSet::new();
 
-            for s in members {
-                v.insert(serde_json::from_str(&s)?);
-            }
-            Ok(v)
+            // for s in members {
+            //     v.insert(serde_json::from_str(&s)?);
+            // }
+            Ok(serde_json::from_str(&members)?)
         })
     }
 
@@ -834,8 +888,16 @@ impl Backend for RedisBackend {
             Err(anyhow!("no name found"))
         }
     }
-    
+
     fn get_pipeline_path(&self) -> Result<String> {
-        todo!()
+        block_on!({
+            let mut conn = self.pool.get().await?;
+            let pipeline_name = self.get_pipeline_name()?;
+
+            Ok(cmd("GET")
+                .arg(format!("{PIPELINE_PATH_KEY}:{pipeline_name}"))
+                .query_async::<_, String>(&mut conn)
+                .await?)
+        })
     }
 }

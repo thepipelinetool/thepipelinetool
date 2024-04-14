@@ -1,6 +1,5 @@
-use std::{collections::HashSet, path::Path};
+use std::collections::HashSet;
 
-use chrono::Utc;
 use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{
     backend::{Backend, Run},
@@ -8,8 +7,8 @@ use thepipelinetool_runner::{
     in_memory_backend::InMemoryBackend,
 };
 
-pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &Path) {
-    let mut runner = InMemoryBackend::new(pipeline_path.to_str().unwrap(), tasks, edges);
+pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &str) {
+    let mut runner = InMemoryBackend::new(pipeline_path, tasks, edges);
     let run = Run::dummy();
     runner.enqueue_run(&run, None).unwrap();
     let tasks = runner
@@ -20,7 +19,7 @@ pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_pa
         .map(|t| t.id)
         .collect::<Vec<usize>>();
 
-    let mut output = format!("{}\n", pipeline_path.file_name().unwrap().to_str().unwrap());
+    let mut output = "pipeline\n".to_string();
     let mut task_ids_in_order: Vec<usize> = vec![];
 
     for (index, child) in tasks.iter().enumerate() {

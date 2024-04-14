@@ -20,6 +20,8 @@ pub async fn check_timeout(pool: Pool) -> Result<()> {
             if let Ok(task) = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id) {
                 if let Some(timeout) = task.options.timeout {
                     let now = Utc::now();
+
+                    // TODO fix this, shouldn't be using schedule_date_for_run, rather the enqueued date for the task
                     if (now - queued_task.scheduled_date_for_run).to_std()? > timeout {
                         let result = TaskResult::premature_error(
                             task.id,

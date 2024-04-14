@@ -332,15 +332,17 @@ impl Backend for InMemoryBackend {
         Ok(self.priority_queue.lock().len())
     }
 
-    fn remove_from_temp_queue(&self, queued_task: &QueuedTask) -> Result<()> {
-        self.temp_queue.lock().remove(queued_task);
+    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()> {
+        self.temp_queue
+            .lock()
+            .remove(&ordered_queued_task.queued_task);
         Ok(())
     }
-    
+
     fn get_pipeline_name(&self) -> Result<String> {
         Ok("in_memory".into())
     }
-    
+
     fn get_pipeline_path(&self) -> Result<String> {
         Ok(self.pipeline_path.to_string())
     }

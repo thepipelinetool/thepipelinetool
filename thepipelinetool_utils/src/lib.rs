@@ -1,5 +1,13 @@
 use std::{
-    cmp::max, ffi::OsStr, fs::File, io::{BufRead, BufReader, Error, Read, Write}, path::Path, process::{self, Command, ExitStatus, Stdio}, sync::mpsc::channel, thread::{self, available_parallelism}, time::Duration
+    cmp::max,
+    ffi::OsStr,
+    fs::File,
+    io::{BufRead, BufReader, Error, Read, Write},
+    path::Path,
+    process::{self, Command, ExitStatus, Stdio},
+    sync::mpsc::channel,
+    thread::{self, available_parallelism},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -96,7 +104,6 @@ pub fn spawn(
     // stdout_handle.join().expect("stdout thread panicked");
     // stderr_handle.join().expect("stderr thread panicked");
 
-
     let (sender, receiver) = channel();
     thread::spawn(move || {
         match sender.send({
@@ -107,13 +114,12 @@ pub fn spawn(
             stderr_handle.join().expect("stderr thread panicked");
             status
         }) {
-            Ok(()) => {}, // everything good
-            Err(_) => {}, // we have been released, don't panic
+            Ok(()) => {} // everything good
+            Err(_) => {} // we have been released, don't panic
         }
     });
 
     if let Some(timeout) = timeout {
-
         Ok(receiver.recv_timeout(timeout)?)
     } else {
         Ok(receiver.recv()?)
@@ -158,10 +164,10 @@ where
     // if use_timeout {
     //     Command::new("timeout")
     // } else {
-        let mut command = Command::new(tpt_path);
-        command.arg(pipeline_path);
+    let mut command = Command::new(tpt_path);
+    command.arg(pipeline_path);
 
-        command
+    command
     // }
 }
 

@@ -22,23 +22,10 @@ pub trait BlanketBackend {
 
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
-    fn enqueue_run(
-        &mut self,
-        run: &Run,
-        // run_id: usize,
-        // pipeline_name: &str,
-        // pipeline_hash: &str,
-        // scheduled_date_for_run: DateTime<Utc>,
-        trigger_params: Option<Value>,
-    ) -> Result<()>;
-    fn work<D: AsRef<OsStr>>(
-        &mut self,
-        run_id: usize,
-        queued_task: &OrderedQueuedTask,
-        // pipeline_path: P,
-        tpt_path: D,
-        scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<()>;
+    fn enqueue_run(&mut self, run: &Run, trigger_params: Option<Value>) -> Result<()>;
+    // TODO move tpt_path into OrderedQueuedTask?
+    fn work<D: AsRef<OsStr>>(&mut self, queued_task: &OrderedQueuedTask, tpt_path: D)
+        -> Result<()>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize)
         -> Result<()>;
     fn run_task<D: AsRef<OsStr>>(
@@ -47,10 +34,9 @@ pub trait BlanketBackend {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        // pipeline_path: P,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
-        pipeline_name: String,
+        // pipeline_name: String,
     ) -> Result<TaskResult>;
     fn resolve_args(
         &mut self,
@@ -358,10 +344,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
         task: &Task,
         attempt: usize,
         resolution_result: &Value,
-        // pipeline_path: P,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
-        pipeline_name: String,
     ) -> Result<TaskResult> {
         if task.lazy_expand {
             let downstream = self.get_downstream(run_id, task.id)?;
@@ -443,7 +427,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                         run_id,
                         *d,
                         scheduled_date_for_run,
-                        pipeline_name.clone(),
+                        self.get_pipeline_name()?,
                         true,
                     )?;
                 }
@@ -452,7 +436,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     run_id,
                     collector_id,
                     scheduled_date_for_run,
-                    pipeline_name.clone(),
+                    self.get_pipeline_name()?,
                     true,
                 )?;
             }
@@ -461,7 +445,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                     run_id,
                     *lazy_id,
                     scheduled_date_for_run,
-                    pipeline_name.clone(),
+                    self.get_pipeline_name()?,
                     true,
                 )?;
             }
@@ -485,7 +469,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
                 exit_code: None,
-                // scheduled_date_for_run,
             });
         }
 
@@ -497,7 +480,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.take_last_stdout_line(run_id, task.id, attempt)?,
             self.get_pipeline_path()?,
             tpt_path,
-            // scheduled_date_for_run,
             run_id,
         )?)
     }
@@ -613,38 +595,27 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
     fn work<D: AsRef<OsStr>>(
         &mut self,
-        run_id: usize,
         ordered_queued_task: &OrderedQueuedTask,
-        // pipeline_path: P,
         tpt_path: D,
-        scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<()> {
-        // if self.is_task_done(run_id, ordered_queued_task.queued_task.task_id) {
-        //     return;
-        // }
-        // if !self.trigger_rules_satisfied(run_id, ordered_queued_task.queued_task.task_id) {
-        //     self.enqueue_task(
-        //         run_id,
-        //         ordered_queued_task.queued_task.task_id,
-        //         scheduled_date_for_run,
-        //         ordered_queued_task.queued_task.pipeline_name.clone(),
-        //         false,
-        //     );
-        //     return;
-        // }
-
-        let task = self.get_task_by_id(run_id, ordered_queued_task.queued_task.task_id)?;
-        let dependency_keys = self.get_dependencies(run_id, task.id)?;
-        let result = match self.resolve_args(run_id, &task.template_args, &dependency_keys) {
+        let task = self.get_task_by_id(
+            ordered_queued_task.queued_task.run_id,
+            ordered_queued_task.queued_task.task_id,
+        )?;
+        let dependency_keys =
+            self.get_dependencies(ordered_queued_task.queued_task.run_id, task.id)?;
+        let result = match self.resolve_args(
+            ordered_queued_task.queued_task.run_id,
+            &task.template_args,
+            &dependency_keys,
+        ) {
             Ok(resolution_result) => self.run_task(
-                run_id,
+                ordered_queued_task.queued_task.run_id,
                 &task,
                 ordered_queued_task.queued_task.attempt,
                 &resolution_result,
-                // pipeline_path,
                 tpt_path,
-                scheduled_date_for_run,
-                ordered_queued_task.queued_task.pipeline_name.clone(),
+                ordered_queued_task.queued_task.scheduled_date_for_run,
             )?,
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
@@ -655,10 +626,13 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
-                // scheduled_date_for_run,
             ),
         };
-        self.handle_task_result(run_id, result, &ordered_queued_task.queued_task)?;
+        self.handle_task_result(
+            ordered_queued_task.queued_task.run_id,
+            result,
+            &ordered_queued_task.queued_task,
+        )?;
         Ok(())
     }
 
