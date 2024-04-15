@@ -5,22 +5,19 @@ use deadpool_redis::{Config, Pool};
 use env::get_redis_url;
 use redis_backend::RedisBackend;
 use thepipelinetool_core::dev::*;
+use thepipelinetool_runner::run::Run;
 use thepipelinetool_runner::{
-    backend::{Backend, Run},
-    blanket_backend::BlanketBackend,
-    pipeline_options::PipelineOptions,
+    backend::Backend, blanket_backend::BlanketBackend, pipeline_options::PipelineOptions,
 };
 
 // use crate::statics::{_get_default_edges, _get_default_tasks, _get_hash};
 use anyhow::Result;
 
-pub mod catchup;
 pub mod check_timeout;
 pub mod env;
 pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;
-pub mod statics;
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Executor {

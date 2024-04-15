@@ -13,7 +13,7 @@ use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
 
-use crate::{backend::Run, Backend};
+use crate::{run::Run, Backend};
 use anyhow::Result;
 
 pub trait BlanketBackend {
@@ -35,7 +35,6 @@ pub trait BlanketBackend {
         resolution_result: &Value,
         tpt_path: D,
         scheduled_date_for_run: DateTime<Utc>,
-        // pipeline_name: String,
     ) -> Result<TaskResult>;
     fn resolve_args(
         &mut self,
@@ -54,19 +53,6 @@ pub trait BlanketBackend {
 
 impl<U: Backend + Send + Sync> BlanketBackend for U {
     fn get_run_status(&mut self, run_id: usize) -> Result<i32> {
-        // Ok(if self
-        //     .get_all_tasks(run_id)?
-        //     .iter()
-        //     .all(|t| match self.get_task_status(run_id, t.id)? {
-        //         TaskStatus::Success | TaskStatus::Skipped => true,
-        //         _ => false,
-        //     })
-        // {
-        //     0
-        // } else {
-        //     -1
-        // });
-
         for task in self.get_all_tasks(run_id)? {
             let status = self.get_task_status(run_id, task.id)?;
 

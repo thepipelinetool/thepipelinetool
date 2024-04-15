@@ -2,39 +2,22 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thepipelinetool_task::{
     task_options::TaskOptions, task_result::TaskResult, task_status::TaskStatus,
     temp_queued_task::TempQueuedTask, Task,
 };
 
+use crate::run::Run;
+
 pub type UpstreamId = usize;
 pub type DownstreamId = usize;
 pub type OriginalKey = String;
 pub type ResultKey = String;
 
-#[derive(Serialize, Deserialize)]
-pub struct Run {
-    pub run_id: usize,
-    pub pipeline_name: String,
-    pub scheduled_date_for_run: DateTime<Utc>,
-}
-
-impl Run {
-    pub fn dummy() -> Self {
-        Self {
-            run_id: 0,
-            pipeline_name: "dummy".to_string(),
-            scheduled_date_for_run: Utc::now(),
-        }
-    }
-}
 pub trait Backend {
     fn get_pipeline_path(&self) -> Result<String>;
-
     fn get_pipeline_name(&self) -> Result<String>;
-    // fn load_from_name(&mut self, pipeline_name: &str);
 
     fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;
@@ -50,7 +33,6 @@ pub trait Backend {
         is_dynamic: bool,
     ) -> Result<()>;
 
-    // fn get_pipeline_name(&self) -> String;
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> Result<String>;
     fn get_log_handle_closure(
         &mut self,
@@ -115,12 +97,7 @@ pub trait Backend {
         is_dynamic: bool,
     ) -> Result<usize>;
 
-    fn create_new_run(
-        &mut self,
-        // pipeline_name: &str,
-        // pipeline_hash: &str,
-        scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<Run>;
+    fn create_new_run(&mut self, scheduled_date_for_run: DateTime<Utc>) -> Result<Run>;
 
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()>;
     fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()>;

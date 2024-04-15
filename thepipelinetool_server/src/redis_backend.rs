@@ -2,10 +2,9 @@ use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
 use std::collections::{HashMap, HashSet};
 use thepipelinetool_core::dev::TempQueuedTask;
+use thepipelinetool_runner::run::Run;
 use thepipelinetool_runner::{
-    backend::{Backend, Run},
-    pipeline::Pipeline,
-    pipeline_options::PipelineOptions,
+    backend::Backend, pipeline::Pipeline, pipeline_options::PipelineOptions,
 };
 
 use anyhow::{anyhow, Result};

@@ -99,17 +99,10 @@ pub fn spawn(
         }
     }));
 
-    // let status = child.wait().expect("failed to wait on child");
-    // // let timed_out = matches!(status.code(), Some(124));
-    // stdout_handle.join().expect("stdout thread panicked");
-    // stderr_handle.join().expect("stderr thread panicked");
-
     let (sender, receiver) = channel();
     thread::spawn(move || {
         match sender.send({
-            // child.wait().expect("failed to wait on child")
             let status = child.wait().expect("failed to wait on child");
-            // let timed_out = matches!(status.code(), Some(124));
             stdout_handle.join().expect("stdout thread panicked");
             stderr_handle.join().expect("stderr thread panicked");
             status
@@ -124,7 +117,6 @@ pub fn spawn(
     } else {
         Ok(receiver.recv()?)
     }
-    // (status, timed_out)
 }
 
 pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool) -> Value {
@@ -155,41 +147,6 @@ pub fn run_bash_command(args: &[&str], silent: bool, parse_output_as_json: bool)
     }
     res
 }
-
-// pub fn create_command<P, D>(pipeline_path: &P, use_timeout: bool, tpt_path: &D) -> Command
-// where
-//     P: AsRef<OsStr>,
-//     D: AsRef<OsStr>,
-// {
-//     // if use_timeout {
-//     //     Command::new("timeout")
-//     // } else {
-//     let mut command = Command::new(tpt_path);
-//     command.arg(pipeline_path);
-
-//     command
-//     // }
-// }
-
-// pub fn command_timeout<P, D>(
-//     command: &mut Command,
-//     pipeline_path: &P,
-//     use_timeout: bool,
-//     // timeout_as_secs: &str,
-//     tpt_path: &D,
-//     function: &str,
-// ) where
-//     P: AsRef<OsStr>,
-//     D: AsRef<OsStr>,
-// {
-//     // if use_timeout {
-//     //     command.args(["-k", timeout_as_secs, timeout_as_secs]);
-//     //     command.arg(tpt_path);
-//     //     command.arg(pipeline_path);
-//     // }
-
-//     command.args(["run", "function", function]);
-// }
 
 pub fn get_default_max_parallelism() -> usize {
     max(usize::from(available_parallelism().unwrap()) - 1, 1)

@@ -101,19 +101,11 @@ pub async fn _scheduler(
         }
 
         // check if date is already in db
-        if RedisBackend::contains_scheduled_date(
-            pipeline_name,
-            // &_get_hash(pipeline_name)?,
-            scheduled_date,
-            pool.clone(),
-        )
-        .await?
+        if RedisBackend::contains_scheduled_date(pipeline_name, scheduled_date, pool.clone())
+            .await?
         {
             continue;
         }
-        // let nodes = _get_default_tasks(pipeline_name)?;
-        // let edges = _get_default_edges(pipeline_name)?;
-        // let hash = _get_hash(pipeline_name)?;
 
         let mut backend = RedisBackend::from(pipeline_name, pool.clone());
         let run = backend.create_new_run(scheduled_date)?;

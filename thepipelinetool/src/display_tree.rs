@@ -2,9 +2,7 @@ use std::collections::HashSet;
 
 use thepipelinetool_core::dev::Task;
 use thepipelinetool_runner::{
-    backend::{Backend, Run},
-    blanket_backend::BlanketBackend,
-    in_memory_backend::InMemoryBackend,
+    backend::Backend, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, run::Run,
 };
 
 pub fn display_tree(tasks: &[Task], edges: &HashSet<(usize, usize)>, pipeline_path: &str) {

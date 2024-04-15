@@ -3,7 +3,11 @@ use std::{
     sync::Arc,
 };
 
-use crate::{backend::Run, Backend};
+use crate::{
+    backend::{OriginalKey, ResultKey, UpstreamId},
+    run::Run,
+    Backend,
+};
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
 use serde_json::Value;
@@ -20,9 +24,9 @@ pub struct InMemoryBackend {
     pub task_logs: Arc<Mutex<HashMap<usize, Vec<String>>>>,
     pub task_statuses: Arc<Mutex<HashMap<usize, TaskStatus>>>,
     pub attempts: Arc<Mutex<HashMap<String, usize>>>,
-    pub dependencies: Arc<Mutex<HashMap<usize, HashMap<(usize, String), String>>>>,
+    pub dependencies: Arc<Mutex<HashMap<usize, HashMap<(UpstreamId, OriginalKey), ResultKey>>>>,
     pub edges: Arc<Mutex<HashSet<(usize, usize)>>>,
-    pub default_nodes: Arc<Mutex<Vec<Task>>>,
+    pub default_tasks: Arc<Mutex<Vec<Task>>>,
     pub nodes: Arc<Mutex<Vec<Task>>>,
     pub task_depth: Arc<Mutex<HashMap<usize, usize>>>,
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
@@ -35,7 +39,7 @@ impl InMemoryBackend {
         Self {
             pipeline_path: pipline_path.to_string(),
             edges: Arc::new(Mutex::new(edges.clone())),
-            default_nodes: Arc::new(Mutex::new(nodes.to_vec())),
+            default_tasks: Arc::new(Mutex::new(nodes.to_vec())),
             ..Default::default()
         }
     }
@@ -52,12 +56,6 @@ impl Backend for InMemoryBackend {
                     max_depth = new_depth;
                 }
             }
-            // let depth = self
-            //     .get_upstream(run_id, task_id)
-            //     .iter()
-            //     .map(|upstream_id: &usize| self.get_task_depth(run_id, *upstream_id) + 1)
-            //     .max()
-            //     .unwrap_or(0);
             self.task_depth.lock().insert(task_id, max_depth);
         }
         Ok(self.task_depth.lock()[&task_id])
@@ -97,19 +95,13 @@ impl Backend for InMemoryBackend {
     }
 
     fn insert_task_results(&mut self, _run_id: usize, result: &TaskResult) -> Result<()> {
-        // self.attempts.lock().insert(result.task_id, result.attempt);
         self.task_results
             .lock()
             .insert(result.task_id, result.clone());
         Ok(())
     }
 
-    fn create_new_run(
-        &mut self,
-        // pipeline_name: &str,
-        // _pipeline_hash: &str,
-        scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<Run> {
+    fn create_new_run(&mut self, scheduled_date_for_run: DateTime<Utc>) -> Result<Run> {
         Ok(Run {
             run_id: 0,
             pipeline_name: self.get_pipeline_name()?,
@@ -216,7 +208,7 @@ impl Backend for InMemoryBackend {
     }
 
     fn get_default_tasks(&self) -> Result<Vec<Task>> {
-        Ok(self.default_nodes.lock().clone())
+        Ok(self.default_tasks.lock().clone())
     }
 
     fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>> {

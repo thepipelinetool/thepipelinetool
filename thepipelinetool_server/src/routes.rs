@@ -145,7 +145,7 @@ pub async fn get_default_tasks(
     Ok(json!(tasks).into())
 }
 
-pub async fn get_default_task_by_id(
+pub async fn get_def_task(
     Path((pipeline_name, task_id)): Path<(String, usize)>,
     State(pool): State<Pool>,
 ) -> ServerResult<Json<Value>> {
@@ -322,12 +322,6 @@ pub async fn get_run_graph(
     Ok(json!(get_graphite_graph(&task_statuses, &downstream_ids)).into())
 }
 
-// ServerResponse for Error {
-//     fn into_response(self) -> axum::response::Response {
-//         todo!()
-//     }
-// }
-
 pub async fn get_default_graph(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
@@ -387,7 +381,7 @@ pub async fn trigger(
     Ok(run_id.into())
 }
 
-pub async fn trigger_with_params(
+pub async fn trigger_params(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
     extract::Json(params): extract::Json<Value>,

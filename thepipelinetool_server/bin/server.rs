@@ -55,10 +55,7 @@ async fn main() -> Result<()> {
         .route("/runs/last/:pipeline_name", get(get_last_run))
         .route("/runs/recent/:pipeline_name", get(get_recent_runs)) // TODO change to recent results?
         .route("/runs/all/:pipeline_name", get(get_runs_with_tasks))
-        .route(
-            "/trigger/:pipeline_name",
-            get(trigger).post(trigger_with_params),
-        )
+        .route("/trigger/:pipeline_name", get(trigger).post(trigger_params))
         .route("/statuses/:run_id", get(get_run_status))
         .route("/statuses/:run_id/:task_id", get(get_task_status))
         .route("/results/:run_id/:task_id", get(get_task_result))
@@ -67,10 +64,7 @@ async fn main() -> Result<()> {
         .route("/tasks/:run_id", get(get_all_tasks_by_run_id))
         .route("/tasks/:run_id/:task_id", get(get_task_by_id))
         .route("/tasks/default/:pipeline_name", get(get_default_tasks))
-        .route(
-            "/tasks/default/:pipeline_name/:task_id",
-            get(get_default_task_by_id),
-        )
+        .route("/tasks/default/:pipeline_name/:task_id", get(get_def_task))
         .route("/graphs/:run_id", get(get_run_graph))
         .route("/graphs/default/:pipeline_name", get(get_default_graph))
         .route("/upload/:pipeline_name", post(upload_pipeline))
