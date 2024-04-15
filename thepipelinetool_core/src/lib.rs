@@ -50,6 +50,7 @@ pub mod dev {
     pub use thepipelinetool_task::queued_task::QueuedTask;
     pub use thepipelinetool_task::task_result::TaskResult;
     pub use thepipelinetool_task::task_status::TaskStatus;
+    pub use thepipelinetool_task::temp_queued_task::TempQueuedTask;
     pub use thepipelinetool_task::Task;
     pub use thepipelinetool_utils::*;
 }

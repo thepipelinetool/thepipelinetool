@@ -1,6 +1,7 @@
 use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
 use std::collections::{HashMap, HashSet};
+use thepipelinetool_core::dev::TempQueuedTask;
 use thepipelinetool_runner::{
     backend::{Backend, Run},
     pipeline::Pipeline,
@@ -131,7 +132,7 @@ impl RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    pub async fn get_temp_queue(&self) -> Result<Vec<QueuedTask>> {
+    pub async fn get_temp_queue(&self) -> Result<Vec<TempQueuedTask>> {
         let mut conn = self.pool.get().await?;
 
         let members = cmd("SMEMBERS")
@@ -261,13 +262,13 @@ impl Backend for RedisBackend {
         })
     }
 
-    #[timed(duration(printer = "debug!"))]
-    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()> {
+    // #[timed(duration(printer = "debug!"))]
+    fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()> {
         block_on!({
             let mut conn = self.pool.get().await?;
             cmd("SREM")
                 .arg("tmpqueue")
-                .arg(serde_json::to_string(&ordered_queued_task.queued_task)?)
+                .arg(serde_json::to_string(&temp_queued_task)?)
                 .query_async::<_, usize>(&mut conn)
                 .await?;
             Ok(())
@@ -722,7 +723,7 @@ impl Backend for RedisBackend {
     }
 
     // #[timed(duration(printer = "debug!"))]
-    fn pop_priority_queue(&mut self) -> Result<Option<OrderedQueuedTask>> {
+    fn pop_priority_queue(&mut self) -> Result<Option<TempQueuedTask>> {
         block_on!({
             let mut conn = self.pool.get().await?;
 
@@ -733,14 +734,18 @@ impl Backend for RedisBackend {
 
             if let Ok(vec) = &res {
                 if !vec.is_empty() {
+                    let temp_queued_task = TempQueuedTask {
+                        popped_date: Utc::now(),
+                        queued_task: serde_json::from_str(&vec[0])?,
+                    };
                     cmd("SADD")
-                        .arg(&["tmpqueue".to_string(), vec[0].to_string()])
+                        .arg(&[
+                            "tmpqueue".to_string(),
+                            serde_json::to_string(&temp_queued_task)?,
+                        ])
                         .query_async::<_, ()>(&mut conn)
                         .await?;
-                    return Ok(Some(OrderedQueuedTask {
-                        score: vec[1].parse()?,
-                        queued_task: serde_json::from_str(&vec[0])?,
-                    }));
+                    return Ok(Some(temp_queued_task));
                 }
             } else {
                 println!("{:#?}", res.unwrap_err().detail());

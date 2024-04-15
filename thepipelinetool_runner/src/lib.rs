@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::env;
 
 use backend::Backend;
 
@@ -7,8 +7,6 @@ pub mod blanket_backend;
 pub mod in_memory_backend;
 pub mod pipeline;
 pub mod pipeline_options;
-
-use anyhow::Result;
 
 const DEFAULT_TPT_X_COMMAND: &str = "tpt_executor";
 

@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 use serde_json::Value;
 use thepipelinetool_task::{
     ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
-    task_result::TaskResult, task_status::TaskStatus, Task,
+    task_result::TaskResult, task_status::TaskStatus, temp_queued_task::TempQueuedTask, Task,
 };
 
 use anyhow::Result;
@@ -26,7 +26,7 @@ pub struct InMemoryBackend {
     pub nodes: Arc<Mutex<Vec<Task>>>,
     pub task_depth: Arc<Mutex<HashMap<usize, usize>>>,
     pub priority_queue: Arc<Mutex<BinaryHeap<OrderedQueuedTask>>>,
-    pub temp_queue: Arc<Mutex<HashSet<QueuedTask>>>,
+    pub temp_queue: Arc<Mutex<HashSet<TempQueuedTask>>>,
     pub pipeline_path: String,
 }
 
@@ -278,14 +278,18 @@ impl Backend for InMemoryBackend {
         Ok(())
     }
 
-    fn pop_priority_queue(&mut self) -> Result<Option<OrderedQueuedTask>> {
+    fn pop_priority_queue(&mut self) -> Result<Option<TempQueuedTask>> {
         let popped = self.priority_queue.lock().pop();
-        if let Some(ordered_queued_task) = &popped {
-            self.temp_queue
-                .lock()
-                .insert(ordered_queued_task.queued_task.clone());
+        if let Some(temp_queued_task) = &popped {
+            let temp_queued_task = TempQueuedTask {
+                popped_date: Utc::now(),
+                queued_task: temp_queued_task.queued_task.clone(),
+            };
+            self.temp_queue.lock().insert(temp_queued_task.clone());
+            Ok(Some(temp_queued_task))
+        } else {
+            Ok(None)
         }
-        Ok(popped)
     }
 
     fn enqueue_task(
@@ -332,10 +336,8 @@ impl Backend for InMemoryBackend {
         Ok(self.priority_queue.lock().len())
     }
 
-    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()> {
-        self.temp_queue
-            .lock()
-            .remove(&ordered_queued_task.queued_task);
+    fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()> {
+        self.temp_queue.lock().remove(temp_queued_task);
         Ok(())
     }
 

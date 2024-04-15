@@ -52,7 +52,7 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
             let pool = pool.clone();
 
             // TODO
-            let spawned_schedulers = spawned_schedulers.clone();
+            // let spawned_schedulers = spawned_schedulers.clone();
             tokio::spawn(async move {
                 let _ = _scheduler(
                     &pipeline_name,

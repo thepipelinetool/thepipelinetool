@@ -14,16 +14,14 @@ pub fn run_in_memory(
     let mut current_parallel_tasks_count = 0;
 
     for _ in 0..max_parallelism {
-        if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
+        if let Some(temp_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
             let tpt_path = tpt_path.clone();
 
             thread::spawn(move || {
-                backend.work(&ordered_queued_task, tpt_path).unwrap();
-                backend
-                    .remove_from_temp_queue(&ordered_queued_task)
-                    .unwrap();
+                backend.work(&temp_queued_task, tpt_path).unwrap();
+                backend.remove_from_temp_queue(&temp_queued_task).unwrap();
                 tx.send(()).unwrap();
             });
 
@@ -44,16 +42,14 @@ pub fn run_in_memory(
     for _ in rx.iter() {
         current_parallel_tasks_count -= 1;
 
-        if let Some(ordered_queued_task) = backend.pop_priority_queue().unwrap() {
+        if let Some(temp_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             let mut backend = backend.clone();
             let tpt_path = tpt_path.clone();
 
             thread::spawn(move || {
-                backend.work(&ordered_queued_task, tpt_path).unwrap();
-                backend
-                    .remove_from_temp_queue(&ordered_queued_task)
-                    .unwrap();
+                backend.work(&temp_queued_task, tpt_path).unwrap();
+                backend.remove_from_temp_queue(&temp_queued_task).unwrap();
                 tx.send(()).unwrap();
             });
             current_parallel_tasks_count += 1;

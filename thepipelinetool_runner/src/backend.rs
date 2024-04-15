@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thepipelinetool_task::{
-    ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_options::TaskOptions,
-    task_result::TaskResult, task_status::TaskStatus, Task,
+    task_options::TaskOptions, task_result::TaskResult, task_status::TaskStatus,
+    temp_queued_task::TempQueuedTask, Task,
 };
 
 pub type UpstreamId = usize;
@@ -36,11 +36,11 @@ pub trait Backend {
     fn get_pipeline_name(&self) -> Result<String>;
     // fn load_from_name(&mut self, pipeline_name: &str);
 
-    fn remove_from_temp_queue(&self, ordered_queued_task: &OrderedQueuedTask) -> Result<()>;
+    fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()>;
     fn get_queue_length(&self) -> Result<usize>;
 
     fn print_priority_queue(&mut self) -> Result<()>;
-    fn pop_priority_queue(&mut self) -> Result<Option<OrderedQueuedTask>>;
+    fn pop_priority_queue(&mut self) -> Result<Option<TempQueuedTask>>;
     fn enqueue_task(
         &mut self,
         run_id: usize,

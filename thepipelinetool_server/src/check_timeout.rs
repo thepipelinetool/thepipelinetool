@@ -16,27 +16,30 @@ pub async fn check_timeout(pool: Pool) -> Result<()> {
     let loop_interval = Duration::new(get_check_timeout_loop_interval()?, 0);
 
     loop {
-        for queued_task in dummy.get_temp_queue().await? {
-            if let Ok(task) = dummy.get_task_by_id(queued_task.run_id, queued_task.task_id) {
-                if let Some(timeout) = task.options.timeout {
-                    let now = Utc::now();
-
-                    // TODO fix this, shouldn't be using schedule_date_for_run, rather the enqueued date for the task
-                    if (now - queued_task.scheduled_date_for_run).to_std()? > timeout {
-                        let result = TaskResult::premature_error(
+        for temp_queued_task in dummy.get_temp_queue().await? {
+            let task = dummy.get_task_by_id(
+                temp_queued_task.queued_task.run_id,
+                temp_queued_task.queued_task.task_id,
+            )?;
+            if let Some(timeout) = task.options.timeout {
+                let now = Utc::now();
+                if (now - temp_queued_task.popped_date).to_std()? > timeout {
+                    dummy.handle_task_result(
+                        temp_queued_task.queued_task.run_id,
+                        &temp_queued_task.queued_task,
+                        TaskResult::premature_error(
                             task.id,
-                            queued_task.attempt,
+                            temp_queued_task.queued_task.attempt,
                             task.options.max_attempts,
                             task.name.clone(),
                             task.function.clone(),
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
-                            // queued_task.scheduled_date_for_run,
-                        );
-
-                        dummy.handle_task_result(queued_task.run_id, result, &queued_task)?;
-                    }
+                            Some(temp_queued_task.popped_date),
+                            Some(now),
+                        ),
+                    )?;
                 }
             }
         }

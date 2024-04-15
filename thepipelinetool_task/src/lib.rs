@@ -1,14 +1,12 @@
-use std::{env, ffi::OsStr, fs, net, path::PathBuf, sync::mpsc, thread, time::Duration};
+use std::{env, ffi::OsStr, fs, path::PathBuf, process::Command, thread};
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use task_options::TaskOptions;
 use task_result::TaskResult;
-use thepipelinetool_utils::{
-    command_timeout, create_command, spawn, value_from_file, value_to_file,
-};
+use thepipelinetool_utils::{spawn, value_from_file, value_to_file};
 
 pub mod branch;
 pub mod ordered_queued_task;
@@ -17,6 +15,7 @@ pub mod task_options;
 pub mod task_ref_inner;
 pub mod task_result;
 pub mod task_status;
+pub mod temp_queued_task;
 pub mod trigger_rule;
 
 fn get_json_dir() -> String {
@@ -75,19 +74,22 @@ impl Task {
         let task_id: usize = self.id;
         let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
-        let use_timeout = self.options.timeout.is_some();
-        let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
+        // let use_timeout = self.options.timeout.is_some();
+        // let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
 
-        let mut cmd = create_command(&pipeline_path, use_timeout, &tpt_path);
+        let mut cmd = Command::new(tpt_path);
+        cmd.arg(pipeline_path);
+        cmd.args(["run", "function", &self.function]);
         cmd.env("run_id", run_id.to_string());
-        command_timeout(
-            &mut cmd,
-            &pipeline_path,
-            use_timeout,
-            // &timeout_as_secs,
-            &tpt_path,
-            &self.function,
-        );
+
+        // command_timeout(
+        //     &mut cmd,
+        //     &pipeline_path,
+        //     use_timeout,
+        //     // &timeout_as_secs,
+        //     &tpt_path,
+        //     &self.function,
+        // );
 
         let out_path: Option<PathBuf> = if get_save_to_file() {
             let json_dir = get_json_dir();
@@ -140,8 +142,8 @@ impl Task {
             function: function_name.clone(),
             resolved_args_str,
             success,
-            started: start.to_rfc3339(),
-            ended: end.to_rfc3339(),
+            started: Some(start),
+            ended: Some(end),
             elapsed: end.timestamp() - start.timestamp(),
             premature_failure: false,
             premature_failure_error_str: if timed_out { "timed out" } else { "" }.into(),

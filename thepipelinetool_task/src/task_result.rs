@@ -12,8 +12,8 @@ pub struct TaskResult {
     pub function: String,
     pub success: bool,
     pub resolved_args_str: String,
-    pub started: String,
-    pub ended: String,
+    pub started: Option<DateTime<Utc>>,
+    pub ended: Option<DateTime<Utc>>,
     pub elapsed: i64,
     pub premature_failure: bool,
     pub premature_failure_error_str: String,
@@ -38,10 +38,9 @@ impl TaskResult {
         premature_failure_error_str: String,
         is_branch: bool,
         is_sensor: bool,
-        // scheduled_date_for_run: DateTime<Utc>,
+        started: Option<DateTime<Utc>>,
+        ended: Option<DateTime<Utc>>,
     ) -> Self {
-        let start = Utc::now();
-
         Self {
             task_id,
             result: Value::Null,
@@ -51,15 +50,14 @@ impl TaskResult {
             function: function_name,
             success: false,
             resolved_args_str: "".into(),
-            started: start.to_rfc3339(),
-            ended: start.to_rfc3339(),
+            started,
+            ended,
             elapsed: 0,
             premature_failure: true,
             premature_failure_error_str,
             is_branch,
             is_sensor,
             exit_code: None,
-            // scheduled_date_for_run,
         }
     }
 
@@ -81,8 +79,20 @@ impl TaskResult {
         );
         println!("------Log------\n{}\n------------------", log);
         println!("success:\t{}", self.success);
-        println!("started:\t{}", self.started);
-        println!("ended:\t\t{}", self.ended);
+        println!(
+            "started:\t{}",
+            match self.started {
+                Some(started) => started.to_string(),
+                None => "".into(),
+            }
+        );
+        println!(
+            "ended:\t\t{}",
+            match self.ended {
+                Some(ended) => ended.to_string(),
+                None => "".into(),
+            }
+        );
         println!("time_elapsed:\t{}s", self.elapsed);
 
         if !self.success {

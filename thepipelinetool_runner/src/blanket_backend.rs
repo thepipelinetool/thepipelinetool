@@ -6,8 +6,8 @@ use std::{
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use thepipelinetool_task::{
-    ordered_queued_task::OrderedQueuedTask, queued_task::QueuedTask, task_ref_inner::TaskRefInner,
-    task_result::TaskResult, task_status::TaskStatus, trigger_rule::TriggerRule, Task,
+    queued_task::QueuedTask, task_ref_inner::TaskRefInner, task_result::TaskResult,
+    task_status::TaskStatus, temp_queued_task::TempQueuedTask, trigger_rule::TriggerRule, Task,
 };
 use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
@@ -24,8 +24,7 @@ pub trait BlanketBackend {
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
     fn enqueue_run(&mut self, run: &Run, trigger_params: Option<Value>) -> Result<()>;
     // TODO move tpt_path into OrderedQueuedTask?
-    fn work<D: AsRef<OsStr>>(&mut self, queued_task: &OrderedQueuedTask, tpt_path: D)
-        -> Result<()>;
+    fn work<D: AsRef<OsStr>>(&mut self, queued_task: &TempQueuedTask, tpt_path: D) -> Result<()>;
     fn update_referenced_dependencies(&mut self, run_id: usize, downstream_id: usize)
         -> Result<()>;
     fn run_task<D: AsRef<OsStr>>(
@@ -48,8 +47,8 @@ pub trait BlanketBackend {
     fn handle_task_result(
         &mut self,
         run_id: usize,
-        result: TaskResult,
         queued_task: &QueuedTask,
+        result: TaskResult,
     ) -> Result<()>;
 }
 
@@ -237,8 +236,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
     fn handle_task_result(
         &mut self,
         run_id: usize,
-        result: TaskResult,
         queued_task: &QueuedTask,
+        result: TaskResult,
     ) -> Result<()> {
         // TODO check if this result has been handled, ignore handling if so
 
@@ -450,8 +449,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 )?;
             }
 
-            let start = Utc::now();
-
             return Ok(TaskResult {
                 task_id: task.id,
                 result: Value::Null,
@@ -461,8 +458,8 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 function: task.function.clone(),
                 success: true,
                 resolved_args_str: "".into(),
-                started: start.to_rfc3339(),
-                ended: start.to_rfc3339(),
+                started: None,
+                ended: None,
                 elapsed: 0,
                 premature_failure: false,
                 premature_failure_error_str: "".into(),
@@ -472,7 +469,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             });
         }
 
-        Ok(task.execute(
+        task.execute(
             resolution_result,
             attempt,
             self.get_log_handle_closure(run_id, task.id, attempt)?,
@@ -481,7 +478,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             self.get_pipeline_path()?,
             tpt_path,
             run_id,
-        )?)
+        )
     }
 
     fn resolve_args(
@@ -595,43 +592,45 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
     fn work<D: AsRef<OsStr>>(
         &mut self,
-        ordered_queued_task: &OrderedQueuedTask,
+        temp_queued_task: &TempQueuedTask,
         tpt_path: D,
     ) -> Result<()> {
         let task = self.get_task_by_id(
-            ordered_queued_task.queued_task.run_id,
-            ordered_queued_task.queued_task.task_id,
+            temp_queued_task.queued_task.run_id,
+            temp_queued_task.queued_task.task_id,
         )?;
         let dependency_keys =
-            self.get_dependencies(ordered_queued_task.queued_task.run_id, task.id)?;
+            self.get_dependencies(temp_queued_task.queued_task.run_id, task.id)?;
         let result = match self.resolve_args(
-            ordered_queued_task.queued_task.run_id,
+            temp_queued_task.queued_task.run_id,
             &task.template_args,
             &dependency_keys,
         ) {
             Ok(resolution_result) => self.run_task(
-                ordered_queued_task.queued_task.run_id,
+                temp_queued_task.queued_task.run_id,
                 &task,
-                ordered_queued_task.queued_task.attempt,
+                temp_queued_task.queued_task.attempt,
                 &resolution_result,
                 tpt_path,
-                ordered_queued_task.queued_task.scheduled_date_for_run,
+                temp_queued_task.queued_task.scheduled_date_for_run,
             )?,
             Err(resolution_result) => TaskResult::premature_error(
                 task.id,
-                ordered_queued_task.queued_task.attempt,
+                temp_queued_task.queued_task.attempt,
                 task.options.max_attempts,
                 task.name,
                 task.function,
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
+                None,
+                None,
             ),
         };
         self.handle_task_result(
-            ordered_queued_task.queued_task.run_id,
+            temp_queued_task.queued_task.run_id,
+            &temp_queued_task.queued_task,
             result,
-            &ordered_queued_task.queued_task,
         )?;
         Ok(())
     }

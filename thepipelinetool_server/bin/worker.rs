@@ -38,17 +38,17 @@ async fn _work(
 ) -> Result<()> {
     dbg!(backend.get_running_tasks_count().await?);
     for _ in backend.get_running_tasks_count().await?..max_parallelism {
-        let ordered_queued_task = backend.pop_priority_queue()?;
-        if ordered_queued_task.is_none() {
+        let temp_queued_task = backend.pop_priority_queue()?;
+        if temp_queued_task.is_none() {
             return Ok(());
         }
 
-        let ordered_queued_task = ordered_queued_task.expect("");
+        let temp_queued_task = temp_queued_task.expect("");
 
         match executor {
             Executor::Local => {
                 let mut cmd = Command::new(get_tpt_executor_command());
-                cmd.arg(serde_json::to_string(&ordered_queued_task)?);
+                cmd.arg(serde_json::to_string(&temp_queued_task)?);
                 let _ = spawn(
                     cmd,
                     None,
