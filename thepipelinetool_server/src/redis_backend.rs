@@ -68,7 +68,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_pipelines(pool: Pool) -> Result<HashSet<String>> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         Ok(HashSet::from_iter(
             cmd("SMEMBERS")
                 .arg(PIPELINES_KEY)
@@ -83,7 +83,7 @@ impl RedisBackend {
         pipeline_name: &str,
         pool: Pool,
     ) -> Result<()> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
 
         cmd("SET")
             .arg(format!("{DEFAULT_OPTIONS_KEY}:{pipeline_name}"))
@@ -120,7 +120,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_options(&self) -> Result<PipelineOptions> {
-        let mut conn = self.pool.get().await?;
+        let mut conn = self.pool.get().await.expect("DB connection failed");
         let pipeline_name = self.get_pipeline_name()?;
         Ok(serde_json::from_str(
             &cmd("GET")
@@ -132,7 +132,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_temp_queue(&self) -> Result<Vec<TempQueuedTask>> {
-        let mut conn = self.pool.get().await?;
+        let mut conn = self.pool.get().await.expect("DB connection failed");
 
         let members = cmd("SMEMBERS")
             .arg("tmpqueue")
@@ -153,7 +153,7 @@ impl RedisBackend {
         task_id: usize,
         pool: Pool,
     ) -> Result<Vec<TaskResult>> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         let members = cmd("LRANGE")
             .arg(format!("{TASK_RESULTS_KEY}:{run_id}:{task_id}"))
             .arg(0)
@@ -171,7 +171,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(0)
@@ -189,7 +189,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_last_run(pipeline_name: &str, pool: Pool) -> Result<Option<Run>> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(-1)
@@ -205,7 +205,7 @@ impl RedisBackend {
     //
     #[timed(duration(printer = "debug!"))]
     pub async fn get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         let members = cmd("LRANGE")
             .arg(format!("{RUNS_KEY}:{pipeline_name}"))
             .arg(-10)
@@ -228,7 +228,7 @@ impl RedisBackend {
         scheduled_date_for_run: DateTime<Utc>,
         pool: Pool,
     ) -> Result<bool> {
-        let mut conn = pool.get().await?;
+        let mut conn = pool.get().await.expect("DB connection failed");
         Ok(cmd("SISMEMBER")
             .arg(format!("{SCHEDULED_DATES_KEY}:{pipeline_name}"))
             .arg(scheduled_date_for_run.to_string())
@@ -238,7 +238,7 @@ impl RedisBackend {
 
     #[timed(duration(printer = "debug!"))]
     pub async fn get_running_tasks_count(&self) -> Result<usize> {
-        let mut conn = self.pool.get().await?;
+        let mut conn = self.pool.get().await.expect("DB connection failed");
         Ok(cmd("SCARD")
             .arg("tmpqueue")
             .query_async::<_, usize>(&mut conn)
@@ -250,7 +250,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_queue_length(&self) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             Ok(cmd("ZCOUNT")
                 .arg("queue")
@@ -264,7 +264,7 @@ impl Backend for RedisBackend {
     // #[timed(duration(printer = "debug!"))]
     fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             cmd("SREM")
                 .arg("tmpqueue")
                 .arg(serde_json::to_string(&temp_queued_task)?)
@@ -277,7 +277,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn delete_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             cmd("DEL")
                 .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
@@ -291,7 +291,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_log(&mut self, run_id: usize, task_id: usize, attempt: usize) -> Result<String> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let members = cmd("LRANGE")
                 .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
                 .arg(0)
@@ -313,7 +313,7 @@ impl Backend for RedisBackend {
         let pool = self.pool.clone();
         Ok(Box::new(move |s| {
             tokio::runtime::Runtime::new()?.block_on(async {
-                let mut conn = pool.get().await?;
+                let mut conn = pool.get().await.expect("DB connection failed");
                 cmd("RPUSH")
                     .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
                     .arg(s)
@@ -328,7 +328,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_task_result(&mut self, run_id: usize, task_id: usize) -> Result<TaskResult> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_RESULT_KEY}:{run_id}:{task_id}"))
@@ -346,7 +346,7 @@ impl Backend for RedisBackend {
         is_dynamic: bool,
     ) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             Ok(cmd("INCR")
                 .arg(format!(
@@ -360,7 +360,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_task_status(&self, run_id: usize, task_id: usize) -> Result<TaskStatus> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
@@ -378,7 +378,7 @@ impl Backend for RedisBackend {
         task_status: TaskStatus,
     ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             cmd("SET")
                 .arg(format!("{TASK_STATUS_KEY}:{run_id}:{task_id}"))
                 .arg(serde_json::to_string(&task_status)?)
@@ -397,7 +397,7 @@ impl Backend for RedisBackend {
         scheduled_date_for_run: DateTime<Utc>,
     ) -> Result<Run> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             let run_id = cmd("INCR")
                 .arg("run")
@@ -432,7 +432,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn insert_task_results(&mut self, run_id: usize, result: &TaskResult) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let res = serde_json::to_string(result)?;
             let task_id = result.task_id;
 
@@ -458,7 +458,7 @@ impl Backend for RedisBackend {
         task_id: usize,
     ) -> Result<HashMap<(usize, String), String>> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             let members = cmd("SMEMBERS")
                 .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
@@ -483,7 +483,7 @@ impl Backend for RedisBackend {
         v: String,
     ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             cmd("SADD")
                 .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{task_id}"))
                 .arg(serde_json::to_string(&(upstream, v))?)
@@ -497,7 +497,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_downstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let members = cmd("SMEMBERS")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
@@ -516,7 +516,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_upstream(&self, run_id: usize, task_id: usize) -> Result<Vec<usize>> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let members = cmd("SMEMBERS")
                 .arg(&[format!("{EDGES_KEY}:{run_id}")])
                 .query_async::<_, Vec<String>>(&mut conn)
@@ -536,7 +536,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn remove_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             cmd("SREM")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
                 .arg(serde_json::to_string(&edge)?)
@@ -555,7 +555,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn insert_edge(&mut self, run_id: usize, edge: (usize, usize)) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             cmd("SADD")
                 .arg(format!("{EDGES_KEY}:{run_id}"))
                 .arg(serde_json::to_string(&edge)?)
@@ -569,7 +569,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_all_tasks(&self, run_id: usize) -> Result<Vec<Task>> {
         block_on!({
-            let mut conn: deadpool_redis::Connection = self.pool.get().await?;
+            let mut conn: deadpool_redis::Connection = self.pool.get().await.expect("DB connection failed");
             let members = cmd("SMEMBERS")
                 .arg(format!("{TASKS_KEY}:{run_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
@@ -590,7 +590,7 @@ impl Backend for RedisBackend {
         block_on!({
             let pipeline_name = self.get_pipeline_name()?;
             dbg!(&pipeline_name);
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let members = cmd("GET")
                 .arg(format!("{DEFAULT_TASKS_KEY}:{pipeline_name}"))
                 .query_async::<_, String>(&mut conn)
@@ -612,7 +612,7 @@ impl Backend for RedisBackend {
         // Ok(self.edges.clone().expect(""))
         block_on!({
             let pipeline_name = self.get_pipeline_name()?;
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let members = cmd("GET")
                 .arg(format!("{DEFAULT_EDGES_KEY}:{pipeline_name}"))
                 .query_async::<_, String>(&mut conn)
@@ -630,7 +630,7 @@ impl Backend for RedisBackend {
     // #[timed(duration(printer = "debug!"))]
     fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Result<Task> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             Ok(serde_json::from_str(
                 &cmd("GET")
                     .arg(format!("{TASK_KEY}:{run_id}:{task_id}"))
@@ -654,7 +654,7 @@ impl Backend for RedisBackend {
         use_trigger_params: bool,
     ) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             let task_id = cmd("INCR")
                 .arg(format!("{TASK_ID_KEY}:{run_id}"))
@@ -707,7 +707,7 @@ impl Backend for RedisBackend {
         template_args_str: &str,
     ) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let mut task = self.get_task_by_id(run_id, task_id)?;
             task.template_args = serde_json::from_str(template_args_str)?;
 
@@ -724,7 +724,7 @@ impl Backend for RedisBackend {
     // #[timed(duration(printer = "debug!"))]
     fn pop_priority_queue(&mut self) -> Result<Option<TempQueuedTask>> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             let res = cmd("ZPOPMIN")
                 .arg(&["queue".to_string(), "1".to_string()]) // TODO timeout arg
@@ -757,7 +757,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_task_depth(&mut self, run_id: usize, task_id: usize) -> Result<usize> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             if !cmd("EXISTS")
                 .arg(format!("{DEPTH_KEY}:{run_id}:{task_id}"))
@@ -790,7 +790,7 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn set_task_depth(&mut self, run_id: usize, task_id: usize, depth: usize) -> Result<()> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
 
             cmd("SET")
                 .arg(&[format!("{DEPTH_KEY}:{run_id}:{task_id}"), depth.to_string()])
@@ -812,7 +812,7 @@ impl Backend for RedisBackend {
     ) -> Result<()> {
         block_on!({
             let depth = self.get_task_depth(run_id, task_id)?;
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic)?;
             // let members = cmd("ZRANGEBYSCORE")
             //     .arg("queue")
@@ -868,7 +868,7 @@ impl Backend for RedisBackend {
         Ok(Box::new(move || {
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async {
-                    let mut conn = pool.get().await?;
+                    let mut conn = pool.get().await.expect("DB connection failed");
                     let lines = cmd("RPOP")
                         .arg(format!("{LOG_KEY}:{run_id}:{task_id}:{attempt}"))
                         .arg(1)
@@ -895,7 +895,7 @@ impl Backend for RedisBackend {
 
     fn get_pipeline_path(&self) -> Result<String> {
         block_on!({
-            let mut conn = self.pool.get().await?;
+            let mut conn = self.pool.get().await.expect("DB connection failed");
             let pipeline_name = self.get_pipeline_name()?;
 
             Ok(cmd("GET")
