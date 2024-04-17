@@ -1,10 +1,13 @@
+use std::default;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
 pub enum TriggerRule {
     AllSuccess,
     AnySuccess,
 
+    #[default]
     AllDone,
     AnyDone,
 
