@@ -1,0 +1,26 @@
+tasks:
+  list_examples:
+    script: |-
+      python3 - <<-EOF
+      import os, json
+      examples_dir = "./bin/"
+      server_endpoint = "http://localhost:8000"
+      print(json.dumps([
+        [
+          "tpt", examples_dir + f, "upload", server_endpoint + "/upload/" + f, "&&", 
+          "curl", server_endpoint + "/trigger/" + f
+        ]
+        for f in os.listdir(examples_dir)
+      ]))
+      EOF
+  upload_examples:
+    lazy_expand: true
+    depends_on: 
+      - list_examples
+  # hello:
+  #   script: |-
+  #     python3 - <<-EOF
+  #     assert False
+  #     EOF
+  #   options:
+  #     is_sensor: true

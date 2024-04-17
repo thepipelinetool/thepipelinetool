@@ -1,6 +1,5 @@
 services:
   tpt-server:
-    container_name: dag-server
     build:
       context: .
       dockerfile: server.Dockerfile
@@ -12,9 +11,9 @@ services:
     build:
       context: .
       dockerfile: worker.Dockerfile
-    deploy:
-      mode: replicated
-      replicas: 2
+    # deploy:
+    #   mode: replicated
+    #   replicas: 2
     restart: always
     environment:
       - REDIS_URL=redis://cache:6379
