@@ -52,8 +52,7 @@ pub fn _get_task_result(run_id: usize, task_id: usize, pool: Pool) -> Result<Tas
 }
 
 pub fn get_redis_pool() -> Result<Pool> {
-    let cfg = Config::from_url(get_redis_url());
-    Ok(cfg.create_pool(Some(Runtime::Tokio1))?)
+    Ok(Config::from_url(get_redis_url()).create_pool(Some(Runtime::Tokio1))?)
 }
 
 pub async fn _get_next_run(pipeline_name: &str, pool: Pool) -> Result<Option<String>> {
@@ -61,12 +60,12 @@ pub async fn _get_next_run(pipeline_name: &str, pool: Pool) -> Result<Option<Str
 }
 
 pub async fn _get_last_run(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
-    let r = RedisBackend::get_last_run(pipeline_name, pool).await?;
-
-    Ok(match r {
-        Some(run) => vec![run],
-        None => vec![],
-    })
+    Ok(
+        match RedisBackend::get_last_run(pipeline_name, pool).await? {
+            Some(run) => vec![run],
+            None => vec![],
+        },
+    )
 }
 
 pub async fn _get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {

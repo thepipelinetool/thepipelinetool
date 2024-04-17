@@ -33,4 +33,4 @@ jobs:
           toolchain: stable
       - run: cargo build -p thepipelinetool --release
       - run: ./scripts/build_examples.sh
-      - run: ./scripts/run_release.sh  
+      - run: docker compose up -d
