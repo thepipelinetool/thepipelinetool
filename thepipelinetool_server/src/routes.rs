@@ -408,6 +408,10 @@ pub async fn upload_pipeline(
     State(pool): State<Pool>,
     extract::Json(pipeline): extract::Json<Pipeline>,
 ) -> ServerResult<String> {
+    if let Some(err) = check_for_cycles(&pipeline.tasks, &pipeline.edges) {
+        return Err(service_err(err));
+    }
+
     RedisBackend::upload_pipeline(&pipeline, &pipeline_name, pool.clone())
         .await
         .map_err(|e| {

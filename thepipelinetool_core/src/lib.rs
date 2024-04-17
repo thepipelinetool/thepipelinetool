@@ -9,6 +9,7 @@ mod graph;
 mod helpers;
 mod ops;
 mod statics;
+mod check_for_cycles;
 
 use serde::Serialize;
 
@@ -40,6 +41,8 @@ pub mod dev {
             _marker: std::marker::PhantomData,
         })
     }
+    pub use crate::check_for_cycles::*;
+
     // pub use crate::TaskRefInner;
     pub use crate::cli::*;
     pub use crate::graph::*;
