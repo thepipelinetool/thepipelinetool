@@ -202,7 +202,7 @@ impl RedisBackend {
         Ok(serde_json::from_str(&members[0])?)
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    #[timed(duration(printer = "debug!"))]
     pub async fn get_next_run(pipeline_name: &str, pool: Pool) -> Result<Option<String>> {
         let mut conn = pool.get().await.expect("DB connection failed");
         let members = cmd("GET")
@@ -217,6 +217,21 @@ impl RedisBackend {
                 pipeline_name
             )))
         }
+    }
+
+    #[timed(duration(printer = "debug!"))]
+    pub async fn set_next_run(
+        pipeline_name: &str,
+        scheduled_date: Option<DateTime<Utc>>,
+        pool: Pool,
+    ) -> Result<()> {
+        let mut conn = pool.get().await.expect("DB connection failed");
+        cmd("SET")
+            .arg(format!("{NEXT_RUN_KEY}:{pipeline_name}"))
+            .arg(serde_json::to_string(&scheduled_date)?)
+            .query_async::<_, ()>(&mut conn)
+            .await?;
+        Ok(())
     }
 
     #[timed(duration(printer = "debug!"))]

@@ -12,7 +12,6 @@ use anyhow::Result;
 use crate::{
     env::get_scheduler_loop_interval,
     redis_backend::RedisBackend,
-    // statics::{_get_default_edges, _get_default_tasks, _get_hash, _get_options},
 };
 
 pub async fn scheduler(pool: Pool) -> Result<()> {
@@ -76,7 +75,6 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
 
 pub async fn _scheduler(
     pipeline_name: &str,
-    // server_start_date: DateTime<Utc>,
     cron: &Cron,
     scheduled_dates: CronTimesIter,
     end_date: Option<DateTime<Utc>>,
@@ -95,7 +93,9 @@ pub async fn _scheduler(
         }
         let now = Utc::now();
         if scheduled_date > now {
-            // TODO upload next run date
+            // set next run date
+            RedisBackend::set_next_run(pipeline_name, Some(scheduled_date), pool.clone()).await?;
+
             let delay = (scheduled_date - now).to_std()?;
             tokio::time::sleep(delay).await;
         }
@@ -116,6 +116,9 @@ pub async fn _scheduler(
         );
     }
 
-    // TODO set next run to none
+    // if this part is reached, that means there are no upcoming runs
+    // set next run to None
+    RedisBackend::set_next_run(pipeline_name, None, pool).await?;
+
     Ok(())
 }
