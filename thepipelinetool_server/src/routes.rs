@@ -51,15 +51,13 @@ pub async fn get_next_run(
 ) -> ServerResult<Json<Value>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
-    // let options = _get_options(&pipeline_name).map_err(|e| {
-    //     service_err(format!(
-    //         "could not get next run for pipeline '{}'\n{:?}",
-    //         pipeline_name, e
-    //     ))
-    // })?;
-
-    // Ok(json!(_get_next_run(&options)).into())
-    todo!()
+    Ok(json!(_get_next_run(&pipeline_name, pool)
+        .await
+        .map_err(|e| service_err(format!(
+            "could not get next run for pipeline '{}'\n{:?}",
+            pipeline_name, e
+        ),))?)
+    .into())
 }
 
 pub async fn get_last_run(

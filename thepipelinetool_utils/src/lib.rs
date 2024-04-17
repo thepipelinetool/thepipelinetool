@@ -1,6 +1,5 @@
 use std::{
     cmp::max,
-    ffi::OsStr,
     fs::File,
     io::{BufRead, BufReader, Error, Read, Write},
     path::Path,

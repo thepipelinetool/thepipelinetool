@@ -1,7 +1,6 @@
 use deadpool_redis::{redis::cmd, Pool};
 use log::debug;
 use std::collections::{HashMap, HashSet};
-use thepipelinetool_core::dev::TempQueuedTask;
 use thepipelinetool_runner::run::Run;
 use thepipelinetool_runner::{
     backend::Backend, pipeline::Pipeline, pipeline_options::PipelineOptions,
@@ -15,6 +14,7 @@ use timed::timed;
 const TASK_STATUS_KEY: &str = "ts";
 const TASK_RESULTS_KEY: &str = "trs";
 const RUNS_KEY: &str = "runs";
+const NEXT_RUN_KEY: &str = "nr";
 const SCHEDULED_DATES_KEY: &str = "ld";
 const DEPTH_KEY: &str = "d";
 const TASK_RESULT_KEY: &str = "tr";
@@ -202,7 +202,23 @@ impl RedisBackend {
         Ok(serde_json::from_str(&members[0])?)
     }
 
-    //
+    // #[timed(duration(printer = "debug!"))]
+    pub async fn get_next_run(pipeline_name: &str, pool: Pool) -> Result<Option<String>> {
+        let mut conn = pool.get().await.expect("DB connection failed");
+        let members = cmd("GET")
+            .arg(format!("{NEXT_RUN_KEY}:{pipeline_name}"))
+            .query_async::<_, String>(&mut conn)
+            .await;
+        if let Ok(string) = members {
+            Ok(Some(string))
+        } else {
+            Err(anyhow!(format!(
+                "could not find next run for pipeline '{}'",
+                pipeline_name
+            )))
+        }
+    }
+
     #[timed(duration(printer = "debug!"))]
     pub async fn get_recent_runs(pipeline_name: &str, pool: Pool) -> Result<Vec<Run>> {
         let mut conn = pool.get().await.expect("DB connection failed");
@@ -569,7 +585,8 @@ impl Backend for RedisBackend {
     #[timed(duration(printer = "debug!"))]
     fn get_all_tasks(&self, run_id: usize) -> Result<Vec<Task>> {
         block_on!({
-            let mut conn: deadpool_redis::Connection = self.pool.get().await.expect("DB connection failed");
+            let mut conn: deadpool_redis::Connection =
+                self.pool.get().await.expect("DB connection failed");
             let members = cmd("SMEMBERS")
                 .arg(format!("{TASKS_KEY}:{run_id}"))
                 .query_async::<_, Vec<String>>(&mut conn)
