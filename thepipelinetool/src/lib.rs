@@ -1,6 +1,5 @@
 use std::{env, process};
 
-use check_for_cycles::check_for_cycles;
 use clap::ArgMatches;
 use display_hash::display_hash;
 use display_tree::display_tree;
@@ -15,7 +14,6 @@ use std::collections::HashSet;
 
 use crate::in_memory_runner::run_in_memory;
 
-pub mod check_for_cycles;
 pub mod commands;
 pub mod display_hash;
 pub mod display_tree;
@@ -75,7 +73,12 @@ pub fn process_subcommands(
         },
 
         "tree" => display_tree(tasks, edges, pipeline_path),
-        "check" => check_for_cycles(tasks, edges),
+        "check" => {
+            if let Some(err) = check_for_cycles(tasks, edges) {
+                eprintln!("{err}");
+                process::exit(1);
+            }
+        },
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             match matches.subcommand_name().unwrap() {
@@ -144,7 +147,7 @@ pub fn process_subcommands(
             let client = reqwest::blocking::Client::new();
             let res = client.post(endpoint).json(&pipeline).send()?;
             if !res.status().is_success() {
-                eprintln!("upload failed\n{:?}", res);
+                eprintln!("upload failed\n{}", res.text().expect("server should return error msg"));
                 process::exit(1);
             }
 

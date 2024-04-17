@@ -1,20 +1,20 @@
-use std::{collections::HashSet, process};
+use std::collections::HashSet;
 
-use thepipelinetool_core::dev::Task;
+use thepipelinetool_task::Task;
 
-pub fn check_for_cycles(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
+
+pub fn check_for_cycles(tasks: &[Task], edges: &HashSet<(usize, usize)>) -> Option<String> {
     if let Some(cycle_tasks) = get_circular_dependencies(tasks.len(), edges) {
-        eprintln!(
+        return Some(format!(
             "cycle detected: {}",
             cycle_tasks
                 .iter()
                 .map(|i| format!("({}_{})", tasks[*i].name, i))
                 .collect::<Vec<String>>()
                 .join("-->")
-        );
-        process::exit(1);
+        ));
     }
-    println!("no circular dependencies found");
+    None
 }
 
 fn get_circular_dependencies(
