@@ -295,8 +295,8 @@ impl Backend for InMemoryBackend {
         let depth = self.get_task_depth(run_id, task_id)?;
         let mut priority_queue = self.priority_queue.lock();
 
-        // remove previous attempts
-        // priority_queue.retain(|x| x.queued_task.task_id != task_id);
+        // remove previous attempts (this is needed for lazy expand)
+        priority_queue.retain(|x| x.queued_task.task_id != task_id);
         let attempt: usize = self.get_attempt_by_task_id(run_id, task_id, is_dynamic)?;
 
         priority_queue.push(OrderedQueuedTask {
