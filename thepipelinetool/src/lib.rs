@@ -6,7 +6,7 @@ use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
     blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline::Pipeline,
-    pipeline_options::PipelineOptions, run::Run,
+    pipeline_options::PipelineOptions, run::{Run, RunStatus},
 };
 
 use anyhow::Result;
@@ -119,10 +119,12 @@ pub fn process_subcommands(
                         env::args().next().unwrap(),
                     );
 
-                    let exit_code = backend.get_run_status(run.run_id).unwrap();
+                    let run_status = backend.get_run_status(run.run_id).unwrap();
                     // dbg!(backend.temp_queue);
 
-                    process::exit(exit_code);
+                    if run_status == RunStatus::Failed {
+                        process::exit(1);
+                    }
                 }
                 "function" => run_function(matches),
                 _ => {}

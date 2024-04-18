@@ -13,12 +13,16 @@ use thepipelinetool_utils::{
     collector, function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
 };
 
-use crate::{run::Run, Backend};
+use crate::{
+    run::{Run, RunStatus},
+    Backend,
+};
 use anyhow::Result;
 
 pub trait BlanketBackend {
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
-    fn get_run_status(&mut self, run_id: usize) -> Result<i32>;
+
+    fn get_run_status(&mut self, run_id: usize) -> Result<RunStatus>;
 
     fn is_task_done(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
     fn task_needs_running(&mut self, run_id: usize, task_id: usize) -> Result<bool>;
@@ -52,20 +56,28 @@ pub trait BlanketBackend {
 }
 
 impl<U: Backend + Send + Sync> BlanketBackend for U {
-    fn get_run_status(&mut self, run_id: usize) -> Result<i32> {
-        for task in self.get_all_tasks(run_id)? {
+    fn get_run_status(&mut self, run_id: usize) -> Result<RunStatus> {
+        let mut pending_count = 0;
+        let tasks = self.get_all_tasks(run_id)?;
+
+        for task in &tasks {
             let status = self.get_task_status(run_id, task.id)?;
 
             match status {
-                TaskStatus::Success | TaskStatus::Skipped => {
-                    continue;
+                TaskStatus::Failure => return Ok(RunStatus::Failed),
+                TaskStatus::Pending | TaskStatus::RetryPending  => {
+                    pending_count += 1;
                 }
-                _ => {
-                    return Ok(-1);
-                }
+                _ => {}
             };
         }
-        Ok(0)
+        if pending_count == tasks.len() {
+            Ok(RunStatus::Pending)
+        } else if pending_count > 0 {
+            Ok(RunStatus::Running)
+        } else {
+            Ok(RunStatus::Success)
+        }
     }
     fn trigger_rules_satisfied(&mut self, run_id: usize, task_id: usize) -> Result<bool> {
         let task = self.get_task_by_id(run_id, task_id)?;

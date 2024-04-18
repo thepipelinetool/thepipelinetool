@@ -5,7 +5,7 @@ use deadpool_redis::{Config, Pool};
 use env::get_redis_url;
 use redis_backend::RedisBackend;
 use thepipelinetool_core::dev::*;
-use thepipelinetool_runner::run::Run;
+use thepipelinetool_runner::run::{Run, RunStatus};
 use thepipelinetool_runner::{backend::Backend, blanket_backend::BlanketBackend};
 
 use anyhow::Result;
@@ -43,7 +43,7 @@ pub fn _get_task_status(run_id: usize, task_id: usize, pool: Pool) -> Result<Tas
     RedisBackend::dummy(pool).get_task_status(run_id, task_id)
 }
 
-pub fn _get_run_status(run_id: usize, pool: Pool) -> Result<i32> {
+pub fn _get_run_status(run_id: usize, pool: Pool) -> Result<RunStatus> {
     RedisBackend::dummy(pool).get_run_status(run_id)
 }
 

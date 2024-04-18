@@ -27,22 +27,19 @@ pub async fn ping() -> &'static str {
 pub async fn get_runs(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
+) -> ServerResult<Json<Vec<Run>>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
-    Ok(json!(RedisBackend::get_runs(&pipeline_name, pool)
-        .await
-        .map_err(|e| service_err(format!(
-            "could not get runs for pipeline '{}'\n{:?}",
-            pipeline_name, e
-        ),))?
-        .iter()
-        .map(|r| json!({
-            "run_id": r.run_id.to_string(),
-            "date": r.scheduled_date_for_run,
-        }))
-        .collect::<Vec<Value>>())
-    .into())
+    Ok(Json(
+        RedisBackend::get_runs(&pipeline_name, pool)
+            .await
+            .map_err(|e| {
+                service_err(format!(
+                    "could not get runs for pipeline '{}'\n{:?}",
+                    pipeline_name, e
+                ))
+            })?,
+    ))
 }
 
 pub async fn get_next_run(
@@ -63,31 +60,33 @@ pub async fn get_next_run(
 pub async fn get_last_run(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
+) -> ServerResult<Json<Vec<Run>>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
-    Ok(json!(_get_last_run(&pipeline_name, pool)
-        .await
-        .map_err(|e| service_err(format!(
-            "could not get runs for pipeline '{}'\n{:?}",
-            pipeline_name, e
-        ),))?)
-    .into())
+    Ok(Json(_get_last_run(&pipeline_name, pool).await.map_err(
+        |e| {
+            service_err(format!(
+                "could not get last run for pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        },
+    )?))
 }
 
 pub async fn get_recent_runs(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
+) -> ServerResult<Json<Vec<Run>>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
-    Ok(json!(_get_recent_runs(&pipeline_name, pool)
-        .await
-        .map_err(|e| service_err(format!(
-            "could not get recent runs for pipeline '{}'\n{:?}",
-            pipeline_name, e
-        ),))?)
-    .into())
+    Ok(Json(_get_recent_runs(&pipeline_name, pool).await.map_err(
+        |e| {
+            service_err(format!(
+                "could not get recent runs for pipeline '{}'\n{:?}",
+                pipeline_name, e
+            ))
+        },
+    )?))
 }
 
 // TODO return only statuses?
@@ -129,7 +128,7 @@ pub async fn get_runs_with_tasks(
 pub async fn get_default_tasks(
     Path(pipeline_name): Path<String>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
+) -> ServerResult<Json<Vec<Task>>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
     let backend = RedisBackend::from(&pipeline_name, pool);
@@ -140,13 +139,13 @@ pub async fn get_default_tasks(
         ))
     })?;
 
-    Ok(json!(tasks).into())
+    Ok(Json(tasks))
 }
 
 pub async fn get_def_task(
     Path((pipeline_name, task_id)): Path<(String, usize)>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
+) -> ServerResult<Json<Task>> {
     assert_pipeline_exists(&pipeline_name, pool.clone()).await?;
 
     let backend = RedisBackend::from(&pipeline_name, pool);
@@ -158,7 +157,7 @@ pub async fn get_def_task(
     })?;
     for t in default_tasks {
         if t.id == task_id {
-            return Ok(json!(t).into());
+            return Ok(Json(t));
         }
     }
 
@@ -171,27 +170,29 @@ pub async fn get_def_task(
 pub async fn get_all_tasks_by_run_id(
     Path(run_id): Path<usize>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
-    Ok(json!(
-        _get_all_tasks_by_run_id(run_id, pool).map_err(|e| service_err(format!(
-            "could not get all tasks for run_id '{}'\n{:?}",
-            run_id, e
-        ),))?
-    )
-    .into())
+) -> ServerResult<Json<Vec<Task>>> {
+    Ok(Json(_get_all_tasks_by_run_id(run_id, pool).map_err(
+        |e| {
+            service_err(format!(
+                "could not get all tasks for run_id '{}'\n{:?}",
+                run_id, e
+            ))
+        },
+    )?))
 }
 
 pub async fn get_task_by_id(
     Path((run_id, task_id)): Path<(usize, usize)>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
-    Ok(json!(
-        _get_task_by_id(run_id, task_id, pool).map_err(|e| service_err(format!(
-            "could not get task for task_id '{}' and run_id {}\n{:?}",
-            task_id, run_id, e
-        ),))?
-    )
-    .into())
+) -> ServerResult<Json<Task>> {
+    Ok(Json(_get_task_by_id(run_id, task_id, pool).map_err(
+        |e| {
+            service_err(format!(
+                "could not get task for task_id '{}' and run_id {}\n{:?}",
+                task_id, run_id, e
+            ))
+        },
+    )?))
 }
 
 pub async fn get_all_results(
@@ -210,50 +211,41 @@ pub async fn get_all_results(
 pub async fn get_task_status(
     Path((run_id, task_id)): Path<(usize, usize)>,
     State(pool): State<Pool>,
-) -> ServerResult<String> {
-    Ok(from_utf8(&[_get_task_status(run_id, task_id, pool)
-        .map_err(|e| {
+) -> ServerResult<Json<TaskStatus>> {
+    Ok(Json(_get_task_status(run_id, task_id, pool).map_err(
+        |e| {
             service_err(format!(
                 "could not get task status for run_id '{}' and task_id '{}'\n{:?}",
                 run_id, task_id, e
             ))
-        })?
-        .as_u8()])
-    .expect("")
-    .to_owned())
+        },
+    )?))
 }
 
 pub async fn get_run_status(
     Path(run_id): Path<usize>,
     State(pool): State<Pool>,
-) -> ServerResult<String> {
-    Ok(from_utf8(&[
-        match _get_run_status(run_id, pool).map_err(|e| {
-            service_err(format!(
-                "could not get run status for run_id '{}'\n{:?}",
-                run_id, e
-            ))
-        })? {
-            0 => 0,
-            -1 => 1,
-            a => a as u8,
-        },
-    ])
-    .expect("")
-    .to_owned())
+) -> ServerResult<Json<RunStatus>> {
+    Ok(Json(_get_run_status(run_id, pool).map_err(|e| {
+        service_err(format!(
+            "could not get run status for run_id '{}'\n{:?}",
+            run_id, e
+        ))
+    })?))
 }
 
 pub async fn get_task_result(
     Path((run_id, task_id)): Path<(usize, usize)>,
     State(pool): State<Pool>,
-) -> ServerResult<Json<Value>> {
-    Ok(json!(
-        _get_task_result(run_id, task_id, pool).map_err(|e| service_err(format!(
-            "could not get result for task_id '{}' and run_id '{}'\n{:?}",
-            task_id, run_id, e
-        ),))?
-    )
-    .into())
+) -> ServerResult<Json<TaskResult>> {
+    Ok(Json(_get_task_result(run_id, task_id, pool).map_err(
+        |e| {
+            service_err(format!(
+                "could not get result for task_id '{}' and run_id '{}'\n{:?}",
+                task_id, run_id, e
+            ))
+        },
+    )?))
 }
 
 pub async fn get_task_log(

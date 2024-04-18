@@ -17,3 +17,12 @@ impl Run {
         }
     }
 }
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum RunStatus {
+    Success,
+    Failed,
+    Pending,
+    Running,
+    RetryPending,
+}
