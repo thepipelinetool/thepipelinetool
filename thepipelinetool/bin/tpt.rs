@@ -1,7 +1,6 @@
 use std::{
     env,
     fs::File,
-    path::Path,
     process::{self, Command},
 };
 
@@ -9,34 +8,10 @@ use anyhow::Result;
 use clap::Arg;
 use thepipelinetool::{
     commands::create_commands, process_subcommands, read_from_executable::read_from_executable,
-    read_from_yaml::read_from_yaml,
+    read_from_yaml::read_from_yaml, source_type::SourceType,
 };
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::pipeline_options::PipelineOptions;
-
-#[derive(PartialEq, Eq)]
-enum SourceType {
-    Exe,
-    Yaml,
-    Raw,
-}
-
-impl SourceType {
-    pub fn from_source(source: &str) -> Self {
-        let p = Path::new(source);
-        if p.exists() {
-            match p.extension() {
-                Some(ext) => match ext.to_str().unwrap() {
-                    "yaml" => SourceType::Yaml,
-                    _ => panic!("unknown extenstion type"),
-                },
-                None => SourceType::Exe,
-            }
-        } else {
-            SourceType::Raw
-        }
-    }
-}
 
 fn main() -> Result<()> {
     let mut args: Vec<String> = env::args().collect();

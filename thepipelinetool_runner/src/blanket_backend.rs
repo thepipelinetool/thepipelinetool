@@ -65,7 +65,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
 
             match status {
                 TaskStatus::Failure => return Ok(RunStatus::Failed),
-                TaskStatus::Pending | TaskStatus::RetryPending  => {
+                TaskStatus::Pending | TaskStatus::RetryPending => {
                     pending_count += 1;
                 }
                 _ => {}

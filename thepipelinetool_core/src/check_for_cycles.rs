@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use thepipelinetool_task::Task;
 
-
 pub fn check_for_cycles(tasks: &[Task], edges: &HashSet<(usize, usize)>) -> Option<String> {
     if let Some(cycle_tasks) = get_circular_dependencies(tasks.len(), edges) {
         return Some(format!(

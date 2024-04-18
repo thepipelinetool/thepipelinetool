@@ -1,5 +1,5 @@
-use serde::Serialize;
-use serde_json::json;
+use serde::{Serialize, Serializer};
+use serde_json::{json, Value};
 use std::{collections::HashSet, marker::PhantomData};
 use thepipelinetool_utils::{UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY};
 
@@ -13,15 +13,14 @@ pub struct TaskRefInner<T: Serialize> {
 impl<T: Serialize> Serialize for TaskRefInner<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         let mut json_value = json!({
             UPSTREAM_TASK_ID_KEY: self.task_ids.iter().next().unwrap(),
         });
 
         if self.key.is_some() {
-            json_value[UPSTREAM_TASK_RESULT_KEY] =
-                serde_json::Value::String(self.key.clone().unwrap());
+            json_value[UPSTREAM_TASK_RESULT_KEY] = Value::String(self.key.clone().unwrap());
         }
 
         json_value.serialize(serializer)

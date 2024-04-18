@@ -5,8 +5,11 @@ use display_hash::display_hash;
 use display_tree::display_tree;
 use thepipelinetool_core::dev::*;
 use thepipelinetool_runner::{
-    blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend, pipeline::Pipeline,
-    pipeline_options::PipelineOptions, run::{Run, RunStatus},
+    blanket_backend::BlanketBackend,
+    in_memory_backend::InMemoryBackend,
+    pipeline::Pipeline,
+    pipeline_options::PipelineOptions,
+    run::{Run, RunStatus},
 };
 
 use anyhow::Result;
@@ -20,6 +23,7 @@ pub mod display_tree;
 mod in_memory_runner;
 pub mod read_from_executable;
 pub mod read_from_yaml;
+pub mod source_type;
 pub mod templating;
 
 pub fn display_default_mermaid_graph(tasks: &[Task], edges: &HashSet<(usize, usize)>) {
@@ -78,7 +82,7 @@ pub fn process_subcommands(
                 eprintln!("{err}");
                 process::exit(1);
             }
-        },
+        }
         "run" => {
             let matches = matches.subcommand_matches("run").unwrap();
             match matches.subcommand_name().unwrap() {
@@ -149,7 +153,10 @@ pub fn process_subcommands(
             let client = reqwest::blocking::Client::new();
             let res = client.post(endpoint).json(&pipeline).send()?;
             if !res.status().is_success() {
-                eprintln!("upload failed\n{}", res.text().expect("server should return error msg"));
+                eprintln!(
+                    "upload failed\n{}",
+                    res.text().expect("server should return error msg")
+                );
                 process::exit(1);
             }
 

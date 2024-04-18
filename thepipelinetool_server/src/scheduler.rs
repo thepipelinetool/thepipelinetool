@@ -9,10 +9,7 @@ use tokio::{sync::Mutex, time::sleep};
 
 use anyhow::Result;
 
-use crate::{
-    env::get_scheduler_loop_interval,
-    redis_backend::RedisBackend,
-};
+use crate::{env::get_scheduler_loop_interval, redis_backend::RedisBackend};
 
 pub async fn scheduler(pool: Pool) -> Result<()> {
     let pool = pool.clone();

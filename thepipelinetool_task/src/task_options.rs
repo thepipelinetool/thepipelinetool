@@ -17,7 +17,7 @@ pub struct TaskOptions {
 
     #[serde(default)]
     pub is_sensor: bool,
-    
+
     #[serde(default)]
     pub trigger_rule: TriggerRule,
 }
