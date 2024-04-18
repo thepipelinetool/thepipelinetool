@@ -56,10 +56,7 @@ fn main() -> Result<()> {
     }
 
     let options = match source_type {
-        SourceType::Exe => {
-            // TODO
-            PipelineOptions::default()
-        }
+        SourceType::Exe => PipelineOptions::default(), // TODO read options from exe?
         SourceType::Yaml => serde_yaml::from_reader(File::open(pipeline_source)?)?,
         SourceType::Raw => serde_yaml::from_str(pipeline_source)?,
     };
@@ -70,12 +67,6 @@ fn main() -> Result<()> {
         SourceType::Raw => &args[0],
     };
 
-    process_subcommands(
-        pipeline_path,
-        // pipeline_source,
-        subcommand_name,
-        &options,
-        &matches,
-    )?;
+    process_subcommands(pipeline_path, subcommand_name, &options, &matches)?;
     Ok(())
 }

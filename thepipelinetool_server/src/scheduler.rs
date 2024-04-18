@@ -17,7 +17,6 @@ pub async fn scheduler(pool: Pool) -> Result<()> {
     let spawned_schedulers = Arc::new(Mutex::new(HashSet::new()));
 
     loop {
-        // TODO should this watch for updated schedules?
         'inner: for pipeline_name in RedisBackend::get_pipelines(pool.clone()).await? {
             if spawned_schedulers.lock().await.contains(&pipeline_name) {
                 // scheduler for this pipeline already spawned

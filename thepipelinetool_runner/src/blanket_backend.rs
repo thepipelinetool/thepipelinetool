@@ -95,7 +95,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
             }
         }
 
-        // TODO implement more trigger rules, e.g. run on upstream failure(s)
         match task.options.trigger_rule {
             TriggerRule::AllSuccess => {
                 for upstream_id in self.get_upstream(run_id, task_id)? {
