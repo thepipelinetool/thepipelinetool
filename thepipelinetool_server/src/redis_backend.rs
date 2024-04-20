@@ -573,11 +573,24 @@ impl Backend for RedisBackend {
                 .arg(serde_json::to_string(&edge)?)
                 .query_async::<_, usize>(&mut conn)
                 .await?;
-            cmd("SREM")
-                .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{}", edge.1))
-                .arg(serde_json::to_string(&((edge.0, ""), ""))?)
-                .query_async::<_, ()>(&mut conn)
-                .await?;
+            let keys_to_remove: Vec<((usize, String), String)> = self
+                .get_dependencies(run_id, edge.1)?
+                .iter()
+                .filter_map(|((upstream, key), val)| {
+                    if upstream == &edge.0 {
+                        Some(((*upstream, key.to_string()), val.to_string()))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            for h in &keys_to_remove {
+                cmd("SREM")
+                    .arg(format!("{DEPENDENCY_KEYS_KEY}:{run_id}:{}", edge.1))
+                    .arg(serde_json::to_string(&h)?)
+                    .query_async::<_, ()>(&mut conn)
+                    .await?;
+            }
 
             Ok(())
         })
