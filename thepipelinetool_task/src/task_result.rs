@@ -18,6 +18,7 @@ pub struct TaskResult {
     pub premature_failure: bool,
     pub premature_failure_error_str: String,
     pub is_branch: bool,
+    pub is_lazy: bool,
     pub is_sensor: bool,
     pub exit_code: Option<i32>,
 }
@@ -38,6 +39,7 @@ impl TaskResult {
         premature_failure_error_str: String,
         is_branch: bool,
         is_sensor: bool,
+        is_lazy: bool,
         started: Option<DateTime<Utc>>,
         ended: Option<DateTime<Utc>>,
     ) -> Self {
@@ -57,6 +59,7 @@ impl TaskResult {
             premature_failure_error_str,
             is_branch,
             is_sensor,
+            is_lazy,
             exit_code: None,
         }
     }
