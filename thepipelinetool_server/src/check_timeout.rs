@@ -36,7 +36,6 @@ pub async fn check_timeout(pool: Pool) -> Result<()> {
                             "timed out".to_string(),
                             task.is_branch,
                             task.options.is_sensor,
-                            task.lazy_expand,
                             Some(temp_queued_task.popped_date),
                             Some(now),
                         ),

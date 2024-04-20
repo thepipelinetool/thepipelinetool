@@ -316,7 +316,7 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 queued_task.pipeline_name.clone(),
                 false,
             )?;
-        } else if !result.is_lazy {
+        } else {
             for downstream in self.get_downstream(run_id, result.task_id)? {
                 if !self.is_task_done(run_id, downstream)?
                     && self.trigger_rules_satisfied(run_id, downstream)?
@@ -462,7 +462,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 premature_failure_error_str: "".into(),
                 is_branch: task.is_branch,
                 is_sensor: task.options.is_sensor,
-                is_lazy: true,
                 exit_code: None,
             });
         }
@@ -621,7 +620,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 resolution_result.to_string(),
                 task.is_branch,
                 task.options.is_sensor,
-                task.lazy_expand,
                 None,
                 None,
             ),
