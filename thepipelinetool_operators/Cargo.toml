@@ -1,6 +1,6 @@
 [package]
 name = "thepipelinetool_operators"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "operators used for thepipelinetool"
 license = "MIT OR Apache-2.0"
@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.3" }
+thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.4" }
 
 chrono = { version = "0.4.31", features = [ "serde" ] }
 clap = { version = "4.4.7", features = [ "cargo" ] }
