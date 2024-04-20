@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde_json::{json, Value};
 use thepipelinetool_core::dev::{
-    bash_operator, get_edges, get_tasks, Operator, _add_task_with_function_name, _expand_lazy_with_function_name, _lazy_task_ref, _register_function_with_name, assert::assert_operator, function_with_name_exists, get_functions, params::params_operator, print::print_operator, register_function
+    bash_operator, get_edges, get_tasks, Operator, _add_task_with_function_name,
+    _expand_lazy_with_function_name, _lazy_task_ref, _register_function_with_name,
+    assert::assert_operator, function_with_name_exists, get_functions, params::params_operator,
+    print::print_operator, register_function,
 };
 use thepipelinetool_utils::collector;
 

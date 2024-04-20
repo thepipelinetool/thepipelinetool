@@ -2,7 +2,7 @@ use axum::{http::Method, Router};
 use std::path::PathBuf;
 // use thepipelinetool_server::catchup::catchup;
 use thepipelinetool_server::check_timeout::check_timeout;
-use thepipelinetool_server::env::{tpt_executor_installed, tpt_installed};
+use thepipelinetool_server::env::tpt_installed;
 use thepipelinetool_server::{get_redis_pool, routes::*, scheduler::scheduler};
 use tokio::net::TcpListener;
 use tower_http::compression::CompressionLayer;

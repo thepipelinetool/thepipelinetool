@@ -1,7 +1,7 @@
+pub mod assert;
 pub mod bash;
 pub mod params;
 pub mod print;
-pub mod assert;
 
 pub use bash::bash_operator;
 use serde::{Deserialize, Serialize};
