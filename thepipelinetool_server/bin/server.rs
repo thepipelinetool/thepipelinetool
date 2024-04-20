@@ -21,7 +21,6 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     assert!(tpt_installed()?);
-    assert!(tpt_executor_installed()?);
 
     println!("connecting to redis...");
     let pool = get_redis_pool()?;

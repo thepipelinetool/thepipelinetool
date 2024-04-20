@@ -1,6 +1,7 @@
 pub mod bash;
 pub mod params;
 pub mod print;
+pub mod assert;
 
 pub use bash::bash_operator;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,7 @@ pub enum Operator {
     BashOperator,
     ParamsOperator,
     PrintOperator,
+    AssertOperator,
 }
 
 pub const ORIGINAL_STRING_KEY: &str = "_original_string";

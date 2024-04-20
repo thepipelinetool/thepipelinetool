@@ -34,3 +34,5 @@ jobs:
       - run: cargo build -p thepipelinetool --release
       - run: ./scripts/build_examples.sh
       - run: docker compose up -d
+      - run: cargo install --path thepipelinetool --force
+      - run: tpt ci.yaml run in_memory

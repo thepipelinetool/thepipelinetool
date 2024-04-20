@@ -1,26 +1,79 @@
 tasks:
-  list_examples:
+  params:
+    operator: params_operator
+    args:
+      examples_dir: ./bin/
+      server_endpoint: http://localhost:8000
+  list_examples_separate:
     script: |-
       python3 - <<-EOF
       import os, json
-      examples_dir = "./bin/"
-      server_endpoint = "http://localhost:8000"
+      examples_dir = {{params.examples_dir}}
+      print(json.dumps({
+        "fails": [f for f in os.listdir(examples_dir) if f.startswith("fail_")],
+        "params": [f for f in os.listdir(examples_dir) if f.startswith("params_")],
+        "regular": [f for f in os.listdir(examples_dir) if not f.startswith("fail_") and not f.startswith("params_")],
+      }))
+      EOF
+  list_examples:
+    script: |-
+      python3 - <<-EOF
+      import json
+      print(json.dumps({{list_examples_separate.regular}}))
+      EOF
+  create_upload:
+    script: |-
+      python3 - <<-EOF
+      import os, json
+      files = {{list_examples}}
+      examples_dir = {{params.examples_dir}}
+      server_endpoint = {{params.server_endpoint}}
       print(json.dumps([
         [
-          "tpt", examples_dir + f, "upload", server_endpoint + "/upload/" + f, "&&", 
-          "curl", server_endpoint + "/trigger/" + f
+          "tpt", examples_dir + f, "upload", server_endpoint + "/upload/" + f
         ]
-        for f in os.listdir(examples_dir)
+        for f in files
       ]))
       EOF
   upload_examples:
     lazy_expand: true
     depends_on: 
-      - list_examples
-  # hello:
-  #   script: |-
-  #     python3 - <<-EOF
-  #     assert False
-  #     EOF
-  #   options:
-  #     is_sensor: true
+      - create_upload
+  create_trigger:
+    depends_on:
+      - upload_examples
+    script: |-
+      python3 - <<-EOF
+      import os, json
+      files = {{list_examples}}
+      server_endpoint = {{params.server_endpoint}}
+      print(json.dumps([
+        [
+          "curl", server_endpoint + "/trigger/" + f
+        ]
+        for f in files
+      ]))
+      EOF
+  trigger_examples:
+    lazy_expand: true
+    depends_on: 
+      - create_trigger
+  create_await_complete:
+    script: |-
+      python3 - <<-EOF
+      import os, json
+      run_ids = {{trigger_examples}}
+      server_endpoint = {{params.server_endpoint}}
+      print(json.dumps([
+        [
+          "bash", "-c", f"curl -s {server_endpoint}/statuses/{run_id} | grep -q 'Success' || exit 1"
+        ]
+        for run_id in run_ids
+      ]))
+      EOF
+  await_examples:
+    options:
+      is_sensor: true
+    lazy_expand: true
+    depends_on: 
+      - create_await_complete
