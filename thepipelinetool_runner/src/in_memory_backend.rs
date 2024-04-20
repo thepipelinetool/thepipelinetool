@@ -167,11 +167,28 @@ impl Backend for InMemoryBackend {
 
     fn remove_edge(&mut self, _run_id: usize, edge: (usize, usize)) -> Result<()> {
         let (upstream_id, downstream_id) = edge;
-        self.dependencies
+        let keys_to_remove: Vec<(usize, String)> = self
+            .dependencies
             .lock()
-            .get_mut(&downstream_id)
+            .get(&downstream_id)
             .unwrap_or(&mut HashMap::new())
-            .remove(&(upstream_id, "".into()));
+            .keys()
+            .filter_map(|(upstream, key)| {
+                if upstream == &upstream_id {
+                    Some((*upstream, key.to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for h in &keys_to_remove {
+            self.dependencies
+                .lock()
+                .get_mut(&downstream_id)
+                .unwrap_or(&mut HashMap::new())
+                .remove(h);
+        }
 
         self.edges.lock().remove(&edge);
         Ok(())
