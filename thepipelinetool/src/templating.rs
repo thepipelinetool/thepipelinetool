@@ -63,12 +63,6 @@ pub fn create_template_args_by_operator(
     }
 }
 
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// pub struct TemplateTaskArgs {
-//     #[serde(default)]
-//     pub args: Value,
-// }
-
 pub fn create_template_args_from_string(
     task_id: usize,
     original_string: &str,

@@ -4,12 +4,7 @@ use anyhow::Result;
 use thepipelinetool_core::dev::TempQueuedTask;
 use thepipelinetool_runner::backend::Backend;
 use thepipelinetool_runner::blanket_backend::BlanketBackend;
-use thepipelinetool_server::{
-    env::get_tpt_command,
-    get_redis_pool,
-    redis_backend::RedisBackend,
-    // statics::{_get_default_edges, _get_default_tasks},
-};
+use thepipelinetool_server::{env::get_tpt_command, get_redis_pool, redis_backend::RedisBackend};
 
 #[tokio::main]
 async fn main() -> Result<()> {

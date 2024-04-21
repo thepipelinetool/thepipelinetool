@@ -30,7 +30,6 @@ pub fn bash_operator(args: Value) -> Value {
             .iter()
             .map(|v| v.as_str().unwrap())
             .collect::<Vec<&str>>();
-        // let args: Vec<&str> = args.iter().map(|x| &**x).collect();
 
         run_bash_command(&args, true, true)
     }

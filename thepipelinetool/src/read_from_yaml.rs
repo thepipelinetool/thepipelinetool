@@ -100,30 +100,6 @@ pub fn read_from_yaml(value: Value) {
     }
 }
 
-//         assert_eq!(
-//             json!({
-//                 UPSTREAM_TASK_ID_KEY: 0,
-//                 UPSTREAM_TASK_RESULT_KEY: "test"
-//             }),
-//             create_template_args(1, &json!("{{t1.test}}"), &task_id_by_name)
-//         );
-
-//         assert_eq!(
-//             json!(["echo", {
-//                 UPSTREAM_TASK_ID_KEY: 0
-//             }]),
-//             create_template_args(1, &json!(["echo", "{{ t1  }}"]), &task_id_by_name,)
-//         );
-//         assert_eq!(
-//             json!({"data": {
-//                 UPSTREAM_TASK_ID_KEY: 0,
-//                 UPSTREAM_TASK_RESULT_KEY: "test"
-//             }}),
-//             create_template_args(1, &json!({"data": "{{ t1.test   }}"}), &task_id_by_name,)
-//         );
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use std::path::Path;

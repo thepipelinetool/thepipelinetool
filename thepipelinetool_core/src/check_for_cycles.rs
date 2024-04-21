@@ -24,14 +24,7 @@ fn get_circular_dependencies(
         let mut visited_tasks = HashSet::new();
         let mut cycle_tasks = vec![];
 
-        if _get_circular_dependencies(
-            edges,
-            task,
-            &mut visited_tasks,
-            &mut cycle_tasks, //
-        )
-        .is_some()
-        {
+        if _get_circular_dependencies(edges, task, &mut visited_tasks, &mut cycle_tasks).is_some() {
             return Some(cycle_tasks);
         }
     }

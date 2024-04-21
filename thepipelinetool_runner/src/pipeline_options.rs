@@ -10,8 +10,6 @@ pub struct PipelineOptions {
     #[serde(default)]
     pub schedule: Option<String>,
 
-    // #[serde(default)]
-    // pub start_date: Option<NaiveDateTime>,
     #[serde(default)]
     pub end_date: Option<NaiveDateTime>,
 
@@ -35,7 +33,6 @@ impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
             schedule: None,
-            // start_date: None,
             end_date: None,
             max_attempts: 1,
             retry_delay: Duration::ZERO,

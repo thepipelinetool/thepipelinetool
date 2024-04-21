@@ -4,12 +4,7 @@ use thepipelinetool_runner::{
     backend::Backend, blanket_backend::BlanketBackend, in_memory_backend::InMemoryBackend,
 };
 
-pub fn run_in_memory(
-    backend: &mut InMemoryBackend,
-    max_parallelism: usize,
-    // pipeline_path: String,
-    tpt_path: String,
-) {
+pub fn run_in_memory(backend: &mut InMemoryBackend, max_parallelism: usize, tpt_path: String) {
     let (tx, rx) = channel();
     let mut current_parallel_tasks_count = 0;
 

@@ -43,7 +43,6 @@ fn display_options(options: &PipelineOptions) {
 
 pub fn process_subcommands(
     pipeline_path: &str,
-    // pipeline_name: &str,
     subcommand_name: &str,
     options: &PipelineOptions,
     matches: &ArgMatches,
@@ -116,15 +115,9 @@ pub fn process_subcommands(
                     let run = Run::dummy();
                     backend.enqueue_run(&run, trigger_params)?;
 
-                    run_in_memory(
-                        &mut backend,
-                        max_parallelism,
-                        // pipeline_path.to_path_buf().to_str().unwrap().to_string(),
-                        env::args().next().unwrap(),
-                    );
+                    run_in_memory(&mut backend, max_parallelism, env::args().next().unwrap());
 
                     let run_status = backend.get_run_status(run.run_id).unwrap();
-                    // dbg!(backend.temp_queue);
 
                     if run_status == RunStatus::Failed {
                         process::exit(1);

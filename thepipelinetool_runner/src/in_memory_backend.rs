@@ -171,7 +171,7 @@ impl Backend for InMemoryBackend {
             .dependencies
             .lock()
             .get(&downstream_id)
-            .unwrap_or(&mut HashMap::new())
+            .unwrap_or(&HashMap::new())
             .keys()
             .filter_map(|(upstream, key)| {
                 if upstream == &upstream_id {

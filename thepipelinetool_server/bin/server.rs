@@ -25,14 +25,6 @@ async fn main() -> Result<()> {
     println!("connecting to redis...");
     let pool = get_redis_pool()?;
 
-    // let now = Utc::now();
-
-    // println!("spawning catchup...");
-    // {
-    //     let pool = pool.clone();
-    //     tokio::spawn(async move { catchup(now, pool).await });
-    // }
-
     println!("spawning scheduler...");
     {
         let pool = pool.clone();

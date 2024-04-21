@@ -43,7 +43,6 @@ pub mod dev {
     }
     pub use crate::check_for_cycles::*;
 
-    // pub use crate::TaskRefInner;
     pub use crate::cli::*;
     pub use crate::graph::*;
     pub use crate::helpers::*;

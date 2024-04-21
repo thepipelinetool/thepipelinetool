@@ -490,12 +490,6 @@ impl<U: Backend + Send + Sync> BlanketBackend for U {
                 continue;
             }
 
-            // if !self.is_task_completed(run_id, *upstream_task_id) {
-            //     return Err(Error::new(
-            //         ErrorKind::NotFound,
-            //         format!("upstream task_id {} does not exist!", upstream_task_id),
-            //     ));
-            // }
             let task_result = self.get_task_result(run_id, *upstream_id)?;
             results.insert(*upstream_id, task_result.result.clone());
             if !task_result.success {

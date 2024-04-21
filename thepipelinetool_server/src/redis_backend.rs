@@ -41,26 +41,17 @@ macro_rules! block_on {
 
 #[derive(Clone)]
 pub struct RedisBackend {
-    // edges: Option<HashSet<(usize, usize)>>,
-    // nodes: Option<Vec<Task>>,
     name: Option<String>,
     pool: Pool,
 }
 
 impl RedisBackend {
     pub fn dummy(pool: Pool) -> Self {
-        Self {
-            // edges: None,
-            // nodes: None,
-            name: None,
-            pool,
-        }
+        Self { name: None, pool }
     }
 
     pub fn from(pipeline_name: &str, pool: Pool) -> Self {
         Self {
-            // edges: Some(edges),
-            // nodes: Some(nodes),
             name: Some(pipeline_name.to_string()),
             pool,
         }
@@ -255,7 +246,6 @@ impl RedisBackend {
     #[timed(duration(printer = "debug!"))]
     pub async fn contains_scheduled_date(
         pipeline_name: &str,
-        // pipeline_hash: &str,
         scheduled_date_for_run: DateTime<Utc>,
         pool: Pool,
     ) -> Result<bool> {
@@ -292,7 +282,7 @@ impl Backend for RedisBackend {
         })
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    #[timed(duration(printer = "debug!"))]
     fn remove_from_temp_queue(&self, temp_queued_task: &TempQueuedTask) -> Result<()> {
         block_on!({
             let mut conn = self.pool.get().await.expect("DB connection failed");
@@ -421,12 +411,7 @@ impl Backend for RedisBackend {
     }
 
     #[timed(duration(printer = "debug!"))]
-    fn create_new_run(
-        &mut self,
-        // pipeline_name: &str,
-        // _pipeline_hash: &str, // TODO
-        scheduled_date_for_run: DateTime<Utc>,
-    ) -> Result<Run> {
+    fn create_new_run(&mut self, scheduled_date_for_run: DateTime<Utc>) -> Result<Run> {
         block_on!({
             let mut conn = self.pool.get().await.expect("DB connection failed");
 
@@ -448,13 +433,6 @@ impl Backend for RedisBackend {
                 .arg(serde_json::to_string(&run)?)
                 .query_async::<_, ()>(&mut conn)
                 .await?;
-            // cmd("SISMEMBER")
-            //     .arg(format!(
-            //         "{SCHEDULED_DATES_KEY}:{pipeline_name}"
-            //     ))
-            //     .arg(scheduled_date_for_run.to_string())
-            //     .query_async::<_, bool>(&mut conn)
-            //     .await?;
 
             Ok(run)
         })
@@ -482,7 +460,7 @@ impl Backend for RedisBackend {
         })
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    #[timed(duration(printer = "debug!"))]
     fn get_dependencies(
         &mut self,
         run_id: usize,
@@ -640,21 +618,13 @@ impl Backend for RedisBackend {
                 .arg(format!("{DEFAULT_TASKS_KEY}:{pipeline_name}"))
                 .query_async::<_, String>(&mut conn)
                 .await?;
-            dbg!(1);
-            dbg!(&members);
 
-            // let mut v = vec![];
-
-            // for s in members {
-            //     v.push(serde_json::from_str(&s)?);
-            // }
             Ok(serde_json::from_str(&members)?)
         })
     }
 
     #[timed(duration(printer = "debug!"))]
     fn get_default_edges(&self) -> Result<HashSet<(usize, usize)>> {
-        // Ok(self.edges.clone().expect(""))
         block_on!({
             let pipeline_name = self.get_pipeline_name()?;
             let mut conn = self.pool.get().await.expect("DB connection failed");
@@ -663,16 +633,11 @@ impl Backend for RedisBackend {
                 .query_async::<_, String>(&mut conn)
                 .await?;
 
-            // let mut v = HashSet::new();
-
-            // for s in members {
-            //     v.insert(serde_json::from_str(&s)?);
-            // }
             Ok(serde_json::from_str(&members)?)
         })
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    #[timed(duration(printer = "debug!"))]
     fn get_task_by_id(&self, run_id: usize, task_id: usize) -> Result<Task> {
         block_on!({
             let mut conn = self.pool.get().await.expect("DB connection failed");
@@ -685,7 +650,7 @@ impl Backend for RedisBackend {
         })
     }
 
-    // #[timed(duration(printer = "debug!"))]
+    #[timed(duration(printer = "debug!"))]
     fn append_new_task_and_set_status_to_pending(
         &mut self,
         run_id: usize,
@@ -817,12 +782,6 @@ impl Backend for RedisBackend {
                         max_depth = new_depth;
                     }
                 }
-                // let depth = self
-                //     .get_upstream(run_id, task_id)
-                //     .iter()
-                //     .map(|up| self.get_task_depth(run_id, *up) + 1)
-                //     .max()
-                //     .unwrap_or(0);
                 self.set_task_depth(run_id, task_id, max_depth)?;
             }
             Ok(cmd("GET")

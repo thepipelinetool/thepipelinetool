@@ -55,41 +55,19 @@ impl Task {
         take_last_stdout_line: Box<dyn Fn() -> Result<String> + Send>,
         pipeline_path: P,
         tpt_path: D,
-        // scheduled_date_for_run: DateTime<Utc>,
         run_id: usize,
     ) -> Result<TaskResult>
     where
         P: AsRef<OsStr>,
         D: AsRef<OsStr>,
     {
-        // let (sender, receiver) = mpsc::channel();
-        // let t = thread::spawn(move || {
-        //     match sender.send(net::TcpStream::connect((host.as_str(), port))) {
-        //         Ok(()) => {}, // everything good
-        //         Err(_) => {}, // we have been released, don't panic
-        //     }
-        // });
-        // let k = receiver.recv_timeout(Duration::from_millis(5000));
-
         let task_id: usize = self.id;
         let function_name = &self.function;
         let resolved_args_str = serde_json::to_string(resolved_args).unwrap();
-        // let use_timeout = self.options.timeout.is_some();
-        // let timeout_as_secs = self.options.timeout.unwrap_or(Duration::ZERO).as_secs();
-
         let mut cmd = Command::new(tpt_path);
         cmd.arg(pipeline_path);
         cmd.args(["run", "function", &self.function]);
         cmd.env("run_id", run_id.to_string());
-
-        // command_timeout(
-        //     &mut cmd,
-        //     &pipeline_path,
-        //     use_timeout,
-        //     // &timeout_as_secs,
-        //     &tpt_path,
-        //     &self.function,
-        // );
 
         let out_path: Option<PathBuf> = if get_save_to_file() {
             let json_dir = get_json_dir();
@@ -150,7 +128,6 @@ impl Task {
             is_branch: self.is_branch,
             is_sensor: self.options.is_sensor,
             exit_code: code,
-            // scheduled_date_for_run,
         })
     }
 }
