@@ -17,6 +17,7 @@ on:
       - thepipelinetool_utils/**
       - Cargo.toml
       - scripts/**
+      - ci.yaml
 jobs:
   build:
     runs-on: ubuntu-latest
