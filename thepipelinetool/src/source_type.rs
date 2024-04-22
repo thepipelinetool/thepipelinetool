@@ -13,7 +13,6 @@ impl SourceType {
         if let Some(source) = source {
             if source == "" {
                 SourceType::None
-
             } else {
                 let p = Path::new(source);
                 if p.exists() {

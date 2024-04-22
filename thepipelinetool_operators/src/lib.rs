@@ -2,6 +2,7 @@ pub mod assert;
 pub mod bash;
 pub mod params;
 pub mod print;
+pub mod python;
 
 pub use bash::bash_operator;
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ pub enum Operator {
     ParamsOperator,
     PrintOperator,
     AssertOperator,
+    PythonOperator,
 }
 
 pub const ORIGINAL_STRING_KEY: &str = "_original_string";

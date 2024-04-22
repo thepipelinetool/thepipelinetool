@@ -1,0 +1,6 @@
+tasks:
+  hello:
+    operator: python_operator
+    script: |-
+      print("hello world1")
+      print("hello world2")

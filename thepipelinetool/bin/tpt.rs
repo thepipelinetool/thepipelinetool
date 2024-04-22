@@ -11,7 +11,8 @@ use thepipelinetool::{
     read_from_yaml::read_from_yaml, source_type::SourceType,
 };
 use thepipelinetool_core::dev::{
-    assert::assert_operator, params::params_operator, print::print_operator, *,
+    assert::assert_operator, params::params_operator, print::print_operator,
+    python::python_operator, *,
 };
 use thepipelinetool_runner::pipeline_options::PipelineOptions;
 
@@ -56,22 +57,51 @@ fn main() -> Result<()> {
             read_from_yaml(serde_json::from_str(pipeline_source.unwrap())?);
         }
         SourceType::None => {
-            for built_in_operator in vec![
-                Operator::BashOperator,
-                Operator::ParamsOperator,
-                Operator::PrintOperator,
-                Operator::AssertOperator,
-            ] {
+            // try parse operator
+            let operator = &serde_json::from_value::<Operator>(json!(args[4])).ok();
+            // register built-in operators if used
+            if let Some(built_in_operator) = operator {
                 _register_function_with_name(
                     match built_in_operator {
                         Operator::BashOperator => bash_operator,
                         Operator::ParamsOperator => params_operator,
                         Operator::PrintOperator => print_operator,
                         Operator::AssertOperator => assert_operator,
+                        Operator::PythonOperator => python_operator,
                     },
-                    &json!(built_in_operator).as_str().unwrap(),
+                    &args[4],
+                );
+            } else if args[4] == "collector" {
+                register_function(collector);
+            } else {
+                panic!(
+                    "no such function '{}'\navailable functions: {:#?}",
+                    &args[4],
+                    get_functions()
+                        .read()
+                        .unwrap()
+                        .keys()
+                        .collect::<Vec<&String>>()
                 );
             }
+
+            // for built_in_operator in vec![
+            //     Operator::BashOperator,
+            //     Operator::ParamsOperator,
+            //     Operator::PrintOperator,
+            //     Operator::AssertOperator,
+            // ] {
+            //     _register_function_with_name(
+            //         match built_in_operator {
+            //             Operator::BashOperator => bash_operator,
+            //             Operator::ParamsOperator => params_operator,
+            //             Operator::PrintOperator => print_operator,
+            //             Operator::AssertOperator => assert_operator,
+            //             Operator::PythonOperator => python_operator,
+            //         },
+            //         &json!(built_in_operator).as_str().unwrap(),
+            //     );
+            // }
         }
     }
 

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use thepipelinetool_core::dev::{
-    bash::TemplateBashTaskArgs, bash_operator, get_edges, get_id_by_task_name, Operator,
-    TaskOptions, ORIGINAL_STRING_KEY,
+    bash::TemplateBashTaskArgs, bash_operator, get_edges, get_id_by_task_name,
+    python::TemplatePythonArgs, Operator, TaskOptions, ORIGINAL_STRING_KEY,
 };
 use thepipelinetool_utils::{
     function_name_as_string, UPSTREAM_TASK_ID_KEY, UPSTREAM_TASK_RESULT_KEY,
@@ -54,7 +54,17 @@ pub fn create_template_args_by_operator(
                 .script,
             task_id_by_name,
         ),
-        _ => value
+        Some(Operator::PythonOperator) => create_template_args_from_string(
+            id,
+            &serde_json::from_value::<TemplatePythonArgs>(value.clone())
+                .expect("error parsing template python args")
+                .script,
+            task_id_by_name,
+        ),
+        Some(Operator::AssertOperator)
+        | Some(Operator::PrintOperator)
+        | Some(Operator::ParamsOperator)
+        | None => value
             .as_object()
             .unwrap()
             .get("args")

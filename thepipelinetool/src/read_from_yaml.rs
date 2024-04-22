@@ -2,12 +2,9 @@ use std::collections::HashMap;
 
 use serde_json::{json, Value};
 use thepipelinetool_core::dev::{
-    bash_operator, get_edges, get_tasks, Operator, _add_task_with_function_name,
-    _expand_lazy_with_function_name, _lazy_task_ref, _register_function_with_name,
-    assert::assert_operator, function_with_name_exists, get_functions, params::params_operator,
-    print::print_operator, register_function,
+    get_edges, get_tasks, Operator, _add_task_with_function_name, _expand_lazy_with_function_name,
+    _lazy_task_ref,
 };
-use thepipelinetool_utils::collector;
 
 use crate::templating::{create_template_args_by_operator, TemplateTask};
 
@@ -49,38 +46,36 @@ pub fn read_from_yaml(value: Value) {
                 })
                 .collect();
 
-            // try parse operator
+            // // try parse operator
             let operator = &serde_json::from_value::<Operator>(json!(template_task.operator)).ok();
+            // // register built-in operators if used
+            // if let Some(built_in_operator) = operator {
+            //     _register_function_with_name(
+            //         match built_in_operator {
+            //             Operator::BashOperator => bash_operator,
+            //             Operator::ParamsOperator => params_operator,
+            //             Operator::PrintOperator => print_operator,
+            //             Operator::AssertOperator => assert_operator,
+            //             Operator::PythonOperator => python_operator,
+            //         },
+            //         &template_task.operator,
+            //     );
+            // }
 
-            // register built-in operators if used
-            if let Some(built_in_operator) = operator {
-                _register_function_with_name(
-                    match built_in_operator {
-                        Operator::BashOperator => bash_operator,
-                        Operator::ParamsOperator => params_operator,
-                        Operator::PrintOperator => print_operator,
-                        Operator::AssertOperator => assert_operator,
-                    },
-                    &template_task.operator,
-                );
-            }
-
-            if !function_with_name_exists(&template_task.operator) {
-                panic!(
-                    "no such function '{}'\navailable functions: {:#?}",
-                    &template_task.operator,
-                    get_functions()
-                        .read()
-                        .unwrap()
-                        .keys()
-                        .collect::<Vec<&String>>()
-                );
-            }
+            // if !function_with_name_exists(&template_task.operator) {
+            //     panic!(
+            //         "no such function '{}'\navailable functions: {:#?}",
+            //         &template_task.operator,
+            //         get_functions()
+            //             .read()
+            //             .unwrap()
+            //             .keys()
+            //             .collect::<Vec<&String>>()
+            //     );
+            // }
 
             if template_task.lazy_expand {
                 assert!(depends_on.len() == 1);
-
-                register_function(collector);
                 _expand_lazy_with_function_name::<Value, Vec<Value>, Value>(
                     &_lazy_task_ref(depends_on[0]),
                     &template_task.options,
