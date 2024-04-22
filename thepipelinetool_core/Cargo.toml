@@ -13,6 +13,6 @@ serde_json = "1.0"
 thepipelinetool_task = { path = "../thepipelinetool_task", version = "0.2.7" }
 thepipelinetool_operators = { path = "../thepipelinetool_operators", version = "0.2.7" }
 thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.7" }
-thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.1.0" }
+thepipelinetool_proc_macro = { path = "../thepipelinetool_proc_macro", version = "0.2.7" }
 serde = "1.0.189"
 clap = { version = "4.4.7", features = [ "cargo" ] }

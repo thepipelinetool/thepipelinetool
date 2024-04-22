@@ -1,6 +1,6 @@
 [package]
 name = "thepipelinetool_proc_macro"
-version = "0.1.0"
+version = "0.2.7"
 edition = "2021"
 description = "macros used for thepipelinetool"
 license = "MIT OR Apache-2.0"
