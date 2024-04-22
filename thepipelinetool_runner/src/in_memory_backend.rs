@@ -78,7 +78,7 @@ impl Backend for InMemoryBackend {
             .get(&task_id)
             .unwrap_or(&vec![])
             .clone()
-            .join("\n"))
+            .join(""))
     }
 
     fn get_log_handle_closure(
