@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
         let mut backend = backend.clone();
 
         // TODO read from env
-        sleep(Duration::from_nanos(100)).await;
+        sleep(Duration::from_millis(1)).await;
 
         tokio::spawn(async move { _work(max_parallelism, executor, &mut backend).await });
         // tokio::spawn(async move { run_in_memory(max_parallelism, executor, &mut backend).await });
