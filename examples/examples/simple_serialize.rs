@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 #[derive(Deserialize, Serialize)]
 struct MyConfig {
@@ -13,7 +13,7 @@ fn print_data(arg: String) -> () {
     println!("hello {arg}");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     // define a task that uses the function 'produce_data'
     let task_ref = add_task(

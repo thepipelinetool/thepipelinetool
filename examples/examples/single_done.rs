@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     "world".to_string()
@@ -15,7 +15,7 @@ fn print_data(_: ()) -> () {
     println!("hello");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 

@@ -1,5 +1,5 @@
 // use chrono::DateTime;
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn hi(args: Value) -> Value {
     println!("{}", args);
@@ -7,7 +7,7 @@ fn hi(args: Value) -> Value {
     json!({ "hello": "world" })
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     // set_schedule("0 0 12 * *");
     // set_start_date(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap());

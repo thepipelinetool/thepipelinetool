@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn branch_task(_: Value) -> Branch<usize> {
     Branch::Left(0)
@@ -12,7 +12,7 @@ fn right(_: usize) -> () {
     println!("right");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let _ = branch(branch_task, json!({}), left, right, &TaskOptions::default());
 }

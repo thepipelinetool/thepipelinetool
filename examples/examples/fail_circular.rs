@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     "world".to_string()
@@ -12,7 +12,7 @@ fn taska(_: ()) -> String {
     "world".to_string()
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 

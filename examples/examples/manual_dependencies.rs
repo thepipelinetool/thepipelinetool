@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     "world".to_string()
@@ -8,7 +8,7 @@ fn print_data(arg: String) -> () {
     println!("hello {arg}");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
     let task_ref = add_task(produce_data, (), opts);

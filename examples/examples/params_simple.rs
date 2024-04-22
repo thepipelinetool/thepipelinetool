@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 #[derive(Serialize, Deserialize)]
 struct Params {
@@ -9,7 +9,7 @@ fn print_trigger_params(params: Params) -> () {
     println!("{}", params.data);
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 

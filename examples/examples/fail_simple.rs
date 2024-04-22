@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     assert!(false);
@@ -10,7 +10,7 @@ fn print_data(arg: String) -> () {
     println!("hello {arg}");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     // add a task that uses the function 'produce_data'
     let task_ref = add_task(produce_data, (), &TaskOptions::default());

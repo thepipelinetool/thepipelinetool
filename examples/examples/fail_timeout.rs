@@ -1,8 +1,8 @@
 use std::{time::Duration, vec};
 
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
-#[dag]
+#[tpt::main]
 fn main() {
     let a = add_task(
         bash_operator,

@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn hi(args: Value) -> Value {
     println!("{}", args);
@@ -11,7 +11,7 @@ fn hi(args: Value) -> Value {
     json!({ "hello": "world" })
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let a = add_task(hi, json!({}), &TaskOptions::default());
     let b = add_task(hi, json!({}), &TaskOptions::default());

@@ -91,7 +91,7 @@ fn create_commands() -> CliCommand {
 /// tasks, and more.
 ///
 /// The `parse_cli` function is typically called in the `main` function of your Rust application.
-/// If you are using the #[dag] macro, it will automatically add a `parse_cli()` function call
+/// If you are using the #[tpt::main] macro, it will automatically add a `parse_cli()` function call
 /// to the end of the `main` function, simplifying the setup.
 /// The behavior of the CLI tool depends on the subcommands and options passed on the command
 /// line. Use the "--help" command to see the CLI details.

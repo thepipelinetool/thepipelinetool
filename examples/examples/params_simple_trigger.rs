@@ -1,10 +1,10 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn print_trigger_params(arg: Value) -> () {
     println!("{}", arg);
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 

@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_lazy(_: ()) -> Vec<u8> {
     vec![0, 1]
@@ -9,7 +9,7 @@ fn say_hello(arg: u8) -> u8 {
     arg
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 

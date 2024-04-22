@@ -1,4 +1,4 @@
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn hi(args: Value) -> Value {
     println!("{}", args);
@@ -6,7 +6,7 @@ fn hi(args: Value) -> Value {
     json!({ "hello": "world" })
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     // set_schedule("*/1 * * * *");
 

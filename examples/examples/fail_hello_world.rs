@@ -1,6 +1,6 @@
 use std::{thread, time::Duration};
 
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn hello_world0(args: Value) -> Value {
     println!("hello world0 {:?}", args);
@@ -44,7 +44,7 @@ fn hello_world3(args: Value) -> Value {
     })
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let task0 = add_task(hello_world0, Value::Null, &TaskOptions::default());
     let task1 = add_task(hello_world2, Value::Null, &TaskOptions::default());

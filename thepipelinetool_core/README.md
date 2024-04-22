@@ -1,7 +1,7 @@
 ```rust
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
-#[dag]
+#[tpt::main]
 fn main() {
     // define your tasks here
 }
@@ -13,7 +13,7 @@ fn main() {
 ## Examples
 ### Simple DAG
 ```rust
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     "world".to_string()
@@ -23,7 +23,7 @@ fn print_data(arg: String) -> () {
     println!("hello {arg}");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 
@@ -46,7 +46,7 @@ flowchart TD
 ----
 ### Manually Defining Depencencies
 ```rust
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_data(_: ()) -> String {
     "world".to_string()
@@ -56,7 +56,7 @@ fn print_data(arg: String) -> () {
     println!("hello {arg}");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
     let task_ref = add_task(produce_data, (), opts);
@@ -140,7 +140,7 @@ flowchart TD
 ----
 ### Branching Tasks
 ```rust
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn branch_task(_: ()) -> Branch<usize> {
     Branch::Left(0)
@@ -154,7 +154,7 @@ fn right(_: usize) -> () {
     println!("this won't execute");
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     // only 'left' task will be executed since branch_task returns Branch::Left
     let _ = branch(branch_task, (), left, right, &TaskOptions::default());
@@ -174,7 +174,7 @@ flowchart TD
 ----
 ### Dynamic Tasks
 ```rust
-use thepipelinetool_core::prelude::*;
+use thepipelinetool_core::{prelude::*, tpt};
 
 fn produce_lazy(_: ()) -> Vec<u8> {
     vec![0, 1]
@@ -185,7 +185,7 @@ fn say_hello(arg: u8) -> u8 {
     arg
 }
 
-#[dag]
+#[tpt::main]
 fn main() {
     let opts = &TaskOptions::default();
 
