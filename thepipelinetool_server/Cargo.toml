@@ -16,7 +16,7 @@ thepipelinetool_core = { path = "../thepipelinetool_core", version = "0.2.7" }
 thepipelinetool_runner = { path = "../thepipelinetool_runner", version = "0.2.7" }
 thepipelinetool_utils = { path = "../thepipelinetool_utils", version = "0.2.7" }
 log = "0.4.20"
-env_logger = "0.10.0"
+env_logger = "0.11.3"
 deadpool = { version = "0.11.0", features = ["managed", "rt_tokio_1"] }
 deadpool-redis = "0.15"
 redis = { version = "=0.25.3", features = ["tokio-comp", "keep-alive", "connection-manager"] }
