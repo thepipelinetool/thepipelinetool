@@ -1,9 +1,7 @@
 use std::{process::Command, time::Duration};
 // use thepipelinetool_runner::run;
 use anyhow::Result;
-use thepipelinetool_runner::{
-    backend::Backend, get_tpt_executor_command,
-};
+use thepipelinetool_runner::{backend::Backend, get_tpt_executor_command};
 use thepipelinetool_server::{
     env::{
         get_executor_image, get_executor_type, get_max_parallelism, get_redis_url,
