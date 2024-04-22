@@ -5,8 +5,8 @@ tasks:
       examples_dir: ./bin/
       server_endpoint: http://localhost:8000
   list_examples_separate:
+    operator: python_operator
     script: |-
-      python3 - <<-EOF
       import os, json
       examples_dir = {{params.examples_dir}}
       print(json.dumps({
@@ -14,16 +14,14 @@ tasks:
         "params": [f for f in os.listdir(examples_dir) if f.startswith("params_")],
         "regular": [f for f in os.listdir(examples_dir) if not f.startswith("fail_") and not f.startswith("params_")],
       }))
-      EOF
   list_examples:
+    operator: python_operator
     script: |-
-      python3 - <<-EOF
       import json
       print(json.dumps({{list_examples_separate.regular}}))
-      EOF
   create_upload:
+    operator: python_operator
     script: |-
-      python3 - <<-EOF
       import os, json
       files = {{list_examples}}
       examples_dir = {{params.examples_dir}}
@@ -34,7 +32,6 @@ tasks:
         ]
         for f in files
       ]))
-      EOF
   upload_examples:
     lazy_expand: true
     depends_on: 
@@ -42,8 +39,8 @@ tasks:
   create_trigger:
     depends_on:
       - upload_examples
+    operator: python_operator
     script: |-
-      python3 - <<-EOF
       import os, json
       files = {{list_examples}}
       server_endpoint = {{params.server_endpoint}}
@@ -53,14 +50,13 @@ tasks:
         ]
         for f in files
       ]))
-      EOF
   trigger_examples:
     lazy_expand: true
     depends_on: 
       - create_trigger
   create_await_complete:
+    operator: python_operator
     script: |-
-      python3 - <<-EOF
       import os, json
       run_ids = {{trigger_examples}}
       server_endpoint = {{params.server_endpoint}}
@@ -70,7 +66,6 @@ tasks:
         ]
         for run_id in run_ids
       ]))
-      EOF
   await_examples:
     options:
       is_sensor: true
