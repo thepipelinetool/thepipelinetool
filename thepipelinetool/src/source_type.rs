@@ -18,7 +18,7 @@ impl SourceType {
                 if p.exists() {
                     match p.extension() {
                         Some(ext) => match ext.to_str().unwrap() {
-                            "yaml" => SourceType::Yaml,
+                            "yaml" | "yml" => SourceType::Yaml,
                             _ => panic!("unknown extenstion type"),
                         },
                         None => SourceType::Exe,
