@@ -16,7 +16,7 @@ pub mod redis_backend;
 pub mod routes;
 pub mod scheduler;
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Executor {
     Local,
     Docker,

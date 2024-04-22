@@ -18,10 +18,10 @@ services:
       - ./bin/:/worker/bin/
       # - /var/run/docker.sock:/var/run/docker.sock
     restart: always
-    privileged: true
+    # privileged: true
     environment:
       - REDIS_URL=redis://cache:6379
-      - EXECUTOR="Docker"
+      # - EXECUTOR="Docker"
   cache:
       container_name: cache
       image: redis

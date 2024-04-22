@@ -1,4 +1,4 @@
-use std::{process::Command, time::Duration};
+use std::{process::Command, thread, time::Duration};
 // use thepipelinetool_runner::run;
 use anyhow::Result;
 use thepipelinetool_runner::{backend::Backend, get_tpt_executor_command};
@@ -22,10 +22,14 @@ async fn main() -> Result<()> {
     let executor = get_executor_type()?;
     let backend = RedisBackend::dummy(get_redis_pool()?);
 
+    println!("Running tpt worker with '{:?}' executor type", executor);
+    println!("Connected to redis at {}", get_redis_url());
+
     loop {
         let mut backend = backend.clone();
 
-        sleep(Duration::from_millis(250)).await;
+        // TODO read from env
+        sleep(Duration::from_nanos(1)).await;
 
         tokio::spawn(async move { _work(max_parallelism, executor, &mut backend).await });
     }
