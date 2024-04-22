@@ -3,7 +3,7 @@ use std::{process::Command, time::Duration};
 use anyhow::Result;
 use thepipelinetool_runner::{backend::Backend, get_tpt_executor_command};
 use thepipelinetool_server::{
-    env::{get_executor_type, get_max_parallelism},
+    env::{get_executor_type, get_max_parallelism, get_redis_url},
     get_redis_pool,
     redis_backend::RedisBackend,
     Executor,
@@ -36,7 +36,6 @@ async fn _work(
     executor: Executor,
     backend: &mut RedisBackend,
 ) -> Result<()> {
-    dbg!(backend.get_running_tasks_count().await?);
     for _ in backend.get_running_tasks_count().await?..max_parallelism {
         let temp_queued_task = backend.pop_priority_queue()?;
         if temp_queued_task.is_none() {
@@ -62,7 +61,27 @@ async fn _work(
                     }),
                 );
             }
-            Executor::Docker => todo!(),
+            Executor::Docker => {
+                let mut cmd = Command::new("docker");
+                cmd.args(&["run", "-e"]);
+                cmd.arg(format!("REDIS_URL={}", get_redis_url()));
+                cmd.arg("--network=thepipelinetool_default");
+                cmd.arg("executor");
+                cmd.arg(serde_json::to_string(&temp_queued_task)?);
+
+                let _ = spawn(
+                    cmd,
+                    None,
+                    Box::new(|x| {
+                        print!("{x}");
+                        Ok(())
+                    }),
+                    Box::new(|x| {
+                        eprint!("{x}");
+                        Ok(())
+                    }),
+                );
+            }
             Executor::Kubernetes => todo!(),
         }
     }

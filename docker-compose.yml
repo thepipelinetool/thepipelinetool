@@ -16,9 +16,12 @@ services:
     #   replicas: 2
     volumes:
       - ./bin/:/worker/bin/
+      # - /var/run/docker.sock:/var/run/docker.sock
     restart: always
+    privileged: true
     environment:
       - REDIS_URL=redis://cache:6379
+      - EXECUTOR="Docker"
   cache:
       container_name: cache
       image: redis

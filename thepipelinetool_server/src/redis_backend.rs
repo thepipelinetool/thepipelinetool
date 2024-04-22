@@ -257,7 +257,7 @@ impl RedisBackend {
             .await?)
     }
 
-    #[timed(duration(printer = "debug!"))]
+    // #[timed(duration(printer = "debug!"))]
     pub async fn get_running_tasks_count(&self) -> Result<usize> {
         let mut conn = self.pool.get().await.expect("DB connection failed");
         Ok(cmd("SCARD")
