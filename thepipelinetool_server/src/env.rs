@@ -73,7 +73,17 @@ pub fn get_check_timeout_loop_interval() -> Result<u64> {
 }
 
 pub fn get_scheduler_loop_interval() -> Result<u64> {
-    Ok(env::var("CHECK_TIMEOUT_LOOP_INTERVAL")
+    Ok(env::var("SCHEDULER_LOOP_INTERVAL")
         .unwrap_or(5.to_string())
         .parse::<u64>()?)
+}
+
+pub fn get_worker_loop_interval() -> Result<u64> {
+    Ok(env::var("WORKER_LOOP_INTERVAL")
+        .unwrap_or(1.to_string())
+        .parse::<u64>()?)
+}
+
+pub fn get_executor_image() -> Result<String> {
+    Ok(env::var("EXECUTOR_IMAGE").unwrap_or("executor".to_string()))
 }
