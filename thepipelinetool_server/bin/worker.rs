@@ -31,68 +31,69 @@ async fn main() -> Result<()> {
         let mut backend = backend.clone();
 
         // TODO read from env
-        sleep(Duration::from_millis(250)).await;
+        sleep(Duration::from_nanos(100)).await;
 
-        tokio::spawn(async move { run_in_memory(max_parallelism, executor, &mut backend).await });
+        tokio::spawn(async move { _work(max_parallelism, executor, &mut backend).await });
+        // tokio::spawn(async move { run_in_memory(max_parallelism, executor, &mut backend).await });
     }
 }
 
-// async fn _work(
-//     max_parallelism: usize,
-//     executor: Executor,
-//     backend: &mut RedisBackend,
-// ) -> Result<()> {
-//     run_in_memory(backend, max_parallelism, tpt_path);
-//     // for _ in backend.get_running_tasks_count().await?..max_parallelism {
-//     //     let temp_queued_task = backend.pop_priority_queue()?;
-//     //     if temp_queued_task.is_none() {
-//     //         return Ok(());
-//     //     }
+async fn _work(
+    max_parallelism: usize,
+    executor: Executor,
+    backend: &mut RedisBackend,
+) -> Result<()> {
+    // run_in_memory(backend, max_parallelism, tpt_path);
+    if backend.get_running_tasks_count().await? < max_parallelism {
+        let temp_queued_task = backend.pop_priority_queue()?;
+        if temp_queued_task.is_none() {
+            return Ok(());
+        }
 
-//     //     let temp_queued_task = temp_queued_task.expect("");
-//     //     thread::spawn(move || match executor {
-//     //         Executor::Local => {
-//     //             let mut cmd = Command::new(get_tpt_executor_command());
-//     //             cmd.arg(serde_json::to_string(&temp_queued_task).unwrap());
-//     //             let _ = spawn(
-//     //                 cmd,
-//     //                 None,
-//     //                 Box::new(|x| {
-//     //                     print!("{x}");
-//     //                     Ok(())
-//     //                 }),
-//     //                 Box::new(|x| {
-//     //                     eprint!("{x}");
-//     //                     Ok(())
-//     //                 }),
-//     //             );
-//     //         }
-//     //         Executor::Docker => {
-//     //             let mut cmd = Command::new("docker");
-//     //             cmd.args(&["run", "-e"]);
-//     //             cmd.arg(format!("REDIS_URL={}", get_redis_url()));
-//     //             cmd.arg("--network=thepipelinetool_default");
-//     //             cmd.arg("executor");
-//     //             cmd.arg(serde_json::to_string(&temp_queued_task).unwrap());
+        let temp_queued_task = temp_queued_task.expect("");
+        match executor {
+            Executor::Local => {
+                let mut cmd = Command::new(get_tpt_executor_command());
+                cmd.arg(serde_json::to_string(&temp_queued_task).unwrap());
+                let _ = spawn(
+                    cmd,
+                    None,
+                    Box::new(|x| {
+                        print!("{x}");
+                        Ok(())
+                    }),
+                    Box::new(|x| {
+                        eprint!("{x}");
+                        Ok(())
+                    }),
+                );
+            }
+            Executor::Docker => {
+                let mut cmd = Command::new("docker");
+                cmd.args(&["run", "-e"]);
+                cmd.arg(format!("REDIS_URL={}", get_redis_url()));
+                cmd.arg("--network=thepipelinetool_default");
+                cmd.arg("executor");
+                cmd.arg(serde_json::to_string(&temp_queued_task).unwrap());
 
-//     //             let _ = spawn(
-//     //                 cmd,
-//     //                 None,
-//     //                 Box::new(|x| {
-//     //                     print!("{x}");
-//     //                     Ok(())
-//     //                 }),
-//     //                 Box::new(|x| {
-//     //                     eprint!("{x}");
-//     //                     Ok(())
-//     //                 }),
-//     //             );
-//     //         }
-//     //         Executor::Kubernetes => todo!(),
-//     //     });
-//     // }
-//     Ok(())
-// }
+                let _ = spawn(
+                    cmd,
+                    None,
+                    Box::new(|x| {
+                        print!("{x}");
+                        Ok(())
+                    }),
+                    Box::new(|x| {
+                        eprint!("{x}");
+                        Ok(())
+                    }),
+                );
+            }
+            Executor::Kubernetes => todo!(),
+        }
+    }
+    Ok(())
+}
 
 pub async fn run_in_memory(
     max_parallelism: usize,
@@ -103,7 +104,6 @@ pub async fn run_in_memory(
     let mut current_parallel_tasks_count = 0;
 
     for _ in backend.get_running_tasks_count().await?..max_parallelism {
-
         if let Some(temp_queued_task) = backend.pop_priority_queue().unwrap() {
             let tx = tx.clone();
             // let mut backend = backend.clone();
@@ -179,7 +179,6 @@ pub async fn run_in_memory(
             // let tpt_path = tpt_path.clone();
 
             thread::spawn(move || {
-
                 match executor {
                     Executor::Local => {
                         let mut cmd = Command::new(get_tpt_executor_command());
