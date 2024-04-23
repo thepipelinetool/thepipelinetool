@@ -7,11 +7,21 @@ RUN cargo install --path thepipelinetool --bin tpt
 RUN cargo install --path thepipelinetool_server --bin worker
 RUN cargo install --path thepipelinetool_server --bin tpt_executor
 
-FROM rust:latest
+FROM ubuntu:latest AS runner
+
+RUN apt update \
+    && DEBIAN_FRONTEND=noninteractive apt install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
+    sh get-docker.sh && rm get-docker.sh
 WORKDIR /worker
 
 COPY --from=server_builder /usr/local/cargo/bin/tpt /usr/local/bin/tpt
 COPY --from=server_builder /usr/local/cargo/bin/worker /usr/local/bin/worker
 COPY --from=server_builder /usr/local/cargo/bin/tpt_executor /usr/local/bin/tpt_executor
 
-CMD worker
+ENV PATH="${PATH}:/usr/local/bin/"
+
+CMD [ "worker" ]
