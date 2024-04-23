@@ -6,6 +6,6 @@ scripts/
 .dockerignore
 .gitignore
 Cargo.lock
-*.Dockerfile
+docker/
 docker-compose.yml
 ci.yaml
