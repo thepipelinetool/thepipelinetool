@@ -2,7 +2,7 @@ services:
   tpt-server:
     build:
       context: .
-      dockerfile: server.Dockerfile
+      dockerfile: docker/server.Dockerfile
     ports:
       - 8000:8000
     environment:
@@ -10,7 +10,7 @@ services:
   tpt-worker:
     build:
       context: .
-      dockerfile: worker.Dockerfile
+      dockerfile: docker/worker.Dockerfile
     # deploy:
     #   mode: replicated
     #   replicas: 2
