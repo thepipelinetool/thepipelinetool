@@ -17,6 +17,7 @@ on:
       - thepipelinetool_utils/**
       - Cargo.toml
       - scripts/**
+      - docker/**
 jobs:
   build:
     runs-on: ubuntu-latest

@@ -20,6 +20,8 @@ on:
       - Cargo.toml
       - scripts/**
       - ci.yaml
+      - docker/**
+      - docker-compose.yml
 jobs:
   build:
     runs-on: ubuntu-latest
