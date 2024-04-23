@@ -1,0 +1,8 @@
+tasks:
+  hello:
+    operator: python_operator
+    requirements:
+      - pandas
+    script: |-
+      print("hello world1")
+      print("hello world2")
