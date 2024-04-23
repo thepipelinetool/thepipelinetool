@@ -9,12 +9,7 @@ RUN cargo install --path thepipelinetool_server --bin tpt_executor
 
 FROM python:slim AS runner
 
-RUN apt update \
-    && DEBIAN_FRONTEND=noninteractive apt install -y \
-    curl \
-    && curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sh get-docker.sh && rm get-docker.sh \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=docker:dind /usr/local/bin/docker /usr/local/bin/
 
 WORKDIR /worker
 
